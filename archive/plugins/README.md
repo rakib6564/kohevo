@@ -12,6 +12,7 @@ and why.
 
 | Plugin | Why it's archived |
 |---|---|
+| `booking-plus` | **Superseded, not dropped.** Booking absorbed it: the API class, admin screens, gate, auto-response, nudge cron, reminder overlay and slot restrictions all live in `plugins/booking` behind the `service_rules`, `client_messaging`, `slot_restrictions` and `custom_reminders` capability flags. Running both fatalled on a duplicate `BookingPlusAPI` declaration |
 | `clientdesk` | Freelancer project portal — not in the spec |
 | `content-builder` | CMS/page builder; Booking and Membership only use it opportunistically (`class_exists`-guarded) |
 | `flat-rate-shipping` | E-commerce shipping |

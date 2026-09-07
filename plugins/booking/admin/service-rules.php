@@ -1,6 +1,10 @@
 <?php
 /**
- * Booking+ — Services list (glass UI).
+ * Booking — per-service rules list (glass UI).
+ *
+ * The rules edited here are the ones gateBookingRules() enforces:
+ * minimum advance days, prerequisite service, prep page, WhatsApp and
+ * the automatic post-booking response.
  *
  * Uses the shared slate_data_row() list widget for a consistent look
  * with core Booking / Membership lists.
@@ -9,11 +13,11 @@ require_once dirname(__DIR__, 3) . '/config.php';
 require_once dirname(__DIR__) . '/BookingPlusAPI.php';
 
 Auth::require();
-Auth::requirePerm('bookingplus.manage_settings');
+Auth::requirePerm('booking.manage_services');
 BookingPlusAPI::ensureSchema();
 
-$pageTitle  = 'Booking+ · Services';
-$currentNav = 'bookingplus-services';
+$pageTitle  = 'Booking · Service rules';
+$currentNav = 'booking-service-rules';
 $tid        = current_tenant_id();
 
 $services = Database::rows(
@@ -32,7 +36,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 slate_breadcrumbs([
     ['label' => 'Dashboard', 'href' => SLATE_URL . '/admin/'],
-    ['label' => 'Booking+',  'href' => plugin_url('booking-plus', 'admin/index.php')],
+    ['label' => 'Booking',   'href' => plugin_url('booking', 'admin/index.php')],
     ['label' => 'Services'],
 ]);
 ?>
@@ -64,8 +68,8 @@ slate_breadcrumbs([
         $prereqName = null;
         if (!empty($s['prereq_service_id'])) {
             $prereqName = (string) Database::value(
-                "SELECT name FROM booking_services WHERE id = ?",
-                [(int)$s['prereq_service_id']]
+                "SELECT name FROM booking_services WHERE id = ? AND tenant_id = ?",
+                [(int)$s['prereq_service_id'], $tid]
             );
         }
 
@@ -88,7 +92,7 @@ slate_breadcrumbs([
             $detail['Prep page'] = ['label' => 'Prep page', 'html' => '<a href="' . e($s['prep_page_url']) . '" target="_blank" rel="noopener">' . e($s['prep_page_url']) . '</a>'];
         }
 
-        $editUrl = plugin_url('booking-plus', 'admin/service.php') . '?id=' . (int)$s['id'];
+        $editUrl = plugin_url('booking', 'admin/service-rule.php') . '?id=' . (int)$s['id'];
         $actions = '<a href="' . e($editUrl) . '" class="btn btn-sm btn-primary">Edit extras</a>';
 
         slate_data_row([

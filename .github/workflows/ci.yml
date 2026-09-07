@@ -246,21 +246,28 @@ jobs:
           VALUES (1, 'slate_test_database', '1')
           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
+          -- Seeded at 0.0.0 on purpose. PluginLoader::loadOne() only refreshes
+          -- a plugin's manifest from its plugin.json when the FILE version is
+          -- newer than the row's, so seeding '1.0.0' against a real 0.7.x
+          -- pinned this stub manifest — which declares no "capabilities" — and
+          -- silently ran every capability-gated hook in Booking as disabled.
+          -- A version below every real one makes the on-disk manifest win.
+          --
           -- Forms, Booking and Membership are activated so their own suites
           -- run instead of skipping, and a skipped test is a green tick over
           -- nothing. Content Builder is NOT activated: it is archived out of
           -- this build (see archive/plugins/), so the content-page render path
           -- and the block-inlining tests that depend on it skip by design.
           INSERT INTO plugins (slug, name, version, status, manifest_json)
-          VALUES ('forms', 'Forms', '1.0.0', 'active', '{"slug":"forms","name":"Forms","version":"1.0.0"}')
+          VALUES ('forms', 'Forms', '0.0.0', 'active', '{"slug":"forms","name":"Forms","version":"0.0.0"}')
           ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
 
           INSERT INTO plugins (slug, name, version, status, manifest_json)
-          VALUES ('booking', 'Booking', '1.0.0', 'active', '{"slug":"booking","name":"Booking","version":"1.0.0"}')
+          VALUES ('booking', 'Booking', '0.0.0', 'active', '{"slug":"booking","name":"Booking","version":"0.0.0"}')
           ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
 
           INSERT INTO plugins (slug, name, version, status, manifest_json)
-          VALUES ('membership', 'Membership', '1.0.0', 'active', '{"slug":"membership","name":"Membership","version":"1.0.0"}')
+          VALUES ('membership', 'Membership', '0.0.0', 'active', '{"slug":"membership","name":"Membership","version":"0.0.0"}')
           ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
           SQL
 

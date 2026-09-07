@@ -11,9 +11,10 @@
  * created per-appointment by BookingAPI::createAppointment). No account
  * required — the token is the auth.
  *
- * URL: /plugins/booking-plus/public/message.php?t=<manage_token>
+ * URL: /plugins/booking/public/message.php?t=<manage_token>
  */
 require_once dirname(__DIR__, 3) . '/config.php';
+slate_public_entry('booking');
 
 // Deactivating the plugin must actually turn this endpoint off. Without this
 // it stayed live after deactivation — still resolving manage tokens, still
@@ -21,7 +22,7 @@ require_once dirname(__DIR__, 3) . '/config.php';
 // operator believes is off. booking/public/pay-intent.php:36 is the model:
 // same check, same 503, and in the same position — before the API require, so
 // nothing is loaded or written on the way to refusing.
-if (!PluginLoader::isActive('booking-plus') && !PluginLoader::isCapabilityEnabled('booking', 'client_messaging')) {
+if (!PluginLoader::isCapabilityEnabled('booking', 'client_messaging')) {
     http_response_code(503);
     bookingplus_render_page('Not available',
         '<p>This page isn\'t available right now. Please reply to your confirmation email instead.</p>');
@@ -29,7 +30,7 @@ if (!PluginLoader::isActive('booking-plus') && !PluginLoader::isCapabilityEnable
 }
 
 require_once dirname(__DIR__) . '/BookingPlusAPI.php';
-require_once dirname(__DIR__, 2) . '/booking/BookingAPI.php';
+require_once dirname(__DIR__) . '/BookingAPI.php';
 
 BookingPlusAPI::ensureSchema();
 
@@ -88,7 +89,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit'])) {
                 if (class_exists('Notifications')) {
                     Notifications::add('New message · ' . ($appt['customer_name'] ?? 'A client'), [
                         'body' => mb_substr($message, 0, 140),
-                        'url'  => SLATE_URL . '/admin/plugins/booking-plus/index.php',
+                        'url'  => SLATE_URL . '/plugins/booking/admin/messages.php',
                         'icon' => 'message-circle',
                     ]);
                 }
@@ -195,7 +196,7 @@ function bookingplus_notify_therapist(array $appt, string $message): void {
           . '<h3 style="margin-top:16px;">Message</h3>'
           . '<blockquote style="border-left:3px solid #ccc;padding:8px 12px;color:#333;">'
           . nl2br(e($message)) . '</blockquote>'
-          . '<p><a href="' . e(SLATE_URL . '/admin/plugins/booking-plus/index.php')
+          . '<p><a href="' . e(SLATE_URL . '/plugins/booking/admin/messages.php')
           . '">Open Booking+ Messages</a> to mark this replied.</p>';
 
     Mailer::send($to, $subj, $body);

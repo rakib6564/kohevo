@@ -1,6 +1,6 @@
 <?php
 /**
- * Booking+ — per-service editor (glass UI).
+ * Booking — per-service rules editor (glass UI).
  *
  * Uses the shared slate_edit_* record-editor kit for a consistent look
  * with core Booking / Membership editors.
@@ -10,7 +10,7 @@ require_once dirname(__DIR__) . '/BookingPlusAPI.php';
 require_once SLATE_ROOT . '/includes/record_editor.php';
 
 Auth::require();
-Auth::requirePerm('bookingplus.manage_settings');
+Auth::requirePerm('booking.manage_services');
 BookingPlusAPI::ensureSchema();
 
 $tid       = current_tenant_id();
@@ -20,7 +20,7 @@ $service   = $serviceId > 0
     : null;
 
 if (!$service) {
-    header('Location: ' . plugin_url('booking-plus', 'admin/services.php'));
+    header('Location: ' . plugin_url('booking', 'admin/service-rules.php'));
     exit;
 }
 
@@ -74,8 +74,8 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 slate_breadcrumbs([
     ['label' => 'Dashboard', 'href' => SLATE_URL . '/admin/'],
-    ['label' => 'Booking+',  'href' => plugin_url('booking-plus', 'admin/index.php')],
-    ['label' => 'Services',  'href' => plugin_url('booking-plus', 'admin/services.php')],
+    ['label' => 'Booking',   'href' => plugin_url('booking', 'admin/index.php')],
+    ['label' => 'Service rules', 'href' => plugin_url('booking', 'admin/service-rules.php')],
     ['label' => $service['name']],
 ]);
 
@@ -100,7 +100,7 @@ $statAuto   = trim((string)$cfg['auto_response_body']) !== '' ? 'On' : '—';
         <?= csrf_field() ?>
 
         <?php slate_edit_backlink([
-            'back_href'  => plugin_url('booking-plus', 'admin/services.php'),
+            'back_href'  => plugin_url('booking', 'admin/service-rules.php'),
             'back_label' => 'All services',
         ]); ?>
 
@@ -252,7 +252,7 @@ $statAuto   = trim((string)$cfg['auto_response_body']) !== '' ? 'On' : '—';
 
         <?php slate_edit_actionbar([
             'buttons_html' =>
-                '<a href="' . e(plugin_url('booking-plus', 'admin/services.php')) . '" class="btn btn-ghost">Cancel</a>'
+                '<a href="' . e(plugin_url('booking', 'admin/service-rules.php')) . '" class="btn btn-ghost">Cancel</a>'
               . '<button type="submit" class="btn btn-primary">Save</button>',
         ]); ?>
 

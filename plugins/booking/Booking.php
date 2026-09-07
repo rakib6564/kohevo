@@ -163,6 +163,11 @@ class Booking extends Plugin {
         $items[] = ['slug' => 'booking-services',     'label' => __('booking_services', 'Services'),
                     'href' => $this->url('admin/services.php'),
                     'icon' => 'tag', 'perm' => 'booking.manage_services', 'order' => 602, 'group' => 'booking'];
+        if ($this->isCapabilityEnabled('service_rules')) {
+            $items[] = ['slug' => 'booking-service-rules', 'label' => __('booking_service_rules', 'Service rules'),
+                        'href' => $this->url('admin/service-rules.php'),
+                        'icon' => 'sliders', 'perm' => 'booking.manage_services', 'order' => 602, 'group' => 'booking'];
+        }
         $items[] = ['slug' => 'booking-providers',    'label' => __('booking_providers', 'Providers'),
                     'href' => $this->url('admin/providers.php'),
                     'icon' => 'users', 'perm' => 'booking.manage_providers', 'order' => 603, 'group' => 'booking'];
@@ -781,6 +786,21 @@ class Booking extends Plugin {
                 if ($msg === '') {
                     $msg = 'This session requires a prior consultation. Please book a Discovery Call first — we can talk it through together.';
                 }
+                // A configured redirect sends her to a banner page that
+                // explains the switch and forwards her to the right service's
+                // widget, rather than dead-ending on an error. This branch was
+                // dropped when the gate was absorbed from Booking+, which left
+                // hsr_redirect_service_id configurable but inert.
+                $redirectId = (int)($cfg['hsr_redirect_service_id'] ?? 0);
+                if ($redirectId > 0 && defined('SLATE_URL')) {
+                    return [
+                        'ok'          => false,
+                        'error'       => $msg,
+                        'redirect_to' => SLATE_URL . '/plugins/booking/public/prereq.php'
+                                       . '?from=' . (int)($service['id'] ?? 0)
+                                       . '&to='   . $redirectId,
+                    ];
+                }
                 return ['ok' => false, 'error' => $msg];
             }
         }
@@ -880,7 +900,7 @@ class Booking extends Plugin {
             $whatsapp = trim((string)($cfg['whatsapp_url'] ?? '')) ?: BookingPlusAPI::globalWhatsappUrl();
             $messageUrl = '';
             if (!empty($appt['manage_token']) && defined('SLATE_URL')) {
-                $messageUrl = SLATE_URL . '/plugins/booking-plus/public/message.php'
+                $messageUrl = SLATE_URL . '/plugins/booking/public/message.php'
                             . '?t=' . rawurlencode((string)$appt['manage_token']);
             }
 

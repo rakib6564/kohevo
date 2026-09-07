@@ -8,10 +8,10 @@
  * here. This page explains the redirect and forwards them to the
  * required prior service's /book URL with a friendly CTA.
  *
- * URL: /plugins/booking-plus/public/prereq.php?from=<id>&to=<id>
+ * URL: /plugins/booking/public/prereq.php?from=<id>&to=<id>
  */
 require_once dirname(__DIR__, 3) . '/config.php';
-slate_public_entry('booking-plus');
+slate_public_entry('booking');
 require_once dirname(__DIR__) . '/BookingPlusAPI.php';
 
 BookingPlusAPI::ensureSchema();

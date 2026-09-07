@@ -16,13 +16,19 @@
  * and registers its own fields through a seam Booking owns. `reminder_leads`
  * goes back to having exactly one writer.
  *
+ * Booking has since absorbed Booking+ outright, so the seam is now internal:
+ * the fields and the cadence filter live in Booking's own copy of
+ * BookingPlusAPI. The invariant these cases pin is unchanged and still worth
+ * pinning — one settings screen, one writer for `reminder_leads`, and a
+ * cadence that is a default rather than a stored write.
+ *
  * These cases were RED before the change and the failure output is in the PR.
  */
 
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/plugins/booking/BookingAPI.php';
-require_once dirname(__DIR__, 2) . '/plugins/booking-plus/BookingPlusAPI.php';
+require_once dirname(__DIR__, 2) . '/plugins/booking/BookingPlusAPI.php';
 
 use Slate\Services\Auth\SessionRepository;
 use Slate\Tenancy\TenantContext;
@@ -82,18 +88,22 @@ unit('booking.reminder_leads has exactly one writer', function (): void {
     );
 });
 
-unit('booking-plus contributes no settings nav row of its own', function (): void {
-    $src = (string) file_get_contents(dirname(__DIR__, 2) . '/plugins/booking-plus/BookingPlus.php');
+unit('exactly one settings nav row exists for booking', function (): void {
+    // The duplication CON-1 removed would now reappear inside Booking itself
+    // rather than in a second plugin, so this reads Booking's own nav builder.
+    $src = (string) file_get_contents(dirname(__DIR__, 2) . '/plugins/booking/Booking.php');
     $nav = strstr($src, 'function addAdminNav');
     $end = strpos((string) $nav, "\n    }");
     if ($end !== false) $nav = substr((string) $nav, 0, $end);
 
-    // Booking already ships a 'booking-settings' row pointing at the screen
-    // that now owns every booking setting. A second row is the duplication
-    // CON-1 exists to remove.
+    assert_eq(
+        1,
+        substr_count((string) $nav, "'booking-settings'"),
+        'one and only one settings nav row'
+    );
     assert_true(
         !str_contains((string) $nav, 'bookingplus-settings'),
-        'no Booking+ Settings nav row — Booking owns the settings screen'
+        'no leftover Booking+ Settings nav row'
     );
 });
 
@@ -145,7 +155,7 @@ unit('the seam refuses to write for a caller without the permission', function (
     }
 });
 
-unit('booking-plus saves its own fields through the seam', function (): void {
+unit('the absorbed Booking+ fields save through the settings seam', function (): void {
     $restore = bss_snapshot();
     $logout = bss_login();
 
@@ -202,7 +212,7 @@ unit('the seam does not let a contributor write Booking\'s reminder_leads', func
     }
 });
 
-unit('booking-plus still shapes the DEFAULT cadence without writing it', function (): void {
+unit('the absorbed cadence is still a DEFAULT, never a stored write', function (): void {
     // Booking+ used to force its cadence by writing Booking's setting at boot.
     // It now returns it from a filter Booking applies, so the value is only
     // ever a default — an operator's stored choice always wins.

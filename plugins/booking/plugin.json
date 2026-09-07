@@ -1,8 +1,8 @@
 {
     "slug": "booking",
     "name": "Booking",
-    "version": "0.7.0",
-    "description": "Full appointment booking — services with categories, locations, resources, add-ons, per-staff pricing and group price tiers; staff schedules with breaks and date overrides; group + recurring + walk-in bookings; an embeddable /book widget with custom fields and self-service cancel/reschedule; configurable email + SMS/WhatsApp reminders, per-service templates and follow-ups; customer profiles with no-show, loyalty and tags; and payments via Stripe (full or deposit), coupons, gift cards, tax, refunds and invoices.",
+    "version": "0.8.0",
+    "description": "Full appointment booking, including the practitioner-logic capabilities absorbed from the Booking+ plugin. Services with categories, locations, resources, add-ons, per-staff pricing and group tiers; provider schedules with breaks and date overrides; group, recurring and walk-in bookings; an embeddable /book widget with self-service cancel and reschedule; Stripe payments (free/full/deposit), coupons, gift cards, refunds and invoices; email and SMS/WhatsApp reminders. The four capability flags below gate the absorbed Booking+ behaviour: per-service minimum-advance-days and prerequisite-service gates (service_rules), the client 'human message' door with its 8-hour practitioner nudge (client_messaging), type-reserved slots (slot_restrictions), and the multi-tier reminder cadence (custom_reminders).",
     "author": "Slate",
     "requires_core": ">=1.0.0",
     "capabilities": {
@@ -28,12 +28,33 @@
         }
     },
     "permissions": [
-        {"key": "booking.view",            "label": "View bookings + the calendar"},
-        {"key": "booking.manage_services", "label": "Create / edit / delete services, categories, add-ons"},
-        {"key": "booking.manage_providers","label": "Create / edit / delete providers, hours, breaks, overrides"},
-        {"key": "booking.manage_appointments","label": "Create / cancel / reschedule appointments"},
-        {"key": "booking.manage_resources","label": "Manage locations + resources/rooms"},
-        {"key": "booking.manage_settings", "label": "Configure booking settings"},
-        {"key": "booking.manage_payments", "label": "Manage coupons, gift cards, refunds + invoices"}
+        {
+            "key": "booking.view",
+            "label": "View bookings + the calendar"
+        },
+        {
+            "key": "booking.manage_services",
+            "label": "Create / edit / delete services, categories, add-ons"
+        },
+        {
+            "key": "booking.manage_providers",
+            "label": "Create / edit / delete providers, hours, breaks, overrides"
+        },
+        {
+            "key": "booking.manage_appointments",
+            "label": "Create / cancel / reschedule appointments"
+        },
+        {
+            "key": "booking.manage_resources",
+            "label": "Manage locations + resources/rooms"
+        },
+        {
+            "key": "booking.manage_settings",
+            "label": "Configure booking settings"
+        },
+        {
+            "key": "booking.manage_payments",
+            "label": "Manage coupons, gift cards, refunds + invoices"
+        }
     ]
 }

@@ -11,7 +11,8 @@ assessment never grants access to the programme app.
 
 For every prospect and client before a programme. Booking, payments,
 reminders, preparation and follow-up, with no download.
-Plugins: `booking` + `booking-plus`, with `membership` controlling access.
+Plugins: `booking` (with its `service_rules` and `client_messaging`
+capabilities), and `membership` controlling access.
 
 ### Level 2 — Downloadable app
 
@@ -86,18 +87,19 @@ a plugin you upload as a ZIP through the admin.
 
 ### Bundled plugins (`plugins/`)
 
-Eight plugins ship in this build. Scope comes from *Solaya — Capacités &
+Seven plugins ship in this build. Scope comes from *Solaya — Capacités &
 Parcours / Capabilities & Journeys*, which names the application as
-Booking, Booking+, Membership and Coaching; the other four are the
-dependencies those four need to deliver it.
+Booking, Booking+, Membership and Coaching. Booking has since absorbed
+Booking+ outright — its capabilities are the four flags on the Booking
+row below — so the spec's four features are delivered by three plugins,
+with the rest as the dependencies they need.
 
 | Plugin | Slug | Version | Role | What it covers |
 |---|---|---|---|---|
-| **Booking** | `booking` | 0.7.0 | Level 1 · Appointments | Appointment types with duration, buffers, price and categories; availability with breaks and per-provider date overrides; conflict handling; mandatory contact fields; embeddable `/book` widget with self-service cancel & reschedule; Stripe free / full / deposit / on-site; coupons, gift cards, tax, refunds, invoices; email + SMS/WhatsApp reminders; client profiles with no-show and loyalty tags |
-| **Booking+** | `booking-plus` | 0.2.0 | Level 1 · Practitioner logic | Per-service minimum-advance delay (HSR, default 21 days); prerequisite gate (Discovery Call before HSR); slots reserved per appointment type; client "human message" step routed to the practitioner; automatic post-booking response (prep page + WhatsApp + payment note); 8-hour internal nudge; 8-day / day-before / 10-minute reminder cadence |
+| **Booking** | `booking` | 0.8.0 | Level 1 · Appointments & practitioner logic | Appointment types with duration, buffers, price and categories; availability with breaks and per-provider date overrides; conflict handling; embeddable `/book` widget with self-service cancel & reschedule; Stripe free / full / deposit / on-site; coupons, gift cards, tax, refunds, invoices; email + SMS/WhatsApp reminders. Four capability flags carry the absorbed Booking+ behaviour: `service_rules` (HSR minimum-advance days, Discovery-Call prerequisite, prep page, WhatsApp, auto-response), `client_messaging` (the client "human message" door and its 8-hour practitioner nudge), `slot_restrictions` (slots reserved per type) and `custom_reminders` (the 8-day / day-before / 10-minute cadence) |
 | **Membership** | `membership` | 0.7.1 | Access control | Fixed-term plans with FR+EN names, pricing, duration and grace period; plan types (membership / insurance / course); member profiles with medical, allergies, emergency contact and consent, plus QR member card; wallet and transaction ledger; the active-membership gate wired into Booking that keeps a one-time assessment from ever unlocking the programme app |
 | **Coaching** | `coaching` | 0.6.0 | Level 2 · Body & Soul app | Full profile with auto BMI/BMR, medical section and intolerances; 3-level goal tracker with "exceeded" and extra actions; food diary (meals, foods, photos, quantities); emotions with hunger/satiety context; hydration and physical activity; charts including the emotion↔food correlation; 1:1 chat with scheduled and immediate messages; meal structure, shopping list, two-way recipes and template library; challenges and end-of-programme summary; 1-year reactivation then automatic data deletion |
-| **Stripe Payment Gateway** | `stripe-payment` | 1.2.0 | Payments engine | Backs every payment mode the spec requires — free, full, deposit and the HSR staged first-hour-then-balance flow — plus refunds and invoices. Booking calls it from 22 sites; Membership from 8 |
+| **Stripe Payment Gateway** | `stripe-payment` | 1.2.0 | Payments engine | Backs every payment mode the spec requires — free, full, deposit and the HSR staged first-hour-then-balance flow — plus refunds and invoices |
 | **Forms** | `forms` | 0.7.5 | Questionnaires | Backs the HSR preparation questionnaire (§5.2) and the interactive 7-day food-diary document sent before a Nutrition Assessment (§5.3) |
 | **Slate Multi Language Visual Translation** | `multilang-translate` | 1.3.0 | Bilingual UI | Closes the §6 gap "Bilingual UI coverage — verify all Booking/Coaching strings." Harvests every rendered string for FR/EN translation |
 | **Media library (compatibility shim)** | `media-library` | 1.1.0 | Media picker | Retained on purpose: core `Media::enqueuePicker()` serves its picker CSS/JS, and coaching's recipe and template library uses it to attach images |
@@ -173,7 +175,7 @@ slate/
 ├── uploads/               File uploads (branding, shop, plugin staging)
 ├── bin/                   package-plugin.php, seed-demo.php, clean-demo.php
 ├── vendor/                PHPMailer (Composer)
-├── plugins/               The 8 active plugins (see table above)
+├── plugins/               The 7 active plugins (see table above)
 │   └── _dist/             Pre-built upload-ready plugin ZIPs
 └── archive/plugins/       Slate plugins outside this build — never loaded
 ```
