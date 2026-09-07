@@ -49,3 +49,19 @@ WHERE slug IN ('clientdesk','content-builder','flat-rate-shipping',
   'shop-emails','sitehub','slate-mcp','small-business-kit','studio',
   'timeclock');
 ```
+
+## Tests archived alongside these plugins
+
+`archive/tests/` holds the suites whose subject moved here:
+
+- `integration/` — 28 tests for content-builder, small-business-kit and studio
+- `render/` — the page-render harness, which globbed `plugins/studio/admin/*.php`
+  and rendered studio's public router
+- `js/` — the React-renderer parity test, which imports
+  `plugins/content-builder/public/assets/slate-content.js`
+- `fixtures/render-seed.sql` — seeds `studio_*` tables for the render harness
+
+These fail hard rather than skipping when their plugin's files are absent
+(one was an unguarded `require_once` of `small-business-kit/SBKitAPI.php`
+that killed the whole runner), so they moved with their subject. Restoring
+a plugin means restoring its tests and the matching `ci.yml` steps.
