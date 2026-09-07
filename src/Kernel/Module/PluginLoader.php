@@ -499,8 +499,15 @@ class PluginLoader {
             }
         }
 
+        // `version` is written alongside manifest_json, not left behind. Without
+        // it the two disagree permanently: activate() refreshes the manifest
+        // from disk but the column keeps whatever it was installed with, so the
+        // admin Plugins page reports the wrong version forever. It also wedges
+        // loadOne()'s refresh, which compares the file against manifest_json —
+        // already current here — and so never reconciles the column either.
         \Database::update('plugins', [
             'status'       => self::STATUS_ACTIVE,
+            'version'      => (string) ($manifest['version'] ?? '0.0.0'),
             'manifest_json'=> json_encode($manifest),
             'activated_at' => slate_db_now(),
         ], 'slug = ?', [$slug]);
