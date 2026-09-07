@@ -108,6 +108,81 @@ jobs:
           ssh-keyscan -p "${{ secrets.DEPLOY_SSH_PORT || 22 }}" \
             -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
+      # Nothing below this point is safe if DEPLOY_PATH is wrong. rsync --delete
+      # makes the destination match the source, so aimed one directory too high
+      # it does not fail — it succeeds, and removes whatever else lives there.
+      # On this account ~/public_html is a live WordPress install of ~19,500
+      # files sitting directly above the app.
+      #
+      # The ref guard above exists because this already happened once (Deploy #7,
+      # 29 Aug, plugins/multilang-translate/). That guard checks WHAT is shipped.
+      # This one checks WHERE, which was the half left unguarded.
+      #
+      # These assert POSITIVELY that the target is this app. A blocklist would
+      # only cover the one path someone already thought of; a sentinel file
+      # covers every path that is not the right one.
+      - name: Refuse a destination that is not this app
+        run: |
+          set -euo pipefail
+          DEST='${{ secrets.DEPLOY_PATH }}'
+          APP='${{ vars.DEPLOY_APP || 'solaya' }}'
+
+          case "$DEST" in
+            ""|"/"|"/home"|"/root")
+              echo "::error title=Deploy refused::DEPLOY_PATH '$DEST' is a system path."; exit 1 ;;
+            */public_html|*/public_html/)
+              echo "::error title=Deploy refused::DEPLOY_PATH '$DEST' is a bare docroot, which on this account holds a live WordPress site. Deploy into a subdirectory."; exit 1 ;;
+          esac
+          if [ "$(printf '%s' "${DEST%/}" | awk -F/ '{print NF-1}')" -lt 4 ]; then
+            echo "::error title=Deploy refused::DEPLOY_PATH '$DEST' is too shallow to be an app directory."; exit 1
+          fi
+
+          verdict=$(ssh -p "${{ secrets.DEPLOY_SSH_PORT || 22 }}" \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "
+              set -u
+              d='$DEST'
+              [ -d \"\$d\" ] || { echo MISSING; exit 0; }
+              for f in wp-config.php wp-load.php configuration.php sites/default/settings.php; do
+                [ -e \"\$d/\$f\" ] && { echo \"FOREIGN \$f\"; exit 0; }
+              done
+              if [ -f \"\$d/.slate-deploy-target\" ]; then
+                printf 'SENTINEL '; tr -d '[:space:]' < \"\$d/.slate-deploy-target\"; echo
+              else
+                echo NOSENTINEL
+              fi")
+
+          case "$verdict" in
+            "SENTINEL $APP") echo "Target confirmed as '$APP'." ;;
+            MISSING)     echo "::error title=Deploy refused::'$DEST' does not exist on the server."; exit 1 ;;
+            FOREIGN*)    echo "::error title=Deploy refused::'$DEST' contains $(echo "$verdict" | cut -d' ' -f2) — that is another application. Deploying would delete it."; exit 1 ;;
+            NOSENTINEL)  echo "::error title=Deploy refused::'$DEST' has no .slate-deploy-target marker, so nothing proves it belongs to '$APP'. If it is correct, mark it once on the server: echo $APP > $DEST/.slate-deploy-target"; exit 1 ;;
+            SENTINEL*)   echo "::error title=Deploy refused::'$DEST' is marked for '$(echo "$verdict" | cut -d' ' -f2)', not '$APP'."; exit 1 ;;
+            *)           echo "::error title=Deploy refused::could not read the target (got '$verdict')."; exit 1 ;;
+          esac
+
+      # Count deletions in a dry run and refuse over the cap, BEFORE the real
+      # transfer. rsync's own --max-delete stops mid-run — on a large overshoot
+      # it deletes up to the cap and then gives up, leaving a half-wrecked site
+      # rather than an untouched one. Refusing here costs nothing.
+      - name: Refuse an unexpectedly large deletion
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          set -euo pipefail
+          CAP='${{ vars.DEPLOY_MAX_DELETE || 200 }}'
+          planned=$(rsync -az --delete-after --dry-run --itemize-changes \
+            -e "ssh -p ${{ secrets.DEPLOY_SSH_PORT || 22 }}" \
+            --exclude '.git/' --exclude '.github/' --exclude '.env' --exclude '.installed' \
+            --exclude 'uploads/' --exclude 'data/' --exclude '.claude/' --exclude 'scratchpad/' \
+            --exclude 'Claude/' --exclude 'audit/' --exclude 'tests/.out/' --exclude '*.log' \
+            --exclude 'error_log' --exclude '.slate-deploy-target' \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/" \
+            | grep -c '^\*deleting' || true)
+          echo "This deploy would delete $planned file(s); cap is $CAP."
+          if [ "$planned" -gt "$CAP" ]; then
+            echo "::error title=Deploy refused::Would delete $planned files, over the cap of $CAP. Nothing has been transferred. Re-run with dry_run to read the deletion list; if every one is expected, raise the DEPLOY_MAX_DELETE repository variable."
+            exit 1
+          fi
+
       # Snapshot the database BEFORE anything touches it. Kept on the server
       # under ~/slate-backups so a bad migration is recoverable.
       - name: Back up the database
@@ -135,7 +210,7 @@ jobs:
       # question does not come up again.
       - name: Sync files
         run: |
-          rsync -az --delete \
+          rsync -az --delete-after --max-delete="${{ vars.DEPLOY_MAX_DELETE || 200 }}" \
             ${{ inputs.dry_run == true && '--dry-run --itemize-changes' || '' }} \
             -e "ssh -p ${{ secrets.DEPLOY_SSH_PORT || 22 }}" \
             --exclude '.git/' \
@@ -151,6 +226,7 @@ jobs:
             --exclude 'tests/.out/' \
             --exclude '*.log' \
             --exclude 'error_log' \
+            --exclude '.slate-deploy-target' \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/"
 
       - name: Apply migrations
