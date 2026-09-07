@@ -1,10 +1,31 @@
-# Slate — Modular PHP Application Platform
+# Nutrition Booking & Management
+
+A nutrition practice management application — client bookings, coaching
+programs, food and hydration tracking, memberships and payments — built
+on **Slate**, the modular multi-tenant PHP platform in this repository.
+
+The domain lives in four layers; the rest of the tree is the platform
+that hosts them:
+
+| Layer | Plugin | What it covers |
+|---|---|---|
+| Appointments | `booking` + `booking-plus` | Consultation types, practitioner schedules, group and recurring sessions, the public `/book` widget, reminders, deposits and Stripe payments |
+| Coaching program | `coaching` | The 3-month Body & Soul program — food diary with meals and photos, hydration log, physical activity, emotion and hunger/satiety tracking, meal structure, recipes, shopping lists, in-program chat and a practitioner live feed |
+| Client access | `membership` | Fixed-term plans that gate program access, member profiles, lifecycle and grace periods |
+| Client portal | `clientdesk` | Intake questionnaires, per-client dashboards, quotes, invoices and file sharing |
+
+Everything else — shop, forms, CMS, SEO, timeclock, restaurant, studio —
+is an optional plugin you activate only if a given practice needs it.
+
+---
+
+## The platform underneath
 
 A lean, multi-tenant PHP application shell with a WordPress-style
 plugin system. The core ships an admin shell, auth + roles, settings,
 a customer portal, an audit log, a hook system, and a public router.
-Everything else — e-commerce, bookings, forms, payments — is a plugin
-you upload as a ZIP through the admin.
+Everything else — bookings, coaching, e-commerce, forms, payments — is
+a plugin you upload as a ZIP through the admin.
 
 - **Core version:** 1.0.0
 - **Tested on:** PHP 8.4, MySQL/MariaDB
@@ -50,17 +71,33 @@ you upload as a ZIP through the admin.
 
 ### Bundled plugins (`plugins/`)
 
-| Plugin | Slug | Version | Status | What it does |
-|---|---|---|---|---|
-| Shop | `shop` | 1.2.7 | Stable | Full e-commerce: products w/ variants, gallery, dimensions, categories; public storefront w/ cart + checkout; orders, coupons, customers, reports; CSV import/export |
-| Stripe Payment Gateway | `stripe-payment` | 1.2.0 | Stable | Generic Stripe checkout API for any plugin (hosted + embedded Payment Element); webhook handler; Charges admin w/ refunds; test/live toggle |
-| Shop email notifications | `shop-emails` | 1.0.0 | Stable | Order confirmation, payment-completed, and admin new-order emails (overridable templates). Needs Shop + SMTP |
-| Media library | `media-library` | 1.0.0 | Stable | Browse/upload/reuse images; picker modal for the product editor |
-| Flat Rate Shipping (USPS boxes) | `shipping-flat-rate` | 1.0.1 | Stable | Per-box pricing w/ greedy bin-packing; USPS Flat Rate defaults |
-| Flat-rate shipping by weight | `flat-rate-shipping` | 1.0.0 | Stable | Cart-weight-tier shipping; integrates w/ Shop free-shipping threshold |
-| Forms | `forms` | 0.1.0 | Early | Public forms (`/forms/<slug>` or iframe embed); admin inbox; per-submit webhooks; admin + submitter email |
-| Booking | `booking` | 0.5.1 | Beta | Full appointments — services w/ categories, add-ons, custom fields, per-staff pricing, deposits/tax & group price tiers; providers w/ weekly hours, breaks & date overrides; capacity (group), recurring & walk-in bookings; locations + rooms/resources w/ conflict prevention; buffer-before/after, slot interval & advance-window controls; admin month **calendar**; public `/book` widget w/ fast-book, custom fields, file upload & self-service cancel/reschedule; configurable email + SMS/WhatsApp (Twilio) reminders & follow-ups; payments via Stripe (full/deposit), coupons, gift cards, refunds & invoices. See `plugins/booking/README.md`. |
-| Hello World | `hello-world` | 1.0.0 | Example | Reference plugin demonstrating every contract point |
+| Plugin | Slug | Version | What it does |
+|---|---|---|---|
+| Booking **●** | `booking` | 0.7.0 | Consultations & appointments — services with categories, add-ons, custom fields, per-staff pricing, deposits and group tiers; practitioner hours, breaks and date overrides; group, recurring and walk-in bookings; rooms/resources with conflict prevention; admin month calendar; public `/book` widget with self-service cancel/reschedule; email + SMS/WhatsApp reminders; Stripe payments, coupons, gift cards, refunds and invoices |
+| Booking+ **●** | `booking-plus` | 0.2.0 | Per-service extras for practitioners — preparation pages, WhatsApp links, automatic post-booking responses, min-advance-day gates and prerequisite-service gates |
+| Client Desk **●** | `clientdesk` | 2.1.2 | Client portal — intake questionnaires, per-client progress dashboards, quotes approved online, Stripe-paid invoices and file sharing |
+| Coaching **●** | `coaching` | 0.6.0 | The 3-month Body & Soul program — food diary (meals, foods, photos), hydration log, physical activity, emotion tracking with hunger/satiety context, meal structure, recipes, shopping lists, in-program chat and a practitioner live feed |
+| Content Builder | `content-builder` | 1.6.1 | Pages, posts, custom post types, taxonomies and a block-based page builder |
+| Flat-rate shipping by weight | `flat-rate-shipping` | 1.0.0 | Shipping priced by cart weight tiers; integrates with the Shop free-shipping threshold |
+| Forms | `forms` | 0.7.5 | Public forms — contact, quote requests, intake — at `/forms/<slug>` or embedded; admin inbox, per-submit webhooks, notification email |
+| Media library (compatibility shim) | `media-library` | 1.1.0 | Compatibility shim; the media library is now core (Content → Media) |
+| Membership **●** | `membership` | 0.7.1 | Fixed-term plans that gate program access — pricing, duration, grace periods, member profiles and lifecycle, on top of core customers |
+| Slate Multi Language Visual Translation | `multilang-translate` | 1.3.0 | Visual multi-language translation manager; auto-harvests strings rendered across admin and public pages |
+| React Site Bridge | `react-site-bridge` | 0.7.15 | Tenant-scoped content manifests, media mappings and visual route-content editing for React front-ends |
+| Restaurant | `restaurant` | 0.2.0 | Restaurant suite — menu with modifier groups and combos, 86-ing, dayparts, storefront checkout |
+| SEO | `seo` | 1.1.0 | Per-page meta title, description, canonical and Open Graph tags; integrates with Content Builder |
+| Flat Rate Shipping (USPS-style boxes) | `shipping-flat-rate` | 1.0.3 | Fixed price per box with greedy bin-packing; USPS Flat Rate defaults |
+| Shop | `shop` | 1.2.7 | E-commerce — products with variants, gallery and dimensions, categories, storefront with cart and checkout, orders, coupons, reports, CSV import/export |
+| Shop email notifications | `shop-emails` | 1.0.0 | Order confirmation, payment-completed and admin new-order emails. Needs Shop + SMTP |
+| SiteHub | `sitehub` | 1.1.3 | Control plane for PortKit-equipped WordPress sites |
+| Slate AI Gateway | `slate-mcp` | 0.1.0 | Scoped, revocable MCP tools for approved AI access to Slate content |
+| Small Business Kit | `small-business-kit` | 0.1.0 | Field-editable page templates and a swappable theme system |
+| Stripe Payment Gateway | `stripe-payment` | 1.2.0 | Generic Stripe checkout for any plugin (hosted + embedded Payment Element); webhook handler; Charges admin with refunds; test/live toggle |
+| Studio Management | `studio` | 1.0.0 | Dance/arts studio management on core contacts + booking + membership — families, roles, enrollments, class series |
+| Site Timeclock | `timeclock` | 1.2.0 | Employee time tracking — clock in/out, hourly task slots, admin management |
+
+**●** marks the plugins that carry the nutrition-practice domain.
+Versions above are read from each `plugins/<slug>/plugin.json`.
 
 > **Two shipping plugins ship in the box** (`shipping-flat-rate`,
 > per-box, and `flat-rate-shipping`, per-weight). Activate at most one
