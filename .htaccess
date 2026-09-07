@@ -15,10 +15,11 @@ Options -Indexes -FollowSymLinks +SymLinksIfOwnerMatch
 # UTF-8 default
 AddDefaultCharset UTF-8
 
-# Branded error pages (relative to RewriteBase below)
-ErrorDocument 403 /slate/403.php
-ErrorDocument 404 /slate/404.php
-ErrorDocument 500 /slate/500.php
+# Branded error pages. Root-relative, so these carry the same install path
+# as RewriteBase below — change all four together.
+ErrorDocument 403 /solaya/403.php
+ErrorDocument 404 /solaya/404.php
+ErrorDocument 500 /solaya/500.php
 
 # ── Block sensitive files at the root ───────────────────────
 <FilesMatch "^\.env|composer\.json|composer\.lock|README\.md|INSTALL\.md|ARCHITECTURE\.md|CONTRIBUTING\.md|CHANGELOG\.md$">
@@ -78,7 +79,15 @@ RedirectMatch 403 ^/data/
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /slate/
+
+    # ── MUST match the URL path this install is served from ─────
+    # Deployment-specific. This app lives at https://<host>/solaya, so the
+    # base is /solaya/. Serving it from a different folder — or from a
+    # domain root — and leaving this alone breaks every rewrite below:
+    # the booking widget, the customer portal and all plugin public routes
+    # 404 while real files still load, which looks like a routing bug
+    # rather than a one-line mismatch. At a domain root, use "/".
+    RewriteBase /solaya/
 
     # ── Maintenance-script directories, at ANY depth ────────────
     # Deny before anything else, because the rules below serve real files
@@ -101,7 +110,7 @@ RedirectMatch 403 ^/data/
     #
     # The pattern is matched relative to THIS directory, so it holds
     # wherever the app is mounted — unlike the RedirectMatch rules above,
-    # which are anchored at the domain root and never fire under /slate/.
+    # which are anchored at the domain root and never fire under a subfolder install.
     #
     # `tools`, `bin` and `scripts` are RESERVED DIRECTORY NAMES: nothing
     # under one is ever web-served, at any depth, in core or in a plugin.
