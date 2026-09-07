@@ -4,18 +4,33 @@ A nutrition practice management application — client bookings, coaching
 programs, food and hydration tracking, memberships and payments — built
 on **Slate**, the modular multi-tenant PHP platform in this repository.
 
-The domain lives in four layers; the rest of the tree is the platform
-that hosts them:
+The spec defines a **strict two-level model**: a one-time nutrition
+assessment never grants access to the programme app.
 
-| Layer | Plugin | What it covers |
+### Level 1 — Browser access
+
+For every prospect and client before a programme. Booking, payments,
+reminders, preparation and follow-up, with no download.
+Plugins: `booking` + `booking-plus`, with `membership` controlling access.
+
+### Level 2 — Downloadable app
+
+For active clients of the 3-month Body & Soul programme. Daily tracking,
+goals, chat, motivation, analytics and the final summary.
+Plugin: `coaching`, on top of `membership` + `booking`.
+
+### Appointment types
+
+| Type | Duration | Payment |
 |---|---|---|
-| Appointments | `booking` + `booking-plus` | Consultation types, practitioner schedules, group and recurring sessions, the public `/book` widget, reminders, deposits and Stripe payments |
-| Coaching program | `coaching` | The 3-month Body & Soul program — food diary with meals and photos, hydration log, physical activity, emotion and hunger/satiety tracking, meal structure, recipes, shopping lists, in-program chat and a practitioner live feed |
-| Client access | `membership` | Fixed-term plans that gate program access, member profiles, lifecycle and grace periods |
-| Client portal | `clientdesk` | Intake questionnaires, per-client dashboards, quotes, invoices and file sharing |
+| Discovery Call | 20 min | Free |
+| Nutrition Assessment | 1 h | Full |
+| Emotional Serenity Hypnosis | 2 h | Full |
+| Spiritual Regressive Hypnosis (HSR) | 3 h 30 – 4 h | First hour at booking, balance on the day |
+| Body & Soul follow-up | 30 / 45 min | Monthly |
 
-Everything else — shop, forms, CMS, SEO, timeclock, restaurant, studio —
-is an optional plugin you activate only if a given practice needs it.
+HSR is gated: a configurable minimum advance delay (default 21 days) and
+a mandatory Discovery Call beforehand.
 
 ---
 
@@ -24,7 +39,7 @@ is an optional plugin you activate only if a given practice needs it.
 A lean, multi-tenant PHP application shell with a WordPress-style
 plugin system. The core ships an admin shell, auth + roles, settings,
 a customer portal, an audit log, a hook system, and a public router.
-Everything else — bookings, coaching, e-commerce, forms, payments — is
+Everything else — bookings, coaching, memberships, forms, payments — is
 a plugin you upload as a ZIP through the admin.
 
 - **Core version:** 1.0.0
@@ -71,37 +86,26 @@ a plugin you upload as a ZIP through the admin.
 
 ### Bundled plugins (`plugins/`)
 
-| Plugin | Slug | Version | What it does |
-|---|---|---|---|
-| Booking **●** | `booking` | 0.7.0 | Consultations & appointments — services with categories, add-ons, custom fields, per-staff pricing, deposits and group tiers; practitioner hours, breaks and date overrides; group, recurring and walk-in bookings; rooms/resources with conflict prevention; admin month calendar; public `/book` widget with self-service cancel/reschedule; email + SMS/WhatsApp reminders; Stripe payments, coupons, gift cards, refunds and invoices |
-| Booking+ **●** | `booking-plus` | 0.2.0 | Per-service extras for practitioners — preparation pages, WhatsApp links, automatic post-booking responses, min-advance-day gates and prerequisite-service gates |
-| Client Desk **●** | `clientdesk` | 2.1.2 | Client portal — intake questionnaires, per-client progress dashboards, quotes approved online, Stripe-paid invoices and file sharing |
-| Coaching **●** | `coaching` | 0.6.0 | The 3-month Body & Soul program — food diary (meals, foods, photos), hydration log, physical activity, emotion tracking with hunger/satiety context, meal structure, recipes, shopping lists, in-program chat and a practitioner live feed |
-| Content Builder | `content-builder` | 1.6.1 | Pages, posts, custom post types, taxonomies and a block-based page builder |
-| Flat-rate shipping by weight | `flat-rate-shipping` | 1.0.0 | Shipping priced by cart weight tiers; integrates with the Shop free-shipping threshold |
-| Forms | `forms` | 0.7.5 | Public forms — contact, quote requests, intake — at `/forms/<slug>` or embedded; admin inbox, per-submit webhooks, notification email |
-| Media library (compatibility shim) | `media-library` | 1.1.0 | Compatibility shim; the media library is now core (Content → Media) |
-| Membership **●** | `membership` | 0.7.1 | Fixed-term plans that gate program access — pricing, duration, grace periods, member profiles and lifecycle, on top of core customers |
-| Slate Multi Language Visual Translation | `multilang-translate` | 1.3.0 | Visual multi-language translation manager; auto-harvests strings rendered across admin and public pages |
-| React Site Bridge | `react-site-bridge` | 0.7.15 | Tenant-scoped content manifests, media mappings and visual route-content editing for React front-ends |
-| Restaurant | `restaurant` | 0.2.0 | Restaurant suite — menu with modifier groups and combos, 86-ing, dayparts, storefront checkout |
-| SEO | `seo` | 1.1.0 | Per-page meta title, description, canonical and Open Graph tags; integrates with Content Builder |
-| Flat Rate Shipping (USPS-style boxes) | `shipping-flat-rate` | 1.0.3 | Fixed price per box with greedy bin-packing; USPS Flat Rate defaults |
-| Shop | `shop` | 1.2.7 | E-commerce — products with variants, gallery and dimensions, categories, storefront with cart and checkout, orders, coupons, reports, CSV import/export |
-| Shop email notifications | `shop-emails` | 1.0.0 | Order confirmation, payment-completed and admin new-order emails. Needs Shop + SMTP |
-| SiteHub | `sitehub` | 1.1.3 | Control plane for PortKit-equipped WordPress sites |
-| Slate AI Gateway | `slate-mcp` | 0.1.0 | Scoped, revocable MCP tools for approved AI access to Slate content |
-| Small Business Kit | `small-business-kit` | 0.1.0 | Field-editable page templates and a swappable theme system |
-| Stripe Payment Gateway | `stripe-payment` | 1.2.0 | Generic Stripe checkout for any plugin (hosted + embedded Payment Element); webhook handler; Charges admin with refunds; test/live toggle |
-| Studio Management | `studio` | 1.0.0 | Dance/arts studio management on core contacts + booking + membership — families, roles, enrollments, class series |
-| Site Timeclock | `timeclock` | 1.2.0 | Employee time tracking — clock in/out, hourly task slots, admin management |
+Eight plugins ship in this build. Scope comes from *Solaya — Capacités &
+Parcours / Capabilities & Journeys*, which names the application as
+Booking, Booking+, Membership and Coaching; the other four are the
+dependencies those four need to deliver it.
 
-**●** marks the plugins that carry the nutrition-practice domain.
-Versions above are read from each `plugins/<slug>/plugin.json`.
+| Plugin | Slug | Version | Role | What it covers |
+|---|---|---|---|---|
+| **Booking** | `booking` | 0.7.0 | Level 1 · Appointments | Appointment types with duration, buffers, price and categories; availability with breaks and per-provider date overrides; conflict handling; mandatory contact fields; embeddable `/book` widget with self-service cancel & reschedule; Stripe free / full / deposit / on-site; coupons, gift cards, tax, refunds, invoices; email + SMS/WhatsApp reminders; client profiles with no-show and loyalty tags |
+| **Booking+** | `booking-plus` | 0.2.0 | Level 1 · Practitioner logic | Per-service minimum-advance delay (HSR, default 21 days); prerequisite gate (Discovery Call before HSR); slots reserved per appointment type; client "human message" step routed to the practitioner; automatic post-booking response (prep page + WhatsApp + payment note); 8-hour internal nudge; 8-day / day-before / 10-minute reminder cadence |
+| **Membership** | `membership` | 0.7.1 | Access control | Fixed-term plans with FR+EN names, pricing, duration and grace period; plan types (membership / insurance / course); member profiles with medical, allergies, emergency contact and consent, plus QR member card; wallet and transaction ledger; the active-membership gate wired into Booking that keeps a one-time assessment from ever unlocking the programme app |
+| **Coaching** | `coaching` | 0.6.0 | Level 2 · Body & Soul app | Full profile with auto BMI/BMR, medical section and intolerances; 3-level goal tracker with "exceeded" and extra actions; food diary (meals, foods, photos, quantities); emotions with hunger/satiety context; hydration and physical activity; charts including the emotion↔food correlation; 1:1 chat with scheduled and immediate messages; meal structure, shopping list, two-way recipes and template library; challenges and end-of-programme summary; 1-year reactivation then automatic data deletion |
+| **Stripe Payment Gateway** | `stripe-payment` | 1.2.0 | Payments engine | Backs every payment mode the spec requires — free, full, deposit and the HSR staged first-hour-then-balance flow — plus refunds and invoices. Booking calls it from 22 sites; Membership from 8 |
+| **Forms** | `forms` | 0.7.5 | Questionnaires | Backs the HSR preparation questionnaire (§5.2) and the interactive 7-day food-diary document sent before a Nutrition Assessment (§5.3) |
+| **Slate Multi Language Visual Translation** | `multilang-translate` | 1.3.0 | Bilingual UI | Closes the §6 gap "Bilingual UI coverage — verify all Booking/Coaching strings." Harvests every rendered string for FR/EN translation |
+| **Media library (compatibility shim)** | `media-library` | 1.1.0 | Media picker | Retained on purpose: core `Media::enqueuePicker()` serves its picker CSS/JS, and coaching's recipe and template library uses it to attach images |
 
-> **Two shipping plugins ship in the box** (`shipping-flat-rate`,
-> per-box, and `flat-rate-shipping`, per-weight). Activate at most one
-> at a time — both register a shipping-rate filter.
+Everything else Slate ships — shop, CMS, SEO, timeclock, restaurant,
+studio, clientdesk and more — lives in [`archive/plugins/`](archive/plugins/)
+and is never loaded. See that folder's README to restore one.
+Versions are read from each `plugins/<slug>/plugin.json`.
 
 ---
 
@@ -169,8 +173,9 @@ slate/
 ├── uploads/               File uploads (branding, shop, plugin staging)
 ├── bin/                   package-plugin.php, seed-demo.php, clean-demo.php
 ├── vendor/                PHPMailer (Composer)
-└── plugins/               Bundled plugins (see table above)
-    └── _dist/             Pre-built upload-ready plugin ZIPs
+├── plugins/               The 8 active plugins (see table above)
+│   └── _dist/             Pre-built upload-ready plugin ZIPs
+└── archive/plugins/       Slate plugins outside this build — never loaded
 ```
 
 Core tables (`db/schema.sql`): `tenants`, `roles`, `role_permissions`,
