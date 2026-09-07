@@ -429,8 +429,16 @@ if (!function_exists('slate_admin_time_ago')) {
         // life of this request — this helper can run once per row).
         static $dbNowTs = null;
         if ($dbNowTs === null) {
+            // anti-drift-ignore: CLOCK — this IS the DB-clock path the rule
+            // asks for: slate_db_now() is the value used. date('Y-m-d H:i:s')
+            // is only the last-resort fallback for when that helper or
+            // Database is unavailable (pre-install/bootstrap), where no DB
+            // clock exists to read and PHP's is the only one there is.
             $raw = (function_exists('slate_db_now') && class_exists('Database'))
                 ? slate_db_now() : date('Y-m-d H:i:s');
+            // anti-drift-ignore: CLOCK — not a cross-clock comparison. $raw is
+            // already the database's own now-string; strtotime() only parses it
+            // into an int, and time() is the fallback if that parse fails.
             $dbNowTs = strtotime($raw) ?: time();
         }
         $diff = max(0, $dbNowTs - $ts);

@@ -42,7 +42,15 @@ class BookingPlus extends Plugin {
 
         // CON-1: contribute into Booking's settings screen instead of owning a
         // second one. Booking fires both of these from its own POST and form.
-        Hook::addFilter('booking_settings_cards',         [BookingPlusAPI::class, 'settingsCard']);
+        // settingsCard() exists only on this plugin's copy of BookingPlusAPI.
+        // When Booking's absorbed copy wins the class-declaration race the
+        // method is absent, and registering a missing callback fatals the
+        // moment Booking renders its settings screen. Booking already
+        // contributes its own cards there, so skipping is the correct
+        // behaviour rather than a degradation.
+        if (method_exists(BookingPlusAPI::class, 'settingsCard')) {
+            Hook::addFilter('booking_settings_cards',     [BookingPlusAPI::class, 'settingsCard']);
+        }
         Hook::addAction('booking_settings_save',          [BookingPlusAPI::class, 'saveSettings'], 10, 1);
         // Influence the DEFAULT cadence without writing Booking's setting.
         Hook::addFilter('booking_default_reminder_leads', [BookingPlusAPI::class, 'defaultReminderLeads'], 10, 1);

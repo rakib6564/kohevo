@@ -1464,8 +1464,8 @@ class BookingAPI {
         $a = Database::row(
             "SELECT a.*, s.name AS service_name, p.name AS provider_name, p.email AS provider_email
                FROM booking_appointments a
-               JOIN booking_services  s ON s.id = a.service_id
-               JOIN booking_providers p ON p.id = a.provider_id
+               JOIN booking_services  s ON s.id = a.service_id  AND s.tenant_id = a.tenant_id
+               JOIN booking_providers p ON p.id = a.provider_id AND p.tenant_id = a.tenant_id
               WHERE a.id = ?",
             [$apptId]
         );

@@ -246,35 +246,23 @@ jobs:
           VALUES (1, 'slate_test_database', '1')
           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
-          INSERT INTO plugins (slug, name, version, status, manifest_json)
-          VALUES ('content-builder', 'Content Builder', '1.0.0', 'active', '{"slug":"content-builder","name":"Content Builder","version":"1.0.0"}')
-          ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
-
-          -- Forms is active because the form block now renders INLINE into
-          -- content pages, so its tests exercise the content render path. With
-          -- it inactive they skip, and a skipped test is a green tick over
-          -- nothing. Verified not to move the render goldens or page counts.
+          -- Forms, Booking and Membership are activated so their own suites
+          -- run instead of skipping, and a skipped test is a green tick over
+          -- nothing. Content Builder is NOT activated: it is archived out of
+          -- this build (see archive/plugins/), so the content-page render path
+          -- and the block-inlining tests that depend on it skip by design.
           INSERT INTO plugins (slug, name, version, status, manifest_json)
           VALUES ('forms', 'Forms', '1.0.0', 'active', '{"slug":"forms","name":"Forms","version":"1.0.0"}')
           ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
 
-          -- Booking, for the same reason as Forms: its block renders inline into
-          -- content pages now, so its tests exercise the content render path and
-          -- skip silently without it. Verified not to move goldens or page counts.
           INSERT INTO plugins (slug, name, version, status, manifest_json)
           VALUES ('booking', 'Booking', '1.0.0', 'active', '{"slug":"booking","name":"Booking","version":"1.0.0"}')
           ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
 
-          -- Membership, for the same reason: its plans block renders into content
-          -- pages, so its tests exercise the content render path and skip without
-          -- it. Verified not to move goldens or page counts.
           INSERT INTO plugins (slug, name, version, status, manifest_json)
           VALUES ('membership', 'Membership', '1.0.0', 'active', '{"slug":"membership","name":"Membership","version":"1.0.0"}')
           ON DUPLICATE KEY UPDATE status = VALUES(status), manifest_json = VALUES(manifest_json);
           SQL
-
-      - name: Install Content Builder test schema
-        run: mysql -h 127.0.0.1 -P 3306 -uroot -proot slate_test < plugins/content-builder/install.sql
 
       - name: Install Forms test schema
         run: mysql -h 127.0.0.1 -P 3306 -uroot -proot slate_test < plugins/forms/install.sql

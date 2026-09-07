@@ -10,6 +10,15 @@
  * BookingAPI's public methods when we need service/appointment data.
  */
 
+// Booking absorbed these capabilities natively — plugins/booking/BookingPlusAPI.php
+// declares the same class behind the same guard and Booking.php requires it
+// unconditionally at boot. Booking always loads first (this plugin depends on
+// it), so without this guard a second, unconditional declaration here is a
+// fatal "Cannot redeclare class BookingPlusAPI" whenever both are active.
+// Whichever copy wins, the method surface is identical apart from
+// settingsCard(), whose registration in BookingPlus.php is guarded to match.
+if (!class_exists('BookingPlusAPI')) {
+
 class BookingPlusAPI {
 
     // ── Schema self-heal ─────────────────────────────────────────────────
@@ -285,3 +294,5 @@ class BookingPlusAPI {
     </div>';
     }
 }
+
+} // if (!class_exists('BookingPlusAPI'))

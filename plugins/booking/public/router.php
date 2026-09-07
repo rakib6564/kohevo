@@ -865,6 +865,10 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
     if ($isMulti) {
         echo '<div class="book-multiselect-summary"><div class="book-multiselect-summary-title">Booking these ' . count($multiSelections) . ' times</div><ul class="book-multiselect-summary-list">';
         foreach ($multiSelections as $dt) {
+            // anti-drift-ignore: CLOCK — no clock comparison happens here. $dt
+            // is a slot the visitor just picked in this form, parsed purely to
+            // format it for display below; time() is the fallback if the parse
+            // fails, not a "now" being measured against a stored value.
             $ts = strtotime($dt) ?: time();
             echo '<li class="book-multiselect-summary-item">'
                .   '<span class="book-multiselect-summary-date">'
