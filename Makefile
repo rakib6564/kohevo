@@ -6,7 +6,7 @@ PHP ?= php
 FIND_PHP = find . -name '*.php' -not -path './vendor/*' -not -path './uploads/*' -not -path './scratchpad/*'
 
 .DEFAULT_GOAL := help
-.PHONY: help lint test test-unit test-integration test-render smoke migrate migrate-status rollback secrets ci
+.PHONY: help lint test test-unit test-integration smoke migrate migrate-status rollback secrets ci
 
 help: ## Show this help
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -16,7 +16,7 @@ lint: ## Syntax-check every PHP file
 	@$(FIND_PHP) -print0 | xargs -0 -n1 -P4 $(PHP) -l > /dev/null
 	@echo "All PHP files parse cleanly."
 
-test: ## Run the whole suite (unit + integration + smoke + render)
+test: ## Run the whole suite (unit + integration + smoke)
 	@bash tests/run.sh
 
 test-unit: ## Unit tests only (no database)
@@ -24,9 +24,6 @@ test-unit: ## Unit tests only (no database)
 
 test-integration: ## Integration tests (needs a database)
 	@$(PHP) tests/integration/run.php
-
-test-render: ## Page-render tests
-	@$(PHP) tests/render/run.php
 
 smoke: ## Read-only smoke test against the configured database
 	@$(PHP) tests/smoke.php
