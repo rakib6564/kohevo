@@ -18,7 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
         $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
     } else {
-        Database::setSetting('membership.currency', strtoupper(trim((string)($_POST['currency'] ?? 'USD')) ?: 'USD'));
         Database::setSetting('membership.insurance_fee_cents', (string) max(0, (int) round(((float)($_POST['insurance_fee'] ?? 0)) * 100)));
         Database::setSetting('membership.require_membership_to_book', !empty($_POST['require_membership_to_book']) ? '1' : '0');
         Database::setSetting('membership.require_profile_to_book',    !empty($_POST['require_profile_to_book']) ? '1' : '0');
@@ -66,17 +65,16 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
     <div class="card">
         <div class="card-header"><h2><?= __('membership_general', 'General') ?></h2></div>
-        <div class="field-row field-row-2">
-            <div class="field">
-                <label class="field-label" for="currency"><?= __('membership_currency', 'Default currency') ?></label>
-                <input type="text" id="currency" name="currency" maxlength="8" value="<?= e($g('currency', 'USD')) ?>" placeholder="USD">
-                <div class="field-hint"><?= __('membership_currency_hint', 'Used as the default for new plans and wallets.') ?></div>
-            </div>
-            <div class="field">
-                <label class="field-label" for="terms_url"><?= __('membership_terms_url', 'Terms & consent URL') ?></label>
-                <input type="url" id="terms_url" name="terms_url" value="<?= e($g('terms_url')) ?>" placeholder="https://…">
-            </div>
+        <div class="field">
+            <label class="field-label" for="terms_url"><?= __('membership_terms_url', 'Terms & consent URL') ?></label>
+            <input type="url" id="terms_url" name="terms_url" value="<?= e($g('terms_url')) ?>" placeholder="https://…">
         </div>
+        <p class="field-hint">
+            <?= sprintf(
+                __('membership_currency_moved', 'Default currency is set once for the whole site under %s.'),
+                '<a href="' . e(SLATE_URL) . '/admin/settings.php?tab=general">' . __('settings_general_link', 'Settings → General') . '</a>'
+            ) ?>
+        </p>
     </div>
 
     <div class="card">

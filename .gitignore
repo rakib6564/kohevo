@@ -10,6 +10,11 @@ error_log
 *.log
 .installed
 
+# ── Backups plugin local staging (deleted after each run; a live DB
+#    dump full of customer PII must never be committed) ─────
+/db_backups/*
+!/db_backups/.gitkeep
+
 # ── Build artifacts / packaged plugins ───────────────────────
 /plugins/_dist/
 /plugins/*.zip

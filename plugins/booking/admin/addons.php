@@ -173,11 +173,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     'avatar'       => '+',
                     'avatar_color' => $a['is_active'] ? 'accent' : 'muted',
                     'title'        => $a['name'],
-                    'meta'         => ($a['price_cents'] > 0 ? $currency . ' ' . number_format($a['price_cents']/100, 2) : 'Free')
+                    'meta'         => ($a['price_cents'] > 0 ? slate_format_price_plain((int)$a['price_cents'], $currency) : 'Free')
                                       . ($a['duration_min'] > 0 ? ' · +' . (int)$a['duration_min'] . ' min' : ''),
                     'badge'        => $a['is_active'] ? ['Active', 'active'] : ['Inactive', 'inactive'],
                     'detail'       => [
-                        'Extra price' => $a['price_cents'] > 0 ? $currency . ' ' . number_format($a['price_cents']/100, 2) : 'Free',
+                        'Extra price' => $a['price_cents'] > 0 ? slate_format_price_plain((int)$a['price_cents'], $currency) : 'Free',
                         'Extra time'  => (int)$a['duration_min'] . ' min',
                     ],
                     'actions'      => $actions,

@@ -31,7 +31,7 @@ if ($q !== '') {
 // Each customer + their newest active subscription (if any).
 $members = Database::rows(
     "SELECT c.id, c.name, c.email, c.created_at,
-            mp.onboarding_complete,
+            mp.onboarding_complete, mp.avatar_path,
             s.id AS sub_id, s.status AS sub_status, s.expires_at,
             pl.name AS plan_name, pl.name_fr AS plan_name_fr, pl.plan_type
        FROM customers c
@@ -60,10 +60,15 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <div class="page-header">
     <div><h1><?= __('membership_members', 'Members') ?></h1></div>
-    <form method="get" class="flex gap-2">
-        <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('membership_search', 'Search name or email')) ?>" style="min-width:240px;">
-        <button class="btn"><?= __('membership_search_btn', 'Search') ?></button>
-    </form>
+    <div class="flex gap-2">
+        <form method="get" class="flex gap-2">
+            <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('membership_search', 'Search name or email')) ?>" style="min-width:240px;">
+            <button class="btn"><?= __('membership_search_btn', 'Search') ?></button>
+        </form>
+        <?php if (Auth::can('membership.manage_members') || Auth::isSuperAdmin()): ?>
+            <a href="add-member.php" class="btn btn-primary"><?= __('membership_add_member', 'Add member') ?></a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php if (!$members): ?>
@@ -76,7 +81,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
         $badge = $hasActive ? [__('membership_active', 'Active'), 'active'] : [__('membership_no_membership', 'No membership'), 'inactive'];
         $actions = '<a href="member.php?id=' . (int)$m['id'] . '" class="btn btn-sm">' . __('membership_view', 'View') . '</a>';
         slate_data_row([
-            'avatar'       => mb_substr((string)($m['name'] ?: $m['email']), 0, 1),
+            'avatar_html'  => slate_avatar_overlay_html(
+                                    mb_substr((string)($m['name'] ?: $m['email']), 0, 1),
+                                    (string)($m['email'] ?? ''),
+                                    $m['avatar_path'] ?? null
+                                ),
             'avatar_color' => $hasActive ? 'success' : 'muted',
             'title'        => $m['name'] ?: $m['email'],
             'meta'         => e((string)$m['email']) . ' · ' . $planLabel,

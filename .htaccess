@@ -207,6 +207,17 @@ RedirectMatch 403 ^/data/
     RewriteRule ^shop/?$               plugins/shop/storefront/router.php?_path= [L,QSA]
     RewriteRule ^shop/(.+)$            plugins/shop/storefront/router.php?_path=$1 [L,QSA]
 
+    # Core /api/v1 gateway (headless/mobile API, MCP gateway, etc.) — maps
+    # pretty URLs to the real api/v1.php, which reads _route_path itself.
+    # Two rules, both requiring "/" or end-of-string right after v1, so
+    # neither can also match a direct request for the real api/v1.php file.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/v1/?$              api/v1.php?_route_path= [L,QSA]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/v1/(.+)$           api/v1.php?_route_path=$1 [L,QSA]
+
     # Generic public-router catch-all. Anything that isn't a file/dir
     # and didn't match an earlier rule lands here. PublicRouter then
     # checks the public_routes filter for a registered prefix.

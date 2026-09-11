@@ -21,6 +21,7 @@ require_once __DIR__ . '/includes/StringRepo.php';
 require_once __DIR__ . '/includes/Harvester.php';
 require_once __DIR__ . '/includes/Replacer.php';
 require_once __DIR__ . '/includes/Crawler.php';
+require_once __DIR__ . '/MultilangTranslateMcpHandler.php';
 
 class MultilangTranslate extends Plugin {
 
@@ -31,8 +32,13 @@ class MultilangTranslate extends Plugin {
         $tid = function_exists('current_tenant_id') ? current_tenant_id() : 1;
         MLT_LangRepo::ensureDefault($tid);
 
-        Hook::addFilter('admin_nav_items', [$this, 'addAdminNav']);
+        // No longer a separate top-level nav item -- Translations is reached
+        // via the shared settings tab strip now (slate_render_settings_tabs()
+        // in includes/ui_components.php), same as Branding/General/etc.
         Hook::addFilter('i18n_supported_languages', [$this, 'addSupportedLanguages']);
+
+        // MCP AI Gateway integration (add languages, translate strings, publish).
+        MultilangTranslateMcpHandler::register();
 
         // Language switcher: explicit hook points if the theme/shell fires them,
         // plus an auto-append fallback via the output buffer itself. CSS/JS
@@ -56,6 +62,12 @@ class MultilangTranslate extends Plugin {
         // plugins (Membership used to run its own FR/EN links here) must not
         // add a second one — see addPortalBarSwitcher() below.
         Hook::addFilter('customer_portal_bar_actions', [$this, 'addPortalBarSwitcher']);
+
+        // Admin topbar equivalent — opt-in via the "Header bar" position
+        // setting (unlike the customer portal slot above, which always uses
+        // its header bar regardless of that setting). Renders a menu item
+        // next to the notification bell instead of the floating widget.
+        Hook::addFilter('admin_topbar_actions', [$this, 'addAdminTopbarSwitcher']);
 
         // Skip our own AJAX/export endpoints and asset requests.
         $uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -101,19 +113,6 @@ class MultilangTranslate extends Plugin {
         return preg_replace('/<\/body>/i', $widget . '</body>', $html, 1);
     }
 
-    public function addAdminNav(array $items): array {
-        $items[] = [
-            'slug'  => 'mlt-translate',
-            'label' => __('translations', 'Translations'),
-            'href'  => $this->url('admin/index.php'),
-            'icon'  => 'globe',
-            'perm'  => 'mlt.view',
-            'order' => 700,
-            'group' => 'content',
-        ];
-        return $items;
-    }
-
     public function addSupportedLanguages(array $langs): array {
         $tid = function_exists('current_tenant_id') ? current_tenant_id() : 1;
         foreach (MLT_LangRepo::enabled($tid) as $l) $langs[$l['code']] = $l['name'];
@@ -137,6 +136,24 @@ class MultilangTranslate extends Plugin {
      */
     public function addPortalBarSwitcher(array $actions): array {
         $html = $this->switcherHtml('bar');
+        if ($html !== '') $actions[] = $html;
+        return $actions;
+    }
+
+    /**
+     * Inline switcher for the admin topbar (admin_topbar_actions filter —
+     * see admin/partials/header.php), rendered next to the notification
+     * bell. Unlike the customer portal slot above, this one is opt-in: it
+     * only fires when the admin has picked "Header bar" as the switcher
+     * position, so admins who prefer the floating widget on admin pages
+     * keep getting exactly that (this method is then a no-op, and
+     * admin_footer's renderSwitcher() falls through to the floating widget
+     * as before). Reuses switcherHtml()'s single-render-per-request guard
+     * the same way addPortalBarSwitcher() does.
+     */
+    public function addAdminTopbarSwitcher(array $actions): array {
+        if ($this->setting('switcher_position', 'bottom-right') !== 'header') return $actions;
+        $html = $this->switcherHtml('admin-bar');
         if ($html !== '') $actions[] = $html;
         return $actions;
     }
@@ -174,6 +191,15 @@ class MultilangTranslate extends Plugin {
         if (defined('MLT_SWITCHER_RENDERED')) return '';
         if (!$this->setting('switcher_enabled', true)) return '';
 
+        // "Header bar" is an all-or-nothing choice: once selected, a page
+        // with no header-bar slot (login screens, public embeds, etc.)
+        // should show no switcher at all rather than falling back to the
+        // floating widget — a floating pill popping up only on some pages
+        // read as an inconsistent leftover, not an intentional fallback.
+        if ($context === 'floating' && $this->setting('switcher_position', 'bottom-right') === 'header') {
+            return '';
+        }
+
         // &portal=1 marks a page Slate itself is framing inside its own
         // customer-portal chrome (e.g. the booking widget iframed by
         // customer/book.php) — that outer page already has a switcher in
@@ -199,6 +225,14 @@ class MultilangTranslate extends Plugin {
             return $this->barSwitcherHtml($langs, MLT_I18nBridge::activeLocale($tid));
         }
 
+        if ($context === 'admin-bar') {
+            // Admin topbar has no equivalent of the portal's .mapp-lang CSS,
+            // so this variant bundles its own small inline stylesheet (same
+            // pattern as the floating widget below) instead of borrowing
+            // customer-portal styling that isn't loaded on admin pages.
+            return $this->adminBarSwitcherHtml($langs, MLT_I18nBridge::activeLocale($tid));
+        }
+
         $widget = require __DIR__ . '/assets/switcher-render.php';
         if (!is_string($widget) || $widget === '') return '';
 
@@ -209,6 +243,72 @@ class MultilangTranslate extends Plugin {
         $bundle .= $widget;
         if ($js) $bundle .= '<script id="mlt-switcher-inline-js">' . $js . '</script>';
         return $bundle;
+    }
+
+    /**
+     * Admin topbar switcher (see switcherHtml('admin-bar')): a compact
+     * menu-item button matching the existing .topbar-icon-btn sizing, using
+     * the admin theme's own CSS custom properties (already defined globally
+     * on every admin page) instead of hardcoded colors, so it matches
+     * whatever theme/brand-accent is active. Built on <details>/<summary>
+     * for open/close state — no JS, so it can't have the animated-height
+     * bug the sidebar accordions hit earlier (see admin/partials/header.php's
+     * own notes on that).
+     */
+    private function adminBarSwitcherHtml(array $langs, string $active): string {
+        $baseUrl = strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
+        $qs = $_GET ?? [];
+        unset($qs['lang']);
+        $items = '';
+        foreach ($langs as $l) {
+            $qsCopy = $qs;
+            $qsCopy['lang'] = $l['code'];
+            $isActive = $l['code'] === $active;
+            $items .= '<a href="' . e($baseUrl . '?' . http_build_query($qsCopy)) . '"'
+                    . ' class="mlt-admin-switcher-item' . ($isActive ? ' is-active' : '') . '" role="menuitem">'
+                    . '<span class="mlt-admin-switcher-flag">' . e($l['flag'] ?? '') . '</span>'
+                    . '<span>' . e($l['native_name'] ?: $l['name']) . '</span>'
+                    . '</a>';
+        }
+
+        $css = <<<CSS
+            .mlt-admin-switcher { position: relative; display: inline-flex; }
+            .mlt-admin-switcher summary { list-style: none; }
+            .mlt-admin-switcher summary::-webkit-details-marker { display: none; }
+            .mlt-admin-switcher-btn {
+                width: auto; min-width: 32px; height: 32px; padding: 0 8px;
+                border-radius: var(--radius-sm, 6px); background: transparent; border: 0;
+                color: var(--muted, #6b7280); display: flex; align-items: center; gap: 5px;
+                cursor: pointer; font-size: 12.5px; font-weight: 600; letter-spacing: .02em;
+                transition: background 140ms ease, color 140ms ease;
+            }
+            .mlt-admin-switcher-btn:hover { background: var(--surface-2, #f3f4f6); color: var(--text, #111217); }
+            .mlt-admin-switcher[open] .mlt-admin-switcher-btn { background: var(--surface-2, #f3f4f6); color: var(--text, #111217); }
+            .mlt-admin-switcher-menu {
+                position: absolute; top: calc(100% + 6px); right: 0; z-index: 200;
+                min-width: 170px; margin: 0; padding: 6px; list-style: none;
+                background: var(--surface, #fff); border: 1px solid var(--border, rgba(0,0,0,0.08));
+                border-radius: var(--radius, 10px); box-shadow: var(--shadow-lg, 0 10px 30px rgba(0,0,0,0.12));
+                display: flex; flex-direction: column; gap: 2px;
+            }
+            .mlt-admin-switcher-item {
+                display: flex; align-items: center; gap: 8px; padding: 7px 9px;
+                border-radius: var(--radius-sm, 6px); color: var(--text, #111217);
+                font-size: 13px; text-decoration: none; white-space: nowrap;
+            }
+            .mlt-admin-switcher-item:hover { background: var(--surface-2, #f3f4f6); }
+            .mlt-admin-switcher-item.is-active { background: var(--accent-soft, rgba(37,99,235,0.1)); color: var(--accent, #2563eb); font-weight: 600; }
+            .mlt-admin-switcher-flag { font-size: 14px; line-height: 1; }
+            CSS;
+
+        return '<style id="mlt-admin-switcher-css">' . $css . '</style>'
+            . '<details class="mlt-admin-switcher">'
+            . '<summary class="mlt-admin-switcher-btn" title="' . e(__('language', 'Language')) . '" aria-label="' . e(__('language', 'Language')) . '">'
+            . '<span>' . e(strtoupper($active)) . '</span>'
+            . '<svg width="9" height="9" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>'
+            . '</summary>'
+            . '<ul class="mlt-admin-switcher-menu" role="menu" style="list-style:none;">' . $items . '</ul>'
+            . '</details>';
     }
 
     /** Inline switcher markup for a page's own topbar (see switcherHtml('bar')). */

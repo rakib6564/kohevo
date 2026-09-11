@@ -55,6 +55,10 @@ class StripePayment extends Plugin {
         Hook::addFilter('admin_dashboard_widgets', [$this, 'addDashboardWidget']);
         Hook::addFilter('shop_payment_providers', [$this, 'registerProviders']);
 
+        // MCP AI Gateway integration (read-only — no refunds, no key changes)
+        require_once __DIR__ . '/StripePaymentMcpHandler.php';
+        StripePaymentMcpHandler::register();
+
         // The generic webhook hook lets other plugins react to Stripe
         // events without owning an endpoint. Shop's own listener is in
         // public/webhook.php (kept for back-compat — its cart-completion
@@ -73,7 +77,7 @@ class StripePayment extends Plugin {
 
         $items[] = [
             'slug'   => 'shop-stripe',
-            'label'  => __('stripe_settings', 'Stripe'),
+            'label'  => __('stripe_settings', 'Payment Gateway'),
             'href'   => $this->url('admin/settings.php'),
             'icon'   => 'credit-card',
             'perm'   => 'stripe.manage_settings',
@@ -82,7 +86,7 @@ class StripePayment extends Plugin {
         ];
         $items[] = [
             'slug'   => 'shop-stripe-charges',
-            'label'  => __('stripe_charges', 'Charges'),
+            'label'  => __('stripe_charges', 'Transaction history'),
             'href'   => $this->url('admin/charges.php'),
             'icon'   => 'bar-chart-3',
             'perm'   => 'stripe.manage_settings',
@@ -140,15 +144,15 @@ class StripePayment extends Plugin {
             <?php if ($latest): ?>
                 <div class="dlist">
                     <?php foreach ($latest as $c):
-                        $net   = ((int)$c['amount_cents'] - (int)$c['refunded_cents']) / 100;
+                        $netCents = (int)$c['amount_cents'] - (int)$c['refunded_cents'];
                         $email = (string)($c['customer_email'] ?? '');
                         $colors = ['succeeded' => 'success', 'refunded' => 'muted', 'partial_refund' => 'warning', 'failed' => 'danger'];
                         slate_dlist_row([
-                            'avatar'       => $email !== '' ? $email : '?',
+                            'avatar_html'  => slate_avatar_overlay_html($email !== '' ? mb_substr($email, 0, 2) : '?', $email),
                             'avatar_color' => $colors[$c['status']] ?? 'muted',
                             'title'        => $email !== '' ? $email : __('stripe_guest', 'Guest'),
                             'sub'          => ucfirst(str_replace('_', ' ', (string)$c['status'])),
-                            'amount'       => number_format($net, 2) . ' ' . strtoupper((string)$c['currency']),
+                            'amount'       => slate_format_price_plain($netCents, $c['currency']),
                             'time'         => $c['created_at'] ? date('M j', strtotime($c['created_at'])) : '',
                             'href'         => $chargesUrl,
                         ]);

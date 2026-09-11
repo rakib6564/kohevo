@@ -82,16 +82,34 @@ slate_portal_shell_open(['active' => 'book', 'area' => 'booking']);
 <?php endif; ?>
 
 <div class="pcard" style="padding:0;overflow:hidden;border:1px solid var(--m-line,#ECEEF1);">
-    <?php /* &portal=1: this iframe is Slate's OWN customer portal embedding
-     Slate's OWN booking widget — same-origin, and the portal topbar
-     already shows a language switcher. That is different from a
-     THIRD-PARTY site (Wix, WordPress...) embedding /book?embed=1 with
-     no outer chrome of its own, where the widget's own switcher is the
-     only control there is and must keep showing. */ ?>
-    <iframe src="<?= e(SLATE_URL) ?>/book?embed=1&portal=1"
-            title="<?= e(__('book_now', 'Book an appointment')) ?>"
-            style="width:100%;min-height:720px;border:none;display:block;"
-            loading="lazy"></iframe>
+    <?php
+    /**
+     * Native render, not an <iframe>: this used to embed Slate's OWN
+     * booking widget via <iframe src="/book?embed=1&portal=1">, which had
+     * no way to grow with content (a fixed min-height:720px; the widget's
+     * own auto-resize postMessage had no listener on this side) and added
+     * a second page load + isolated document for something that's fully
+     * same-origin anyway.
+     *
+     * plugins/booking/public/router.php's own step/POST dispatch is
+     * driven entirely by $_GET/$_POST and (bar two full-page redirects —
+     * a Stripe hosted-checkout fallback and an extension-point gate
+     * redirect, both fine to leave this page for) never assumes it's the
+     * whole document — every internal link/form is relative or has no
+     * `action`, so it already stays on whichever URL is currently serving
+     * it. `portal=1` puts bookpub_layout_start()/_end() (see that file)
+     * into fragment mode: no <!DOCTYPE>/<head>/<body>, just the widget's
+     * own .book-public/.book-shell/.book-card markup, right here in the
+     * portal page's own document — so this page's own topbar language
+     * switcher is the only one shown; the widget's own switcher would be
+     * redundant here (that's the case an <iframe> forced on us, since a
+     * third-party site embedding the raw widget has no outer chrome of
+     * its own and needs it — this page already has one).
+     */
+    $_GET['embed']  = '1';
+    $_GET['portal'] = '1';
+    require SLATE_ROOT . '/plugins/booking/public/router.php';
+    ?>
 </div>
 
 <?php slate_portal_shell_close(); ?>

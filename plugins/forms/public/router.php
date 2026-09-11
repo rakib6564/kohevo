@@ -447,12 +447,12 @@ function forms_public_render_thanks(array $form, bool $embed): void {
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
             </div>
-            <h1>Thanks!</h1>
+            <h1><?= __('forms_thanks', 'Thanks!') ?></h1>
             <p><?= nl2br(e($msg)) ?></p>
             <?php if ($summary): ?>
             <div class="forms-receipt">
                 <div class="forms-receipt-head">
-                    <span>Your submission</span>
+                    <span><?= __('forms_your_submission', 'Your submission') ?></span>
                     <?php if ($ref !== ''): ?><span class="forms-receipt-ref"><?= e($ref) ?></span><?php endif; ?>
                 </div>
                 <dl class="forms-receipt-list">
@@ -468,7 +468,7 @@ function forms_public_render_thanks(array $form, bool $embed): void {
             <?php if ($showPdf): ?>
                 <a class="btn btn-primary fbtn fbtn-go forms-success-pdf" href="<?= e($pdfUrl) ?>">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span>Save PDF</span>
+                    <span><?= __('forms_save_pdf', 'Save PDF') ?></span>
                 </a>
             <?php endif; ?>
         </article>
@@ -484,7 +484,7 @@ function forms_public_render_closed(array $form, bool $embed): void {
         <article class="forms-public-card">
             <h1><?= e($form['title']) ?></h1>
             <div class="alert alert-warning">
-                This form has reached its submission limit and is no longer accepting entries.
+                <?= __('forms_submission_limit_reached', 'This form has reached its submission limit and is no longer accepting entries.') ?>
             </div>
         </article>
     </main>
@@ -501,11 +501,11 @@ function forms_public_render_notfound(string $msg, bool $embed): void {
         return;
     }
     http_response_code(404);
-    forms_public_layout_start('Not found', $embed);
+    forms_public_layout_start(__('forms_not_found', 'Not found'), $embed);
     ?>
     <main class="forms-public-shell">
         <article class="forms-public-card">
-            <h1>Not found</h1>
+            <h1><?= __('forms_not_found', 'Not found') ?></h1>
             <p class="text-muted"><?= e($msg) ?></p>
         </article>
     </main>

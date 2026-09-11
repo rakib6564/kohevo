@@ -155,9 +155,9 @@ slate_breadcrumbs([
     </div>
 <?php endif; ?>
 
-<div style="display:flex;gap:8px;margin-bottom:var(--space-3);border-bottom:1px solid var(--border);">
+<div style="display:flex;gap:8px;margin-bottom:var(--space-3);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <?php foreach (['structure'=>'Meal structures','shopping'=>'Shopping lists','recipes'=>'Recipes','submitted'=>'Client-submitted'] as $key => $lbl): ?>
-        <a href="?tab=<?= e($key) ?>" style="padding:8px 14px;text-decoration:none;border-bottom:2px solid <?= $tab === $key ? 'var(--coach-brand)' : 'transparent' ?>;color:<?= $tab === $key ? '#0f172a' : '#64748b' ?>;font-weight:<?= $tab === $key ? '600' : '400' ?>;">
+        <a href="?tab=<?= e($key) ?>" style="padding:8px 14px;text-decoration:none;white-space:nowrap;flex-shrink:0;border-bottom:2px solid <?= $tab === $key ? 'var(--coach-brand)' : 'transparent' ?>;color:<?= $tab === $key ? '#0f172a' : '#64748b' ?>;font-weight:<?= $tab === $key ? '600' : '400' ?>;">
             <?= e($lbl) ?>
         </a>
     <?php endforeach; ?>
@@ -175,11 +175,11 @@ slate_breadcrumbs([
 function coaching_client_copy_form(string $action, int $rowId, array $clients): void {
     if (!$clients) return;
     ?>
-    <form method="post" style="display:flex;gap:6px;margin:0;">
+    <form method="post" style="display:flex;gap:6px;margin:0;flex-wrap:wrap;">
         <?= csrf_field() ?>
         <input type="hidden" name="_action" value="<?= e($action) ?>">
         <input type="hidden" name="id" value="<?= (int)$rowId ?>">
-        <select name="customer_id" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:13px;">
+        <select name="customer_id">
             <?php foreach ($clients as $c): ?>
                 <option value="<?= (int)$c['id'] ?>"><?= e($c['name']) ?></option>
             <?php endforeach; ?>
@@ -204,7 +204,7 @@ function coaching_lib_render_structure(array $clients): void {
             <?= csrf_field() ?>
             <input type="hidden" name="_action" value="save_structure">
             <input type="hidden" name="id" value="<?= (int)($editing['id'] ?? 0) ?>">
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;">
+            <div class="field-row field-row-title">
                 <div class="field"><label class="field-label" for="title">Title</label>
                     <input type="text" id="title" name="title" required maxlength="200" value="<?= e((string)($editing['title'] ?? '')) ?>" placeholder="Balanced breakfast">
                 </div>
@@ -250,7 +250,7 @@ function coaching_lib_render_structure(array $clients): void {
                                 <span style="display:inline-block;font-size:11px;background:#e2e8f0;color:#475569;padding:2px 8px;border-radius:8px;margin-left:6px;"><?= e($t) ?></span>
                             <?php endforeach; ?>
                         </div>
-                        <div style="display:flex;gap:6px;align-items:center;">
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                             <a class="btn btn-sm btn-ghost" href="?tab=structure&edit=<?= (int)$it['id'] ?>">Edit</a>
                             <form method="post" style="margin:0;" onsubmit="return confirm('Remove from library?');">
                                 <?= csrf_field() ?>
@@ -294,7 +294,7 @@ function coaching_lib_render_shopping(array $clients): void {
             </div>
             <div id="sections-list">
                 <?php foreach ($editingSections as $i => $sec): ?>
-                    <div style="display:grid;grid-template-columns:1fr 3fr;gap:12px;margin-bottom:12px;padding:12px;background:rgba(148,163,184,0.05);border-radius:8px;">
+                    <div class="field-row field-row-wide" style="margin-bottom:12px;padding:12px;background:rgba(148,163,184,0.05);border-radius:8px;">
                         <div class="field" style="margin:0;">
                             <label class="field-label">Section heading</label>
                             <input type="text" name="section_heading[]" maxlength="100" value="<?= e((string)($sec['heading'] ?? '')) ?>" placeholder="Staples">
@@ -345,7 +345,7 @@ function coaching_lib_render_shopping(array $clients): void {
                                 <?= array_sum(array_map(fn($s) => count($s['items'] ?? []), $l['sections'])) ?> items
                             </div>
                         </div>
-                        <div style="display:flex;gap:6px;align-items:center;">
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                             <a class="btn btn-sm btn-ghost" href="?tab=shopping&edit=<?= (int)$l['id'] ?>">Edit</a>
                             <form method="post" style="margin:0;" onsubmit="return confirm('Remove?');">
                                 <?= csrf_field() ?>
@@ -386,7 +386,7 @@ function coaching_lib_render_recipes(array $clients): void {
             <?= csrf_field() ?>
             <input type="hidden" name="_action" value="save_recipe">
             <input type="hidden" name="id" value="<?= (int)($editing['id'] ?? 0) ?>">
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+            <div class="field-row field-row-recipe">
                 <div class="field"><label class="field-label" for="title">Title</label>
                     <input type="text" id="title" name="title" required maxlength="200" value="<?= e((string)($editing['title'] ?? '')) ?>">
                 </div>
@@ -454,7 +454,7 @@ function coaching_lib_render_recipes(array $clients): void {
 
                 ob_start(); ?>
                 <a class="btn btn-sm btn-ghost" href="?tab=recipes&edit=<?= (int)$r['id'] ?>">Edit</a>
-                <form method="post" style="margin:0;display:inline;" onsubmit="return confirm('Remove?');">
+                <form method="post" style="margin:0;" onsubmit="return confirm('Remove?');">
                     <?= csrf_field() ?>
                     <input type="hidden" name="_action" value="delete_recipe">
                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">

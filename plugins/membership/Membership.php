@@ -53,6 +53,11 @@ class Membership extends Plugin {
         // gate on self-service bookings. Inert until Booking fires the filter.
         Hook::addFilter('booking_can_book', [$this, 'gateBooking'], 10, 2);
 
+        // Flag service cards with a "Membership required" pill when the gate
+        // above is on, so the requirement is visible before a customer picks
+        // a service, not just after they hit the gate at checkout.
+        Hook::addFilter('booking_service_card_badges', [$this, 'addServiceCardBadge'], 10, 2);
+
         // Bilingual UI — French primary. Register the extra language and our
         // plugin lang-pack directory so __() resolves membership_* keys.
         Hook::addFilter('i18n_supported_languages', [$this, 'addLanguage']);
@@ -61,12 +66,27 @@ class Membership extends Plugin {
         // When a customer registers, provision their member profile + wallet
         // so the onboarding wizard (Phase 3) has a row to fill in.
         Hook::addAction('customer_registered', [$this, 'onCustomerRegistered']);
+
+        // MCP AI Gateway integration (expose membership tools to AI assistants)
+        require_once __DIR__ . '/MembershipMcpHandler.php';
+        MembershipMcpHandler::register();
     }
 
     // ── i18n ─────────────────────────────────────────────────────────────
 
     public function addLanguage(array $langs): array {
-        if (!isset($langs['fr'])) $langs['fr'] = 'Français';
+        // multilang-translate, when active, is the authoritative, admin-
+        // editable language registry -- it already contributes every
+        // enabled language (including French) via this same filter, backed
+        // by a real DB table with enable/disable + custom naming. Hardcoding
+        // French here too meant two sources of truth for the same entry,
+        // with this one blind to whether the admin had actually disabled or
+        // renamed it. Only fall back to the hardcode when that plugin isn't
+        // installed, so a standalone Membership install (no Translations
+        // plugin) still gets its bundled fr.php lang pack recognised.
+        if (!class_exists('PluginLoader') || !PluginLoader::isActive('multilang-translate')) {
+            if (!isset($langs['fr'])) $langs['fr'] = 'Français';
+        }
         return $langs;
     }
 
@@ -142,7 +162,8 @@ class Membership extends Plugin {
      * a membership rule fails; otherwise passes the decision through unchanged.
      *
      * Rules (each toggleable in Membership settings, default on):
-     *   • active membership required to book
+     *   • active membership required to book — only for services with an
+     *     active course-specific plan attached (MembershipAPI::serviceRequiresMembership)
      *   • completed member profile required to book
      *   • active insurance required for services flagged insurance-required
      */
@@ -152,9 +173,14 @@ class Membership extends Plugin {
             return $gate;
         }
 
-        $cid = isset($ctx['customer_id']) ? (int)$ctx['customer_id'] : 0;
+        $cid   = isset($ctx['customer_id']) ? (int)$ctx['customer_id'] : 0;
+        $svcId = (int)($ctx['service']['id'] ?? 0);
 
-        $requireMembership = (string) Database::setting('membership.require_membership_to_book') !== '0'; // default on
+        // Membership is only required for services an admin actually attached
+        // a course-specific plan to — the global toggle is a master switch,
+        // not a blanket "every service needs membership" rule.
+        $requireMembership = (string) Database::setting('membership.require_membership_to_book') !== '0' // default on
+            && MembershipAPI::serviceRequiresMembership($svcId);
         $requireProfile    = (string) Database::setting('membership.require_profile_to_book')    !== '0'; // default on
 
         $block = fn(string $msg) => ['ok' => false, 'error' => $msg];
@@ -164,8 +190,19 @@ class Membership extends Plugin {
             return $block(__('membership_gate_login', 'Please sign in as a member to book.'));
         }
 
-        if ($requireMembership && !MembershipAPI::isActive($cid)) {
-            return $block(__('membership_gate_active', 'An active membership is required to book.'));
+        if ($requireMembership) {
+            // isActive() only recognizes general 'membership'-type plans — a
+            // service gated by a 'course'-type plan (the only kind
+            // serviceRequiresMembership() reacts to) needs its own check,
+            // one that also accounts for the plan's session quota so access
+            // correctly re-locks once the credits are used up.
+            $access = MembershipAPI::courseSubscriptionStatus($cid, $svcId);
+            if (!$access['has_access']) {
+                $msg = $access['plan_id'] !== null
+                    ? __('membership_gate_sessions_used', 'You have used all the sessions included in your plan. Please renew or upgrade to keep booking.')
+                    : __('membership_gate_active', 'An active membership is required to book.');
+                return $block($msg);
+            }
         }
 
         if ($requireProfile) {
@@ -177,7 +214,6 @@ class Membership extends Plugin {
 
         // Insurance: services listed in membership.insurance_required_services
         // need the member to hold an active insurance plan.
-        $svcId = (int)($ctx['service']['id'] ?? 0);
         if ($svcId > 0) {
             $insSvcs = array_filter(array_map('intval',
                 explode(',', (string) Database::setting('membership.insurance_required_services'))));
@@ -187,6 +223,16 @@ class Membership extends Plugin {
         }
 
         return $gate;
+    }
+
+    /** Same rule gateBooking() enforces — surfaced as a card badge, not just a checkout-time block. */
+    public function addServiceCardBadge(array $badges, array $service): array {
+        $requireMembership = (string) Database::setting('membership.require_membership_to_book') !== '0' // default on
+            && MembershipAPI::serviceRequiresMembership((int)($service['id'] ?? 0));
+        if ($requireMembership) {
+            $badges[] = ['label' => __('membership_badge_required', 'Membership required'), 'tone' => 'accent'];
+        }
+        return $badges;
     }
 
     public function onCustomerRegistered(int $customerId): void {
@@ -203,7 +249,7 @@ class Membership extends Plugin {
     public function addAdminNav(array $items): array {
         if (!Auth::can('membership.view') && !Auth::isSuperAdmin()) return $items;
 
-        $items[] = ['slug' => 'membership', 'label' => __('membership', 'Membership'),
+        $items[] = ['slug' => 'membership', 'label' => __('membership_nav_overview', 'Membership overview'),
                     'href' => $this->url('admin/index.php'),
                     'icon' => 'id-card', 'order' => 500, 'group' => 'membership'];
         $items[] = ['slug' => 'membership-members', 'label' => __('membership_members', 'Members'),

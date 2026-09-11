@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'max_advance_days'  => max(0, (int)($_POST['max_advance_days'] ?? 365)),
                     'is_online'         => !empty($_POST['is_online']) ? 1 : 0,
                     'price_cents'       => max(0, (int)round(((float)($_POST['price'] ?? 0)) * 100)),
-                    'currency'          => mb_substr(strtoupper(trim((string)($_POST['currency'] ?? 'USD'))), 0, 8),
+                    'currency'          => slate_default_currency(),
                     'payment_mode'      => $paymentMode,
                     'deposit_type'      => $depositType,
                     'deposit_value'     => $depositValue,
@@ -126,13 +126,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
     $s = $editing ?: ['id'=>0,'name'=>'','description'=>'','confirm_subject'=>'','confirm_body'=>'','category_id'=>null,'location_id'=>null,
                       'duration_min'=>30,'slot_interval_min'=>0,'buffer_before_min'=>0,'buffer_min'=>0,
                       'capacity'=>1,'min_advance_min'=>0,'max_advance_days'=>365,'is_online'=>0,
-                      'price_cents'=>0,'currency'=>'USD','payment_mode'=>'free','deposit_type'=>'percent',
+                      'price_cents'=>0,'currency'=>slate_default_currency(),'payment_mode'=>'free','deposit_type'=>'percent',
                       'deposit_value'=>0,'tax_rate'=>0,'color'=>'#2563EB','is_active'=>1];
     $sInitials   = ($editing && trim((string)$editing['name']) !== '') ? mb_strtoupper(mb_substr($editing['name'], 0, 2)) : '–';
     $sProviders  = $editing ? (int) Database::value(
         "SELECT COUNT(*) FROM booking_provider_services WHERE service_id = ?", [(int)$editing['id']]) : 0;
     $sPriceLabel = ((int)$s['price_cents'] > 0)
-        ? e($s['currency']) . '&nbsp;' . number_format(((int)$s['price_cents'])/100, 2)
+        ? slate_format_price((int)$s['price_cents'], $s['currency'])
         : 'Free';
 ?>
 <?php booking_editor_css(); ?>
@@ -253,14 +253,10 @@ require SLATE_ROOT . '/admin/partials/header.php';
         <?php booking_edit_card_close(); ?>
 
         <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => 'Payments', 'title' => 'Pricing & payment']); ?>
-            <div class="field-row field-row-3">
+            <div class="field-row field-row-2">
                 <div class="field">
-                    <label class="field-label" for="price">Price</label>
+                    <label class="field-label" for="price">Price <span class="text-muted text-xs">(<?= e(slate_default_currency()) ?>)</span></label>
                     <input type="number" id="price" name="price" min="0" step="0.01" value="<?= e(number_format(((int)$s['price_cents'])/100, 2, '.', '')) ?>">
-                </div>
-                <div class="field">
-                    <label class="field-label" for="currency">Currency</label>
-                    <input type="text" id="currency" name="currency" maxlength="8" value="<?= e($s['currency']) ?>">
                 </div>
                 <div class="field">
                     <label class="field-label" for="tax_rate">Tax rate (%)</label>
@@ -329,7 +325,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
         <?php foreach ($services as $s):
             $detail = [
                 'Duration'   => $s['duration_min'] . ' min' . ($s['buffer_min'] ? ' (+ ' . $s['buffer_min'] . ' min buffer)' : ''),
-                'Price'      => $s['price_cents'] > 0 ? $s['currency'] . ' ' . number_format($s['price_cents']/100, 2) : 'Free',
+                'Price'      => $s['price_cents'] > 0 ? ['label' => 'Price', 'html' => slate_format_price((int)$s['price_cents'], $s['currency'])] : 'Free',
                 'Providers'  => $s['provider_count'] . ' linked',
                 'Slug'       => ['label' => 'Slug', 'html' => '<code>' . e($s['slug']) . '</code>'],
             ];
@@ -347,7 +343,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 'avatar'       => mb_substr($s['name'], 0, 1),
                 'avatar_color' => $s['is_active'] ? 'info' : 'muted',
                 'title'        => $s['name'],
-                'meta'         => $s['duration_min'] . ' min' . ($s['price_cents'] > 0 ? ' · ' . $s['currency'] . ' ' . number_format($s['price_cents']/100, 2) : ''),
+                'meta'         => $s['duration_min'] . ' min' . ($s['price_cents'] > 0 ? ' · ' . slate_format_price((int)$s['price_cents'], $s['currency']) : ''),
                 'badge'        => $s['is_active'] ? ['Active', 'active'] : ['Inactive', 'inactive'],
                 'detail'       => $detail,
                 'actions'      => $actions,

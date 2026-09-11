@@ -18,7 +18,11 @@ Auth::require();
 Auth::requirePerm('mlt.view');
 
 $pageTitle  = __('translations', 'Translations');
-$currentNav = 'mlt-translate';
+// Highlights the same sidebar item as every other settings-area page
+// (admin/settings.php sets this to 'settings' too) -- Translations no
+// longer has its own top-level nav slug now that it's reached via the
+// shared settings tab strip instead.
+$currentNav = 'settings';
 $tid = current_tenant_id();
 
 MultilangTranslate::ensureSchema();
@@ -36,6 +40,12 @@ $targetCodes = array_column($targets, 'code');
 
 $rows  = MLT_StringRepo::grid($tid, $targetCodes, $search, $filter, $perPage, ($page - 1) * $perPage);
 $total = MLT_StringRepo::totalCount($tid, $search);
+// Unfiltered count, for the "Total strings" stat card specifically -- $total
+// above is search-filtered (it also drives pagination for the current
+// grid view, which is correct there), but the stat card is labeled as a
+// site-wide total and must not silently show "2" just because someone
+// left text in the search box.
+$grandTotal = $search === '' ? $total : MLT_StringRepo::totalCount($tid);
 $untranslatedTotal = MLT_StringRepo::untranslatedCount($tid, $targetCodes, $search);
 $rowCountForFilter = $filter === 'untranslated' ? $untranslatedTotal : $total;
 $pages = max(1, (int)ceil($rowCountForFilter / $perPage));
@@ -56,6 +66,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
         </p>
     </div>
 </div>
+
+<?php
+// Same strip admin/settings.php renders (includes/ui_components.php), with
+// this page marked active -- Translations lives in the settings area now,
+// not as its own separate top-level nav item.
+if (function_exists('slate_render_settings_tabs')) slate_render_settings_tabs('translations');
+?>
 
 <div class="mlt-wrap" data-csrf="<?= e(csrf_token()) ?>" data-tenant="<?= (int)$tid ?>">
 
@@ -82,7 +99,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     <div class="dash-stats mlt-stats">
         <?php slate_stat_card([
             'icon'  => 'file-text',
-            'number' => (string)$total,
+            'number' => (string)$grandTotal,
             'label'  => __('total_rows', 'Total strings'),
         ]); ?>
         <?php foreach ($targets as $t): $r = $reports[$t['code']];
@@ -270,7 +287,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="mlt-modal" id="mlt-modal-customize" hidden>
     <div class="mlt-modal-box">
         <h3><?= __('customize_switcher', 'Customize language switcher') ?></h3>
-        <p class="mlt-modal-hint"><?= __('customize_switcher_hint', 'These settings shape the floating widget shown on the public site and admin. The customer portal always shows a compact inline switcher in its own topbar instead, styled to match that portal.') ?></p>
+        <p class="mlt-modal-hint"><?= __('customize_switcher_hint', 'These settings shape the floating widget shown on the public site. Choose "Header bar" to show the switcher as a menu item in the admin and customer header bars instead of a floating button — the customer portal always uses its header bar for this either way.') ?></p>
         <label><input type="checkbox" id="mlt-cz-enabled"> <?= __('switcher_enabled', 'Show switcher on site') ?></label>
         <label><?= __('style', 'Style') ?>
             <select id="mlt-cz-style">
@@ -285,6 +302,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 <option value="bottom-left"><?= __('bottom_left', 'Bottom left') ?></option>
                 <option value="top-right"><?= __('top_right', 'Top right') ?></option>
                 <option value="top-left"><?= __('top_left', 'Top left') ?></option>
+                <option value="header"><?= __('switcher_position_header', 'Header bar (admin + customer, as a menu item)') ?></option>
             </select>
         </label>
         <label><?= __('background_color', 'Background color') ?> <input type="color" id="mlt-cz-bg" value="#111827"></label>

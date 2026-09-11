@@ -105,10 +105,13 @@ class MembershipAPI {
         ];
     }
 
-    /** Default currency for new plans (settings-driven, falls back to USD). */
+    /**
+     * Default currency for new plans. Delegates to the tenant-wide Settings
+     * → General currency (slate_default_currency()) rather than keeping a
+     * separate membership.currency setting — one place to configure it.
+     */
     public static function currency(): string {
-        $c = (string) Database::setting('membership.currency');
-        return $c !== '' ? strtoupper($c) : 'USD';
+        return slate_default_currency();
     }
 
     /** Per-plan insurance add-on modes. */
@@ -138,10 +141,9 @@ class MembershipAPI {
         return [false, 0];
     }
 
-    /** Format integer cents for display, e.g. (1500, 'USD') → "USD 15.00". */
+    /** Format integer cents for display using the global currency symbol + position. */
     public static function money(int $cents, ?string $currency = null): string {
-        $currency = strtoupper($currency ?? self::currency());
-        return $currency . ' ' . number_format($cents / 100, 2);
+        return slate_format_price_plain($cents, $currency ?? self::currency());
     }
 
     /* ─────────────────── Content Builder integration (Phase D, D3) ───────────
@@ -304,6 +306,83 @@ class MembershipAPI {
         return Database::rows($sql, [current_tenant_id()]);
     }
 
+    /**
+     * True when a Booking service is gated by an active course-specific plan
+     * tied to it via `course_id`. This is the per-service source of truth for
+     * the "membership required" badge and booking gate — a general
+     * (non-course) plan does NOT blanket-gate every service, only the ones an
+     * admin actually attached a course plan to.
+     */
+    public static function serviceRequiresMembership(int $serviceId): bool {
+        if ($serviceId <= 0) return false;
+        self::ensureSchema();
+        return (bool) Database::value(
+            "SELECT 1 FROM membership_plans
+              WHERE tenant_id = ? AND plan_type = 'course' AND course_id = ? AND is_active = 1
+              LIMIT 1",
+            [current_tenant_id(), $serviceId]
+        );
+    }
+
+    /**
+     * A customer's access to a specific course-gated service: do they hold an
+     * active, unexpired course-specific subscription for it, and — if that
+     * plan carries a session_quota — do they still have credits left?
+     *
+     * `used` only counts appointments booked since the subscription's own
+     * starts_at, so renewing a plan resets the counter rather than carrying
+     * over a previous term's usage.
+     *
+     * Returns:
+     *   has_access — true if the customer can book this service right now
+     *   plan_id    — the course plan backing access, or null if none is active
+     *                (distinguishes "never had a plan / it expired" from
+     *                "plan is active but the session quota ran out")
+     *   quota      — session_quota on the plan (0 = unlimited)
+     *   used       — confirmed/completed bookings against this service since starts_at
+     *   remaining  — quota - used, or null when unlimited
+     */
+    public static function courseSubscriptionStatus(int $customerId, int $serviceId): array {
+        $none = ['has_access' => false, 'plan_id' => null, 'quota' => 0, 'used' => 0, 'remaining' => null, 'sub_id' => null];
+        if ($customerId <= 0 || $serviceId <= 0) return $none;
+        self::ensureSchema();
+        $tid = current_tenant_id();
+
+        $sub = Database::row(
+            "SELECT s.id AS sub_id, s.starts_at, p.id AS plan_id, p.session_quota
+               FROM membership_subscriptions s
+               JOIN membership_plans p ON p.id = s.plan_id
+              WHERE s.tenant_id = ? AND s.customer_id = ? AND s.status = 'active'
+                AND p.plan_type = 'course' AND p.course_id = ?
+                AND (s.expires_at IS NULL OR COALESCE(s.grace_until, s.expires_at) >= NOW())
+           ORDER BY s.expires_at DESC, s.id DESC
+              LIMIT 1",
+            [$tid, $customerId, $serviceId]
+        );
+        if (!$sub) return $none;
+
+        $quota = (int) $sub['session_quota'];
+        $used  = 0;
+        if ($quota > 0) {
+            $used = (int) Database::value(
+                "SELECT COUNT(*) FROM booking_appointments
+                  WHERE tenant_id = ? AND customer_id = ? AND service_id = ?
+                    AND status IN ('confirmed','completed') AND created_at >= ?",
+                [$tid, $customerId, $serviceId, $sub['starts_at']]
+            );
+        }
+        $remaining = $quota > 0 ? max(0, $quota - $used) : null;
+
+        return [
+            'has_access' => $quota <= 0 || $remaining > 0,
+            'plan_id'    => (int) $sub['plan_id'],
+            'quota'      => $quota,
+            'used'       => $used,
+            'remaining'  => $remaining,
+            'sub_id'     => (int) $sub['sub_id'],
+        ];
+    }
+
     /** Locale-aware plan name (FR primary when locale is fr and a name_fr exists). */
     public static function planName(array $plan): string {
         $locale = class_exists('I18n') ? I18n::currentLocale() : 'en';
@@ -365,6 +444,32 @@ class MembershipAPI {
             [current_tenant_id(), $customerId]
         );
         return (bool) $row;
+    }
+
+    /**
+     * True when the insurance feature is actually configured for this
+     * tenant — an admin has either required insurance on at least one
+     * Booking service, or made it available (optional/required) on an
+     * active plan, or there's a standalone insurance-type plan to buy.
+     * When none of that is true, insurance is dead weight in the UI (an
+     * "Add insurance" card that unlocks nothing) and dashboards should
+     * hide it rather than show a permanently-inactive card.
+     */
+    public static function insuranceInUse(): bool {
+        self::ensureSchema();
+        $tid = current_tenant_id();
+
+        $requiredServices = array_filter(array_map('intval',
+            explode(',', (string) Database::setting('membership.insurance_required_services'))));
+        if ($requiredServices) return true;
+
+        return (bool) Database::value(
+            "SELECT 1 FROM membership_plans
+              WHERE tenant_id = ? AND is_active = 1
+                AND (plan_type = 'insurance' OR insurance_mode IN ('optional','required'))
+              LIMIT 1",
+            [$tid]
+        );
     }
 
     /**
@@ -678,6 +783,19 @@ class MembershipAPI {
         if (isset($opts['amount_cents'])) $fields['amount_cents'] = (int)$opts['amount_cents'];
 
         Database::update('membership_subscriptions', $fields, 'id = ? AND tenant_id = ?', [$subId, $tid]);
+
+        // Renewal: superseding any other still-active term of the SAME plan
+        // for this customer. Without this, buying the same plan again (e.g.
+        // after using up the session quota) stacked a second "Active" row —
+        // two duplicate cards on the dashboard, and quota usage kept
+        // accumulating across both terms instead of resetting.
+        Database::update(
+            'membership_subscriptions',
+            ['status' => 'expired'],
+            'tenant_id = ? AND customer_id = ? AND plan_id = ? AND status = ? AND id != ?',
+            [$tid, (int)$sub['customer_id'], (int)$sub['plan_id'], 'active', $subId]
+        );
+
         AuditLog::record('membership.activated', (string)$subId, [
             'customer_id' => (int)$sub['customer_id'],
             'plan_id'     => (int)$sub['plan_id'],

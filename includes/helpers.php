@@ -377,6 +377,69 @@ if (!function_exists('slate_db_time')) {
     }
 }
 
+// ── Global currency default ─────────────────────────────────────
+// The single tenant-wide default currency (Settings → General). Plugins
+// (membership, booking, ...) read this instead of keeping their own
+// duplicate "default currency" setting, so there's one place to change it.
+if (!function_exists('slate_default_currency')) {
+    function slate_default_currency(): string {
+        $c = strtoupper(trim((string) Database::setting('currency')));
+        return preg_match('/^[A-Z]{3,8}$/', $c) ? $c : 'USD';
+    }
+}
+
+// ── Global currency position (Settings → General) ────────────────
+// Whether the symbol/code renders before ("$50.00") or after ("50.00 $")
+// the amount. Single tenant-wide switch — plugins must not keep their own.
+if (!function_exists('slate_currency_position')) {
+    function slate_currency_position(): string {
+        $p = strtolower(trim((string) Database::setting('currency_position')));
+        return $p === 'after' ? 'after' : 'before';
+    }
+}
+
+// ── ISO 4217 code → display symbol ────────────────────────────────
+if (!function_exists('slate_currency_symbol')) {
+    function slate_currency_symbol(?string $code = null): string {
+        $code = strtoupper(trim((string) ($code ?? slate_default_currency())));
+        static $symbols = [
+            'USD' => '$', 'EUR' => '€', 'GBP' => '£', 'CHF' => 'CHF', 'CAD' => '$',
+            'AUD' => '$', 'NZD' => '$', 'JPY' => '¥', 'CNY' => '¥', 'INR' => '₹',
+            'BRL' => 'R$', 'MXN' => '$', 'ZAR' => 'R', 'SEK' => 'kr', 'NOK' => 'kr',
+            'DKK' => 'kr', 'PLN' => 'zł', 'CZK' => 'Kč', 'RON' => 'lei', 'TRY' => '₺',
+            'AED' => 'د.إ', 'SAR' => '﷼', 'SGD' => '$', 'HKD' => '$', 'KRW' => '₩',
+        ];
+        return $symbols[$code] ?? $code;
+    }
+}
+
+// ── The single formatter every plugin should call to render a price ──
+// Combines the global currency symbol and the global before/after position
+// so every screen (booking, membership, gift cards, stripe, emails, chat)
+// renders amounts identically. $cents is an integer amount in the minor unit.
+// Returns HTML-safe markup (symbol escaped, "&nbsp;" entity) for direct echo.
+if (!function_exists('slate_format_price')) {
+    function slate_format_price(int $cents, ?string $currencyCode = null): string {
+        $amount = number_format($cents / 100, 2);
+        $symbol = e(slate_currency_symbol($currencyCode));
+        return slate_currency_position() === 'after'
+            ? $amount . '&nbsp;' . $symbol
+            : $symbol . $amount;
+    }
+}
+
+// Plain-text counterpart for SMS, email subjects, JSON, PDFs — a real
+// U+00A0 non-breaking space instead of the HTML entity, symbol unescaped.
+if (!function_exists('slate_format_price_plain')) {
+    function slate_format_price_plain(int $cents, ?string $currencyCode = null): string {
+        $amount = number_format($cents / 100, 2);
+        $symbol = slate_currency_symbol($currencyCode);
+        return slate_currency_position() === 'after'
+            ? $amount . "\u{00A0}" . $symbol
+            : $symbol . $amount;
+    }
+}
+
 // ── Secret encryption (AES-256-GCM, envelope format 'enc:v1:') ──
 if (!function_exists('slate_encrypt_secret')) {
     function slate_encrypt_secret(string $plaintext): string {
@@ -565,5 +628,43 @@ if (!function_exists('plugin_dir')) {
     function plugin_dir(string $slug, string $relPath = ''): string {
         $base = SLATE_ROOT . '/plugins/' . $slug;
         return $relPath === '' ? $base : $base . '/' . ltrim($relPath, '/');
+    }
+}
+
+// ── Avatar photo overlay ──────────────────────────────────────────
+// Gravatar URL builder + initials/photo overlay markup were previously
+// reimplemented independently in plugins/forms/FormsAPI.php,
+// plugins/forms/admin/submissions.php, includes/portal_shell.php, and
+// admin/partials/header.php -- and every OTHER plugin's customer/contact
+// list (Booking's dashboard + customer list, Membership's members list,
+// Coaching's client list) just never looked up a photo at all, always
+// showing bare initials even for a person who has a Gravatar or an
+// uploaded photo. One shared implementation so any list can opt in.
+if (!function_exists('slate_gravatar_url')) {
+    function slate_gravatar_url(string $email, int $size = 40): string {
+        $email = strtolower(trim($email));
+        if ($email === '' || !str_contains($email, '@')) return '';
+        return 'https://www.gravatar.com/avatar/' . md5($email) . '?s=' . ($size * 2) . '&d=404';
+    }
+}
+
+// The single builder every list should call for slate_dlist_row()'s /
+// slate_data_row()'s 'avatar_html' param: initials text with a photo
+// <img> overlay layered on top when one is available. An uploaded photo
+// path (e.g. Membership's own avatar_path) takes priority over Gravatar;
+// with neither, this degrades to plain initials. The overlay uses
+// Gravatar's d=404 + onerror="this.remove()" so an email with no
+// registered Gravatar silently falls back to the initials underneath,
+// never a broken-image icon.
+if (!function_exists('slate_avatar_overlay_html')) {
+    function slate_avatar_overlay_html(string $initials, string $email = '', ?string $photoPath = null, int $size = 40): string {
+        $imgSrc = '';
+        if ($photoPath !== null && $photoPath !== '') {
+            $imgSrc = SLATE_URL . '/' . ltrim($photoPath, '/');
+        } elseif ($email !== '') {
+            $imgSrc = slate_gravatar_url($email, $size);
+        }
+        if ($imgSrc === '') return e($initials);
+        return e($initials) . '<img src="' . e($imgSrc) . '" alt="" loading="lazy" onerror="this.remove()">';
     }
 }

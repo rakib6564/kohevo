@@ -43,19 +43,52 @@ require __DIR__ . '/includes/helpers.php';
 $step  = (int)($_GET['step'] ?? 1);
 $error = '';
 
+// Steps 2+ need the DB connection step 1 itself just configured — guard
+// against landing here (bookmark, back button) before .env exists rather
+// than fataling on connect.
+if ($step >= 2) {
+    if (!file_exists(SLATE_ROOT . '/.env')) {
+        header('Location: ' . $_SERVER['PHP_SELF'] . '?step=1');
+        exit;
+    }
+    require __DIR__ . '/config.php';
+}
+// Step 3 (plugin selection) only makes sense once the admin account from
+// step 2 actually exists — otherwise send back rather than let someone
+// activate plugins on a DB with no admin able to reach them yet. On a
+// truly fresh DB (step 2 never run) the `users` table itself doesn't
+// exist — that's the same "not ready" case, not a 500.
+if ($step === 3) {
+    try {
+        $hasAdmin = (int) Database::value('SELECT COUNT(*) FROM users', []) > 0;
+    } catch (\Throwable $e) {
+        $hasAdmin = false;
+    }
+    if (!$hasAdmin) {
+        header('Location: ' . $_SERVER['PHP_SELF'] . '?step=2');
+        exit;
+    }
+}
+$pluginsOnDisk = ($step === 3) ? PluginLoader::discoverOnDisk() : [];
+$pluginResults = null;
+
 // ── Step 1 submit: write .env, redirect to step 2 ───────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
     $dbHost = trim($_POST['db_host'] ?? 'localhost');
+    $dbPort = trim($_POST['db_port'] ?? '');
     $dbName = trim($_POST['db_name'] ?? '');
     $dbUser = trim($_POST['db_user'] ?? '');
     $dbPass = (string)($_POST['db_pass'] ?? '');
     $appUrl = rtrim(trim($_POST['app_url'] ?? ''), '/');
 
-    if ($dbName === '' || $dbUser === '' || $appUrl === '') {
+    if ($dbPort !== '' && !preg_match('/^\d{1,5}$/', $dbPort)) {
+        $error = 'Database port must be numeric.';
+    } elseif ($dbName === '' || $dbUser === '' || $appUrl === '') {
         $error = 'Please fill in all required fields.';
     } else {
         try {
-            $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass,
+            $dsn = "mysql:host=$dbHost" . ($dbPort !== '' ? ";port=$dbPort" : '') . ";dbname=$dbName;charset=utf8mb4";
+            $pdo = new PDO($dsn, $dbUser, $dbPass,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
         } catch (PDOException $e) {
             $error = 'Could not connect to the database: ' . htmlspecialchars($e->getMessage());
@@ -69,8 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
             $envBody  = "APP_URL=$appUrl\n";
             $envBody .= "APP_SECRET=$appSecret\n";
             $envBody .= "CRON_SECRET=$cronSecret\n";
+            $envBody .= "MCP_GATEWAY_ENABLED=0\n";
             $envBody .= "TENANT_ID=1\n";
-            $envBody .= "DB_HOST=$dbHost\nDB_NAME=$dbName\nDB_USER=$dbUser\nDB_PASS=$dbPass\nDB_CHARSET=utf8mb4\n";
+            $envBody .= "DB_HOST=$dbHost\n";
+            if ($dbPort !== '') $envBody .= "DB_PORT=$dbPort\n";
+            $envBody .= "DB_NAME=$dbName\nDB_USER=$dbUser\nDB_PASS=$dbPass\nDB_CHARSET=utf8mb4\n";
 
             if (@file_put_contents(SLATE_ROOT . '/.env', $envBody) === false) {
                 $error = 'Could not write .env. Make the project root writable temporarily, '
@@ -85,10 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
     }
 }
 
-// ── Step 2 submit: run schema, create admin, write marker ───
+// ── Step 2 submit: run schema, create admin, go to step 3 ───
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
-    require __DIR__ . '/config.php';
-
     $name     = trim($_POST['name'] ?? '');
     $email    = trim($_POST['email'] ?? '');
     $password = (string)($_POST['password'] ?? '');
@@ -115,15 +149,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
                 'status'        => 'active',
             ]);
 
-            file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Slate " . SLATE_VERSION . "\n");
-            @chmod($installMarker, 0640);
-
-            header('Location: ' . SLATE_URL . '/admin/login.php?installed=1');
+            header('Location: ' . $_SERVER['PHP_SELF'] . '?step=3');
             exit;
         } catch (\Throwable $e) {
             $error = 'Installation failed: ' . htmlspecialchars($e->getMessage());
         }
     }
+}
+
+// ── Step 3 submit: activate selected plugins, then write the marker ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
+    $action = (string)($_POST['_action'] ?? 'apply');
+
+    if ($action === 'finish_anyway') {
+        // Reached only after a partial-failure results screen the user has
+        // already seen — finish setup regardless; failed plugins are just
+        // never-activated, nothing was left half-applied.
+        file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Slate " . SLATE_VERSION . "\n");
+        @chmod($installMarker, 0640);
+        header('Location: ' . SLATE_URL . '/admin/login.php?installed=1');
+        exit;
+    }
+
+    // Never trust posted slugs directly — only activate what's genuinely
+    // on disk with a valid manifest, per discoverOnDisk() itself.
+    $discovered = array_column($pluginsOnDisk, null, 'slug');
+    $selected   = ($action === 'skip') ? [] : array_values(array_intersect(
+        array_map('strval', (array)($_POST['plugins'] ?? [])),
+        array_keys($discovered)
+    ));
+
+    $pluginResults = [];
+    foreach ($selected as $slug) {
+        $res = PluginLoader::installFromDisk($slug);
+        $pluginResults[] = [
+            'slug'  => $slug,
+            'name'  => $discovered[$slug]['name'] ?? $slug,
+            'ok'    => !empty($res['ok']),
+            'error' => $res['error'] ?? null,
+        ];
+    }
+
+    $anyFailed = (bool) array_filter($pluginResults, static fn(array $r): bool => !$r['ok']);
+    if (!$anyFailed) {
+        file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Slate " . SLATE_VERSION . "\n");
+        @chmod($installMarker, 0640);
+        $okCount = count($pluginResults);
+        header('Location: ' . SLATE_URL . '/admin/login.php?installed=1' . ($okCount ? '&plugins=' . $okCount : ''));
+        exit;
+    }
+    // Else fall through and re-render step 3 below with $pluginResults —
+    // shows what succeeded/failed and offers "Continue anyway". The marker
+    // is deliberately not written until the user has seen that.
 }
 ?>
 <!DOCTYPE html>
@@ -214,10 +291,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
 
     <div class="text-center mb-4">
         <span class="step-pill">
-            Step <?= $step ?> of 2
+            Step <?= $step ?> of 3
             <span class="step-dots">
                 <span class="step-dot is-on"></span>
                 <span class="step-dot <?= $step >= 2 ? 'is-on' : '' ?>"></span>
+                <span class="step-dot <?= $step >= 3 ? 'is-on' : '' ?>"></span>
             </span>
         </span>
     </div>
@@ -240,9 +318,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
                 <div class="field-hint">The public URL where Slate will be reached. No trailing slash.</div>
             </div>
 
-            <div class="field">
-                <label class="field-label" for="db_host">Database host</label>
-                <input type="text" id="db_host" name="db_host" value="localhost">
+            <div class="field-row field-row-2">
+                <div class="field" style="margin-bottom:0">
+                    <label class="field-label" for="db_host">Database host</label>
+                    <input type="text" id="db_host" name="db_host" value="localhost">
+                </div>
+                <div class="field" style="margin-bottom:0">
+                    <label class="field-label" for="db_port">Port <span class="text-muted">optional</span></label>
+                    <input type="text" id="db_port" name="db_port" inputmode="numeric" placeholder="3306">
+                </div>
             </div>
 
             <div class="field">
@@ -301,6 +385,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
                 Install Slate →
             </button>
         </form>
+
+    <?php elseif ($step === 3): ?>
+        <h2 style="margin-bottom:var(--space-2)">Choose your plugins</h2>
+
+        <?php if ($pluginResults !== null): ?>
+            <p class="text-muted" style="margin:0 0 var(--space-4);font-size:14px;">
+                Some plugins couldn't be activated automatically. This won't block finishing setup — retry
+                them anytime from <strong>Admin → Plugins</strong>.
+            </p>
+            <ul class="kv-list" style="margin-bottom:var(--space-4);">
+                <?php foreach ($pluginResults as $r): ?>
+                    <li class="kv-row">
+                        <span class="kv-label"><?= htmlspecialchars($r['name']) ?></span>
+                        <span class="kv-value" style="text-align:right;">
+                            <?php if ($r['ok']): ?>
+                                <span style="color:var(--success,#16A34A);font-weight:600;">Activated</span>
+                            <?php else: ?>
+                                <span style="color:var(--danger,#DC2626);font-weight:600;">Failed</span>
+                                <div class="text-muted" style="font-size:12px;"><?= htmlspecialchars((string)$r['error']) ?></div>
+                            <?php endif; ?>
+                        </span>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <form method="post">
+                <input type="hidden" name="_action" value="finish_anyway">
+                <button type="submit" class="btn btn-primary btn-lg btn-block">Continue to admin login →</button>
+            </form>
+
+        <?php elseif (!$pluginsOnDisk): ?>
+            <p class="text-muted" style="margin:0 0 var(--space-4);font-size:14px;">
+                No plugins found under <code>plugins/</code>. You can add and activate them anytime from
+                Admin → Plugins later.
+            </p>
+            <form method="post">
+                <input type="hidden" name="_action" value="skip">
+                <button type="submit" class="btn btn-primary btn-lg btn-block">Finish →</button>
+            </form>
+
+        <?php else: ?>
+            <p class="text-muted" style="margin:0 0 var(--space-4);font-size:14px;">
+                Everything found in <code>plugins/</code> is listed below, pre-selected. Uncheck anything
+                you don't want active yet — you can always change this later from Admin → Plugins.
+            </p>
+            <form method="post">
+                <div class="mb-4" style="display:grid;gap:10px;">
+                    <?php foreach ($pluginsOnDisk as $p): ?>
+                        <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border,rgba(0,0,0,.08));border-radius:var(--radius);cursor:pointer;">
+                            <input type="checkbox" name="plugins[]" value="<?= htmlspecialchars($p['slug']) ?>" checked style="margin-top:3px;">
+                            <span>
+                                <strong style="display:block;">
+                                    <?= htmlspecialchars($p['name']) ?>
+                                    <span class="text-muted" style="font-weight:400;">v<?= htmlspecialchars($p['version']) ?></span>
+                                </strong>
+                                <?php if ($p['description'] !== ''): ?>
+                                    <span class="text-muted" style="font-size:12.5px;"><?= htmlspecialchars($p['description']) ?></span>
+                                <?php endif; ?>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <button type="submit" name="_action" value="apply" class="btn btn-primary btn-lg btn-block">
+                    Activate selected &amp; finish →
+                </button>
+                <button type="submit" name="_action" value="skip" class="btn btn-lg btn-block mt-2">
+                    Skip for now
+                </button>
+            </form>
+        <?php endif; ?>
     <?php endif; ?>
     </div>
 </div>

@@ -23,7 +23,7 @@ if (!$member) { http_response_code(404); echo 'Member not found.'; exit; }
 
 $pageTitle  = 'Member — ' . ($member['name'] ?: $member['email']);
 $currentNav = 'membership-members';
-$flash = null;
+$flash = !empty($_GET['assigned']) ? ['type' => 'success', 'msg' => __('membership_activated_msg', 'Membership activated manually.')] : null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {

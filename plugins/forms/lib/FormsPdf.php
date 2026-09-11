@@ -396,7 +396,7 @@ class FormsPdf {
         $xs    = $two ? [self::MARGIN, self::MARGIN + $colW + self::COL_GAP] : [self::MARGIN];
 
         $rowH = 0.0;
-        foreach ($cells as $c) $rowH = max($rowH, $this->cellHeight((string)$c[1], $colW));
+        foreach ($cells as $c) $rowH = max($rowH, $this->cellHeight((string)$c[0], (string)$c[1], $colW));
         $this->ensureSpace($rowH + 6);
 
         foreach ($cells as $i => $c) $this->drawCell($xs[$i], $colW, (string)$c[0], (string)$c[1]);
@@ -405,16 +405,28 @@ class FormsPdf {
         $this->lineAt($this->y, $this->line, 0.8);
     }
 
-    /** Height of a stacked cell: small label row + the wrapped value lines. */
-    private function cellHeight(string $value, float $colW): float {
-        $n = max(1, count($this->wrap($value !== '' ? $value : '—', $colW, 10.5, false)));
-        return 30.0 + ($n - 1) * 14.5 + 10.0;
+    /**
+     * Height of a stacked cell: the wrapped label lines + the wrapped value
+     * lines. The label used to be assumed single-line, which let a long
+     * field label draw past its column width unwrapped and visually bleed
+     * into the next column — this keeps the row tall enough for however
+     * many lines the label actually wraps to.
+     */
+    private function cellHeight(string $label, string $value, float $colW): float {
+        $labelLines = max(1, count($this->wrap($label, $colW, 8.5, true)));
+        $valueLines = max(1, count($this->wrap($value !== '' ? $value : '—', $colW, 10.5, false)));
+        return 30.0 + ($labelLines - 1) * 10.0 + ($valueLines - 1) * 14.5 + 10.0;
     }
 
     /** Draw a stacked cell: an uppercase-muted label above the value lines. */
     private function drawCell(float $x, float $colW, string $label, string $value): void {
-        $this->text($label, $x, $this->y + 13, 8.5, true, $this->label, 1, 0.4);
-        $vy = $this->y + 30;
+        $labelLines = $this->wrap($label, $colW, 8.5, true);
+        $ly = $this->y + 13;
+        foreach ($labelLines as $ll) {
+            $this->text($ll, $x, $ly, 8.5, true, $this->label, 1, 0.4);
+            $ly += 10.0;
+        }
+        $vy = $this->y + 30 + (count($labelLines) - 1) * 10.0;
         foreach ($this->wrap($value !== '' ? $value : '—', $colW, 10.5, false) as $vl) {
             $this->text($vl, $x, $vy, 10.5, false, $this->ink);
             $vy += 14.5;

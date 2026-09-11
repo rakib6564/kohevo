@@ -51,8 +51,18 @@ define('APP_SECRET', env('APP_SECRET', ''));
 // ── Cron secret ──────────────────────────────────────────────
 define('CRON_SECRET', env('CRON_SECRET', ''));
 
+// ── MCP gateway kill switch ──────────────────────────────────
+// Independent of the plugin's active/inactive status in the `plugins`
+// table — see plugins/mcp-gateway/README.md. Off by default; an install
+// that never sets this env var never exposes the endpoint, full stop.
+define('MCP_GATEWAY_ENABLED', env('MCP_GATEWAY_ENABLED', '0') === '1');
+
 // ── Database ─────────────────────────────────────────────────
 define('DB_HOST',    env('DB_HOST',    'localhost'));
+// Optional — most installs run MySQL on its default port and never set
+// this. Exists for setups (e.g. a non-default local dev MySQL/MariaDB
+// instance) that listen elsewhere; empty means "let the driver default apply".
+define('DB_PORT',    env('DB_PORT',    ''));
 define('DB_NAME',    env('DB_NAME',    'slate'));
 define('DB_USER',    env('DB_USER',    'slate'));
 define('DB_PASS',    env('DB_PASS',    ''));
@@ -141,7 +151,7 @@ Hook::addAction('stripe_webhook_event', function (array $event): void {
         $cur    = strtoupper((string)($obj['currency'] ?? 'USD'));
         $src    = (string)(($obj['metadata']['source_plugin'] ?? '') ?: 'payment');
         Notifications::add('Payment received', [
-            'body' => trim($cur . ' ' . number_format($amount / 100, 2) . ' · ' . $src),
+            'body' => trim(slate_format_price_plain($amount, $cur) . ' · ' . $src),
             'icon' => 'card',
             'url'  => defined('SLATE_URL') ? SLATE_URL . '/admin/' : null,
         ]);

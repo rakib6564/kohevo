@@ -16,14 +16,21 @@ $weeks      = MembershipAPI::weeklyActivity($cid);
 $courses    = MembershipAPI::courseAccess($cid);
 $hasIns     = MembershipAPI::hasInsurance($cid);
 $insFee     = MembershipAPI::insuranceFeeCents();
+$insInUse   = MembershipAPI::insuranceInUse();
 
 $activePlan = $sub ? MembershipAPI::plan((int)$sub['plan_id']) : null;
 $quota      = (int)($activePlan['session_quota'] ?? 0);
 $courseId   = (int)($activePlan['course_id'] ?? 0);
 $courseName = '';
-$used       = $stats['total'];
-foreach ($courses as $c) { if ($c['id'] === $courseId) { $courseName = $c['name']; $used = $c['used']; } }
-$remaining  = $quota > 0 ? max(0, $quota - $used) : null;
+foreach ($courses as $c) { if ($c['id'] === $courseId) { $courseName = $c['name']; } }
+
+// Used/remaining come from the SAME per-subscription-term count the
+// booking gate uses (courseSubscriptionStatus) — it only counts bookings
+// since the CURRENT active subscription's starts_at, so a renewal resets
+// the count instead of it accumulating forever across terms.
+$courseStatus = $courseId > 0 ? MembershipAPI::courseSubscriptionStatus($cid, $courseId) : null;
+$used         = $courseStatus['used'] ?? $stats['total'];
+$remaining    = $courseStatus !== null ? $courseStatus['remaining'] : ($quota > 0 ? max(0, $quota - $used) : null);
 
 $token  = (string)($profile['qr_token'] ?? '');
 $qrLib  = is_file(dirname(__DIR__, 2) . '/assets/js/qrcode-generator.js');
@@ -174,7 +181,11 @@ slate_portal_welcome([
                     </div>
                 <?php endforeach; ?>
 
-                <!-- Insurance / Assurance add-on -->
+                <!-- Insurance / Assurance add-on — only shown when insurance is
+                     actually configured (required on a service, offered on a
+                     plan, or the customer already holds it); otherwise it's a
+                     permanently-inactive card that unlocks nothing. -->
+                <?php if ($insInUse || $hasIns): ?>
                 <div class="pplan <?= $hasIns ? 'is-active' : 'is-off' ?>">
                     <div class="pplan-top"><b><?= __('membership_insurance','Insurance') ?></b>
                         <span class="pill <?= $hasIns?'pill-green':'pill-muted' ?>"><?= $hasIns ? '✓ '.__('membership_active','Active') : __('membership_not_active','Not active') ?></span></div>
@@ -184,6 +195,7 @@ slate_portal_welcome([
                         <a href="<?= e($selfUrl) ?>?view=plans" class="mbtn mbtn-primary mbtn-block">+ <?= __('membership_add_insurance','Add insurance') ?></a>
                     <?php endif; ?>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

@@ -342,7 +342,7 @@ $brandMark = function (string $cls = 'mlp-brand') use ($logoUrl, $siteName): str
                     </ul>
                     <div class="mlp-plan-foot">
                     <?php if ($cust): ?>
-                        <form method="post" action="<?= e(SLATE_URL) ?>/member">
+                        <form method="post" action="<?= e(SLATE_URL) ?>/member?view=plans">
                             <?= csrf_field() ?>
                             <input type="hidden" name="_action" value="buy">
                             <input type="hidden" name="plan_id" value="<?= (int)$p['id'] ?>">

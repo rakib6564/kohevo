@@ -45,6 +45,36 @@ $flash = null;
 
 MembershipAPI::ensureProfile($cid);
 
+// A caller (typically Booking's step-4 gate notice) can ask to be sent back
+// here once the member is fully cleared to book — stashed in the session so
+// it survives the off-site Stripe checkout round trip and, if needed, the
+// onboarding wizard. Only overwrite on a genuinely valid, same-origin value
+// so a stray/invalid return_to on a later page view can't clobber one
+// already in flight.
+if (!empty($_GET['return_to'])) {
+    $candidate = slate_safe_redirect_target((string)$_GET['return_to'], '');
+    if ($candidate !== '') {
+        $_SESSION['membership_return_to'] = $candidate;
+    }
+}
+
+/**
+ * If a return_to is stashed AND the member is now fully cleared (profile
+ * complete — the other half, an active plan, is whatever just got them
+ * here), send them back and forget the stash. Otherwise leave it in place:
+ * the caller isn't done yet (e.g. still mid-onboarding), and Booking's own
+ * gate will simply re-check next time they land on this URL.
+ */
+function membership_maybe_return(int $cid): bool {
+    if (empty($_SESSION['membership_return_to'])) return false;
+    $prof = MembershipAPI::profile($cid);
+    if (empty($prof['onboarding_complete'])) return false;
+    $dest = $_SESSION['membership_return_to'];
+    unset($_SESSION['membership_return_to']);
+    header('Location: ' . $dest);
+    exit;
+}
+
 // ── POST actions ────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
@@ -56,7 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $planId = (int)($_POST['plan_id'] ?? 0);
             $res = MembershipAPI::purchase($cid, $planId, !empty($_POST['add_insurance']));
             if (!empty($res['ok']) && !empty($res['url'])) { header('Location: ' . $res['url']); exit; }
-            if (!empty($res['ok']) && !empty($res['free'])) { header('Location: ' . SLATE_URL . '/member?view=home&activated=1'); exit; }
+            if (!empty($res['ok']) && !empty($res['free'])) {
+                membership_maybe_return($cid);
+                header('Location: ' . SLATE_URL . '/member?view=home&activated=1'); exit;
+            }
             $flash = ['type' => 'error', 'msg' => $res['error'] ?? __('membership_buy_failed', 'Could not start the purchase.')];
             $view = 'plans';
         }
@@ -110,7 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fields['onboarding_step'] = max((int)($prof['onboarding_step'] ?? 0), $step);
                 Database::update('membership_profiles', $fields, 'customer_id = ? AND tenant_id = ?', [$cid, $tid]);
                 AuditLog::record('membership.onboarding_step', (string)$cid, ['step' => $step]);
-                if ($step >= 4) { header('Location: ' . SLATE_URL . '/member?view=home&welcome=1'); exit; }
+                if ($step >= 4) {
+                    membership_maybe_return($cid);
+                    header('Location: ' . SLATE_URL . '/member?view=home&welcome=1'); exit;
+                }
                 header('Location: ' . SLATE_URL . '/member?view=onboarding&step=' . ($step + 1)); exit;
             }
         }
@@ -166,9 +202,11 @@ if ($view === 'return') {
             }
         }
         $sub   = MembershipAPI::subscription($subId);
-        $flash = ($sub && $sub['status'] === 'active')
+        $active = $sub && $sub['status'] === 'active';
+        $flash = $active
             ? ['type' => 'success', 'msg' => __('membership_activated_ok', 'Payment received — your membership is active!')]
             : ['type' => 'info', 'msg' => __('membership_processing', 'Payment received — your membership will be active shortly.')];
+        if ($active) membership_maybe_return($cid);
     }
     $view = 'home';
 }

@@ -182,7 +182,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             }
 
             slate_data_row([
-                'avatar'       => mb_substr($a['customer_name'], 0, 1),
+                'avatar_html'  => slate_avatar_overlay_html(mb_substr($a['customer_name'], 0, 1), (string)($a['customer_email'] ?? '')),
                 'avatar_color' => $a['status'] === 'confirmed' ? 'info' : 'muted',
                 'title'        => $a['customer_name'] . ' · ' . $a['service_name'],
                 'meta_html'    => $metaHtml,

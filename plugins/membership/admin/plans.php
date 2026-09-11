@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'plan_type'          => $type,
                     'course_id'          => $courseId,
                     'price_cents'        => max(0, (int) round(((float)($_POST['price'] ?? 0)) * 100)),
-                    'currency'           => strtoupper(mb_substr(trim((string)($_POST['currency'] ?? MembershipAPI::currency())) ?: 'USD', 0, 8)),
+                    'currency'           => MembershipAPI::currency(),
                     'duration_days'      => max(1, (int)($_POST['duration_days'] ?? 365)),
                     'session_quota'      => max(0, (int)($_POST['session_quota'] ?? 0)),
                     'grace_days'         => max(0, (int)($_POST['grace_days'] ?? 0)),
@@ -230,12 +230,8 @@ require SLATE_ROOT . '/admin/partials/header.php';
             </div>
             <div class="field-row field-row-2">
                 <div class="field">
-                    <label class="field-label" for="price"><?= __('membership_price', 'Price') ?></label>
+                    <label class="field-label" for="price"><?= __('membership_price', 'Price') ?> <span class="text-muted text-xs">(<?= e(MembershipAPI::currency()) ?>)</span></label>
                     <input type="number" id="price" name="price" min="0" step="0.01" value="<?= e(number_format(((int)$p['price_cents'])/100, 2, '.', '')) ?>">
-                </div>
-                <div class="field">
-                    <label class="field-label" for="currency"><?= __('membership_currency', 'Currency') ?></label>
-                    <input type="text" id="currency" name="currency" maxlength="8" value="<?= e($p['currency']) ?>" placeholder="USD">
                 </div>
             </div>
             <div class="field-row field-row-2">

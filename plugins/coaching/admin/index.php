@@ -94,7 +94,7 @@ slate_breadcrumbs([
                 <?php $rowActions = ob_get_clean();
 
                 slate_data_row([
-                    'avatar'       => mb_strtoupper(mb_substr((string)$c['name'], 0, 2)),
+                    'avatar_html'  => slate_avatar_overlay_html(mb_strtoupper(mb_substr((string)$c['name'], 0, 2)), (string)($c['email'] ?? '')),
                     'avatar_color' => 'accent',
                     'title'        => (string)$c['name'],
                     'meta'         => (string)$c['email'],

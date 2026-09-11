@@ -11,6 +11,8 @@
  *   PluginLoader::boot()                 ← called once by config.php
  *   PluginLoader::isActive($slug)        ← runtime detection by other plugins
  *   PluginLoader::install($zipPath)      ← admin: extract + validate + register
+ *   PluginLoader::discoverOnDisk()       ← every plugins/<slug>/plugin.json found on disk, not yet registered or not
+ *   PluginLoader::installFromDisk($slug) ← register (if needed) + activate a plugin already unpacked on disk
  *   PluginLoader::activate($slug)        ← admin: run install.sql, status='active'
  *   PluginLoader::deactivate($slug)      ← admin: status='inactive'
  *   PluginLoader::uninstall($slug)       ← admin: run uninstall.sql, remove files
@@ -457,6 +459,77 @@ class PluginLoader {
      * Run the plugin's install.sql and set status='active'.
      * Idempotent: running on an already-active plugin is a no-op.
      */
+    // ── Disk discovery + one-shot install (installer wizard, CLI) ─
+
+    /**
+     * Every plugins/<slug>/plugin.json on disk with a valid manifest,
+     * regardless of whether it's registered in the `plugins` table yet —
+     * the install wizard and bin/activate-plugin.php --all both need this
+     * to offer/activate whatever ships in the plugins/ folder on a fresh
+     * checkout, before any row exists for it.
+     *
+     * Returns rows sorted by name: ['slug','name','version','description','manifest'].
+     * A folder with missing/invalid plugin.json is skipped, not fatal —
+     * one bad plugin folder must never block discovering the rest.
+     */
+    public static function discoverOnDisk(): array {
+        $out = [];
+        foreach (glob(SLATE_ROOT . '/plugins/*', GLOB_ONLYDIR) ?: [] as $dir) {
+            $manifestPath = $dir . '/plugin.json';
+            if (!is_file($manifestPath)) continue;
+            $manifest = json_decode((string) file_get_contents($manifestPath), true);
+            if (!is_array($manifest)) continue;
+            $check = self::validateManifest($manifest);
+            if (!$check['ok']) continue;
+            $out[] = [
+                'slug'        => (string) $manifest['slug'],
+                'name'        => (string) $manifest['name'],
+                'version'     => (string) $manifest['version'],
+                'description' => (string) ($manifest['description'] ?? ''),
+                'manifest'    => $manifest,
+            ];
+        }
+        usort($out, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+        return $out;
+    }
+
+    /**
+     * Register (if this slug has no `plugins` row yet) then activate a
+     * plugin that's already unpacked under plugins/<slug>/ — the shared
+     * body behind bin/activate-plugin.php and the install wizard's plugin
+     * step, so a fresh checkout reaches the same state either way.
+     *
+     * Seeds the row at version 0.0.0 rather than the manifest's real
+     * version: loadOne() only refreshes a plugin's stored manifest from
+     * disk when the FILE version is newer than the row's, so writing the
+     * real version here would pin whatever we happened to store —
+     * including a hand-made row with no "capabilities" key, which would
+     * silently disable every capability-gated hook. A version below any
+     * real one lets the file win on the very next request.
+     */
+    public static function installFromDisk(string $slug): array {
+        $dir      = SLATE_ROOT . '/plugins/' . $slug;
+        $manifest = $dir . '/plugin.json';
+        if (!is_dir($dir) || !is_file($manifest)) {
+            return ['ok' => false, 'error' => "no plugins/$slug/plugin.json"];
+        }
+        $json = json_decode((string) file_get_contents($manifest), true);
+        if (!is_array($json)) {
+            return ['ok' => false, 'error' => 'plugin.json is not valid JSON'];
+        }
+
+        if (!\Database::row("SELECT id FROM plugins WHERE slug = ?", [$slug])) {
+            \Database::query(
+                "INSERT INTO plugins (slug, name, version, status, manifest_json)
+                 VALUES (?, ?, '0.0.0', 'installed', ?)",
+                [$slug, (string) ($json['name'] ?? $slug),
+                 json_encode(['slug' => $slug, 'name' => $json['name'] ?? $slug, 'version' => '0.0.0'])]
+            );
+        }
+
+        return self::activate($slug);
+    }
+
     public static function activate(string $slug): array {
         $row = \Database::row("SELECT * FROM plugins WHERE slug = ?", [$slug]);
         if (!$row) return ['ok' => false, 'error' => 'Plugin not found.'];

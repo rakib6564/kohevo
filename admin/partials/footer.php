@@ -84,22 +84,33 @@ if (!defined('SLATE_ROOT')) exit;
                 </button>
             </div>
             <div class="sheet-scroll">
-                <?php foreach ($sheetGroups as $gk => $gItems): ?>
-                    <div class="sheet-section-label"><?= e(slate_admin_group_label((string)$gk)) ?></div>
-                    <ul class="sheet-nav">
-                        <?php foreach ($gItems as $item):
-                            $isActive = ($currentNav === ($item['slug'] ?? null));
-                        ?>
-                            <li>
-                                <a href="<?= e($item['href']) ?>" class="<?= $isActive ? 'is-active' : '' ?>"
-                                   <?= $isActive ? 'aria-current="page"' : '' ?>>
-                                    <span class="sheet-nav-ico"><?= slate_admin_nav_icon($item['icon'] ?? 'circle') ?></span>
-                                    <span class="sheet-nav-label"><?= e($item['label']) ?></span>
-                                    <svg class="sheet-nav-arr" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
+                <?php foreach ($sheetGroups as $gk => $gItems):
+                    $gkAttr = (string)$gk;
+                    $gHasActive = false;
+                    foreach ($gItems as $gi) {
+                        if (($gi['slug'] ?? null) === $currentNav) { $gHasActive = true; break; }
+                    }
+                ?>
+                    <details class="nav-group" <?= $gHasActive ? 'open' : '' ?>>
+                    <summary class="sheet-section-label">
+                        <span class="nav-section-label-text"><?= e(slate_admin_group_label($gkAttr)) ?></span>
+                        <svg class="nav-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+                    </summary>
+                        <ul class="sheet-nav">
+                            <?php foreach ($gItems as $item):
+                                $isActive = ($currentNav === ($item['slug'] ?? null));
+                            ?>
+                                <li>
+                                    <a href="<?= e($item['href']) ?>" class="<?= $isActive ? 'is-active' : '' ?>"
+                                       <?= $isActive ? 'aria-current="page"' : '' ?>>
+                                        <span class="sheet-nav-ico"><?= slate_admin_nav_icon($item['icon'] ?? 'circle') ?></span>
+                                        <span class="sheet-nav-label"><?= e($item['label']) ?></span>
+                                        <svg class="sheet-nav-arr" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </details>
                 <?php endforeach; ?>
                 <div class="sheet-section-label"><?= __('account', 'Account') ?></div>
                 <ul class="sheet-nav">
@@ -272,6 +283,14 @@ if (!defined('SLATE_ROOT')) exit;
             });
         })();
         </script>
+
+        <!-- Nav group accordion (desktop sidebar + mobile More sheet): now
+             plain native <details>/<summary> in the markup above — the
+             browser owns open/close state entirely, no JS required. Three
+             prior JS-based attempts at an animated version all hit the same
+             class of bug (transitioning max-height to/from 'none' renders
+             inconsistently across browsers, clipping the panel mid-open) —
+             removed for good in favor of this, which cannot have that bug. -->
 
     </div><!-- /.app-layout -->
 

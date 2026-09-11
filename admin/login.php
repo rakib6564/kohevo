@@ -10,9 +10,10 @@ if (Auth::check()) {
     exit;
 }
 
-$error     = '';
-$installed = isset($_GET['installed']);
-$next      = $_GET['next'] ?? (SLATE_URL . '/admin/');
+$error             = '';
+$installed         = isset($_GET['installed']);
+$installedPlugins  = max(0, (int)($_GET['plugins'] ?? 0));
+$next              = $_GET['next'] ?? (SLATE_URL . '/admin/');
 $mfaPending = Auth::mfaPending();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -449,6 +450,9 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
             <?php if ($installed): ?>
                 <div class="alert alert-success" role="status">
                     <?= __('install_success', 'Slate is installed. Log in with the account you just created.') ?>
+                    <?php if ($installedPlugins > 0): ?>
+                        <?= ' ' . sprintf(__('install_plugins_activated', '%d plugin(s) activated.'), $installedPlugins) ?>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 

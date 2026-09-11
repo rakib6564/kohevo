@@ -40,6 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_tab'])) {
     $activeTab = $_GET['tab'];
 }
 if ($activeTab === 'profile') $activeTab = 'general';
+
+// 'translations' appears in the shared tab strip (slate_render_settings_tabs())
+// but its content lives on its own page, not as a block in this file --
+// send anyone who lands on ?tab=translations here (an old bookmark, a
+// stale link) to where the content actually is, instead of a blank tab.
+if ($activeTab === 'translations') {
+    header('Location: ' . SLATE_URL . '/plugins/multilang-translate/admin/index.php');
+    exit;
+}
+
 if (!array_key_exists($activeTab, $tabs)) $activeTab = 'general';
 
 // ─── Session flash (Post-Redirect-Get pattern) ────────────────
@@ -80,11 +90,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
             $lang = trim((string)($_POST['default_language'] ?? 'en'));
             if (!preg_match('/^[a-zA-Z_-]{2,16}$/', $lang)) $lang = 'en';
+            $currency = strtoupper(trim((string)($_POST['currency'] ?? 'USD')));
+            if (!preg_match('/^[A-Z]{3,8}$/', $currency)) $currency = 'USD';
+            $currencyPosition = ((string)($_POST['currency_position'] ?? 'before')) === 'after' ? 'after' : 'before';
             if ($name === '') {
                 $flash = ['type' => 'error', 'msg' => __('site_name_required', 'Site name is required.')];
             } else {
                 Database::setSetting('site_name', mb_substr($name, 0, 120));
                 Database::setSetting('default_language', preg_match('/^[a-z]{2}$/', $lang) ? $lang : 'en');
+                Database::setSetting('currency_position', $currencyPosition);
+                Database::setSetting('currency', $currency);
                 AuditLog::record('settings.updated', 'general');
                 $redirectWithFlash(['type' => 'success', 'msg' => __('settings_saved', 'Settings saved.')], $activeTab);
             }
@@ -483,6 +498,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::setSetting('sidebar_theme',
                     in_array($sidebarTheme, $validThemes, true) ? $sidebarTheme : 'ink');
 
+                // Folded in from the retired Global Styles page. Same
+                // allow-lists it used; still no downstream consumer, so this
+                // is a straight carry-over of prior (inert) behavior.
+                $fontFamily = (string)($_POST['font_family'] ?? 'system');
+                if (!in_array($fontFamily, ['system', 'inter', 'plus-jakarta', 'outfit', 'playfair', 'roboto'], true)) {
+                    $fontFamily = 'system';
+                }
+                Database::setSetting('brand_font_family', $fontFamily);
+
+                $borderRadius = (string)($_POST['border_radius'] ?? 'medium');
+                if (!in_array($borderRadius, ['none', 'small', 'medium', 'large', 'pill'], true)) {
+                    $borderRadius = 'medium';
+                }
+                Database::setSetting('brand_border_radius', $borderRadius);
+
                 if (!empty($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
                     try {
                         // Raster only — SVGs can carry inline <script> and the
@@ -688,6 +718,8 @@ $_safeText = static function ($v, int $max = 500): string {
 $genSet = [
     'site_name'        => $_safeText(Database::setting('site_name'), 120) ?: 'Slate',
     'default_language' => preg_replace('/[^a-zA-Z_-]/', '', (string)(Database::setting('default_language') ?? 'en')) ?: 'en',
+    'currency'         => slate_default_currency(),
+    'currency_position'=> slate_currency_position(),
 ];
 $biz = [
     'name'    => $_safeText(Database::setting('business_name'),    190),
@@ -757,6 +789,16 @@ $brandSet = [
     'sidebar_theme'    => (string)(Database::setting('sidebar_theme') ?: 'ink'),
     'button_text_mode' => in_array((string)Database::setting('brand_button_text_mode'), ['light', 'dark'], true)
                           ? (string)Database::setting('brand_button_text_mode') : 'auto',
+    // Folded in from the retired Global Styles page (admin/styles.php).
+    // Neither has a downstream consumer anywhere in the app today (confirmed
+    // by repo-wide grep before the merge) -- preserved as-is, not wired up,
+    // so this merge changes nothing about their (lack of) live effect.
+    'font_family'   => in_array((string)Database::setting('brand_font_family'),
+                          ['system', 'inter', 'plus-jakarta', 'outfit', 'playfair', 'roboto'], true)
+                        ? (string)Database::setting('brand_font_family') : 'system',
+    'border_radius' => in_array((string)Database::setting('brand_border_radius'),
+                          ['none', 'small', 'medium', 'large', 'pill'], true)
+                        ? (string)Database::setting('brand_border_radius') : 'medium',
 ];
 $sys = [
     'maintenance_mode' => Database::setting('maintenance_mode') === '1',
@@ -818,50 +860,8 @@ $mediaLibraryActive = class_exists('MediaLibrary')
 <?php endif; ?>
 
 <style>
-/* ─── Settings tab strip ─────────────────────────────────── */
-.settings-tabs {
-    display: flex;
-    gap: 2px;
-    border-bottom: 1.5px solid var(--border);
-    margin-bottom: 24px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
-.settings-tabs::-webkit-scrollbar { display: none; }
-
-.settings-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 16px 10px;
-    font-size: 13.5px;
-    font-weight: 500;
-    color: var(--muted);
-    text-decoration: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1.5px;
-    white-space: nowrap;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    transition: color 0.12s, border-color 0.12s, background 0.12s;
-}
-.settings-tab:hover {
-    color: var(--text);
-    background: var(--surface-2);
-    text-decoration: none;
-}
-.settings-tab.is-active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-    font-weight: 600;
-}
-.settings-tab .tab-icon {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-    opacity: 0.75;
-}
-.settings-tab.is-active .tab-icon { opacity: 1; }
+/* Settings tab strip CSS moved to includes/ui_components.php (shared with
+   the Translations plugin's admin page -- see slate_render_settings_tabs()). */
 
 /* ─── Info row (System tab) ──────────────────────────────── */
 .info-row {
@@ -965,41 +965,18 @@ $mediaLibraryActive = class_exists('MediaLibrary')
 .dim-input-unit { flex: none; font-size: 12px; color: var(--muted); }
 </style>
 
-<?php
-// ── Tab icon helper ──────────────────────────────────────────
-function settings_tab_icon(string $name): string {
-    $icons = [
-        'user'     => '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-        'mail'     => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
-        'shield'   => '<path d="M12 3l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V7l8-4z"/>',
-        'image'    => '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
-        'settings' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-        'link'     => '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
-        'clock'    => '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-        'palette'  => '<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
-        'film'     => '<rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>',
-        'home'     => '<path d="M3 12L12 4l9 8M5 10v10h4v-6h6v6h4V10"/>',
-        'sliders'  => '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
-    ];
-    $path = $icons[$name] ?? '';
-    return '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-         . 'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" '
-         . 'aria-hidden="true">' . $path . '</svg>';
-}
-?>
-
 <!-- ─── Tab strip ──────────────────────────────────────────── -->
-<nav class="settings-tabs" role="tablist" aria-label="<?= __('settings_sections', 'Settings sections') ?>">
-    <?php foreach ($tabs as $slug => $tab): ?>
-        <a href="?tab=<?= e($slug) ?>"
-           class="settings-tab <?= $activeTab === $slug ? 'is-active' : '' ?>"
-           role="tab"
-           aria-selected="<?= $activeTab === $slug ? 'true' : 'false' ?>">
-            <?= settings_tab_icon($tab['icon']) ?>
-            <?= e($tab['label']) ?>
-        </a>
-    <?php endforeach; ?>
-</nav>
+<?php
+// Rendering (icons, markup, CSS) now lives in slate_render_settings_tabs()
+// (includes/ui_components.php) so the Translations plugin's admin page can
+// render the identical strip with itself marked active, instead of a
+// second, separately-maintained top-level nav item. $tabs (the local
+// content-tab list above, used for the array_key_exists($activeTab, $tabs)
+// validation) intentionally does NOT include 'translations' -- that tab's
+// content lives on its own page; see the redirect guard near the top of
+// this file for direct ?tab=translations requests.
+slate_render_settings_tabs($activeTab);
+?>
 
 <?php /* ══════════════════════════════════════════════════════
    TAB: GENERAL / PROFILE
@@ -1029,6 +1006,28 @@ function settings_tab_icon(string $name): string {
                         </option>
                     <?php endforeach; ?>
                 </select>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="currency"><?= __('currency', 'Currency') ?></label>
+                <input type="text" id="currency" name="currency" maxlength="8"
+                       value="<?= e($genSet['currency']) ?>" placeholder="USD" <?= $canEdit ? '' : 'disabled' ?>>
+                <div class="field-hint"><?= __('currency_hint', 'Tenant-wide default currency. All plugins (Membership, Booking, Gift cards, ...) use this — there is no per-plugin currency setting.') ?></div>
+            </div>
+
+            <div class="field">
+                <label class="field-label"><?= __('currency_position', 'Currency symbol position') ?></label>
+                <div class="field-row field-row-2" style="margin-bottom:0;">
+                    <label class="radio-card" style="display:flex;align-items:center;gap:8px;border:1px solid var(--border,#e2ddd0);border-radius:8px;padding:10px 14px;cursor:pointer;">
+                        <input type="radio" name="currency_position" value="before" <?= $genSet['currency_position'] === 'before' ? 'checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>>
+                        <span><?= __('currency_position_before', 'Before amount') ?> <span class="text-muted text-xs">(<?= e(slate_currency_symbol($genSet['currency'])) ?>50.00)</span></span>
+                    </label>
+                    <label class="radio-card" style="display:flex;align-items:center;gap:8px;border:1px solid var(--border,#e2ddd0);border-radius:8px;padding:10px 14px;cursor:pointer;">
+                        <input type="radio" name="currency_position" value="after" <?= $genSet['currency_position'] === 'after' ? 'checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>>
+                        <span><?= __('currency_position_after', 'After amount') ?> <span class="text-muted text-xs">(50.00&nbsp;<?= e(slate_currency_symbol($genSet['currency'])) ?>)</span></span>
+                    </label>
+                </div>
+                <div class="field-hint"><?= __('currency_position_hint', 'Controls whether the currency symbol shows before or after every price, site-wide.') ?></div>
             </div>
 
             <?php if ($canEdit): ?>
@@ -3590,6 +3589,30 @@ function settings_tab_icon(string $name): string {
                 </script>
             </div>
             <?php endif; ?>
+
+            <div class="field">
+                <label class="field-label" for="font_family"><?= __('typography', 'Typography font family') ?></label>
+                <select id="font_family" name="font_family" style="max-width:320px" <?= $canEdit ? '' : 'disabled' ?>>
+                    <option value="system"       <?= $brandSet['font_family'] === 'system'       ? 'selected' : '' ?>>System Sans (-apple-system, BlinkMacSystemFont)</option>
+                    <option value="plus-jakarta" <?= $brandSet['font_family'] === 'plus-jakarta' ? 'selected' : '' ?>>Plus Jakarta Sans (Modern Editorial)</option>
+                    <option value="inter"        <?= $brandSet['font_family'] === 'inter'        ? 'selected' : '' ?>>Inter (Clean UI)</option>
+                    <option value="outfit"       <?= $brandSet['font_family'] === 'outfit'        ? 'selected' : '' ?>>Outfit (Contemporary Geometric)</option>
+                    <option value="playfair"     <?= $brandSet['font_family'] === 'playfair'      ? 'selected' : '' ?>>Playfair Display (Classic Serif)</option>
+                </select>
+                <div class="field-hint"><?= __('font_hint', 'Not yet wired into any page template -- saved for a future release.') ?></div>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="border_radius"><?= __('corner_radius', 'Corner radius') ?></label>
+                <select id="border_radius" name="border_radius" style="max-width:320px" <?= $canEdit ? '' : 'disabled' ?>>
+                    <option value="none"   <?= $brandSet['border_radius'] === 'none'   ? 'selected' : '' ?>>Sharp (0px)</option>
+                    <option value="small"  <?= $brandSet['border_radius'] === 'small'  ? 'selected' : '' ?>>Subtle (6px)</option>
+                    <option value="medium" <?= $brandSet['border_radius'] === 'medium' ? 'selected' : '' ?>>Rounded (10px -- Default)</option>
+                    <option value="large"  <?= $brandSet['border_radius'] === 'large'  ? 'selected' : '' ?>>Smooth (16px)</option>
+                    <option value="pill"   <?= $brandSet['border_radius'] === 'pill'   ? 'selected' : '' ?>>Full Pill (999px)</option>
+                </select>
+                <div class="field-hint"><?= __('radius_hint', 'Not yet wired into any page template -- saved for a future release.') ?></div>
+            </div>
 
             <div class="field">
                 <label class="field-label" for="logo"><?= __('logo', 'Logo') ?></label>
