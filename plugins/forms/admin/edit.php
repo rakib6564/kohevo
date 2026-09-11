@@ -1418,11 +1418,32 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 <?php forms_editor_js(); ?>
 
 <style>
+/* The shared .pv-card wrapper (includes/record_editor.php) sets
+   overflow:hidden so its rounded corners clip children — used by every
+   admin editor page, so it's not something to change globally here. But
+   it's also the nearest ancestor of #fb-side with overflow != visible,
+   and since .pv-card never scrolls itself (it just grows to fit its
+   content; the real scroll container is .app-panel, several levels up),
+   it becomes position:sticky's positioning reference instead of the
+   actual scrolling viewport — which is what was silently capping #fb-side
+   to zero travel room even after the align-items fix below. Scope the
+   override to just the card wrapping the Fields builder. */
+.pv-card:has(#fb-card){overflow:visible;}
+
 /* ── Two-pane builder: canvas (left) + field palette (right) ── */
-.fb2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start;}
-.fb2-canvas{min-width:0;min-height:240px;}
+/* align-items was "start" on the grid container, which meant BOTH columns'
+   cells shrank to their own content height instead of stretching to the
+   tall row track. That's fine for the canvas (it shouldn't stretch to
+   match an arbitrary height) but it silently breaks position:sticky on
+   the side panel: sticky has nothing to travel within if its own cell is
+   only as tall as its content. Default (stretch) on the container, with
+   the canvas opting itself out via align-self, keeps the canvas's natural
+   height while giving the side panel's cell the full row height it needs
+   for sticky to actually stick as the (long) canvas scrolls. */
+.fb2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;}
+.fb2-canvas{min-width:0;min-height:240px;align-self:start;}
 /* Palette */
-.fb2-side{position:sticky;top:14px;border:1px solid var(--border);border-radius:14px;background:var(--card,#fff);overflow:hidden;box-shadow:var(--shadow-sm);max-height:calc(100vh - 90px);overflow-y:auto;}
+.fb2-side{position:sticky;top:14px;min-width:0;border:1px solid var(--border);border-radius:14px;background:var(--card,#fff);overflow:hidden;box-shadow:var(--shadow-sm);max-height:calc(100vh - 90px);overflow-y:auto;}
 /* Field settings panel (shown in the side when a field is selected) */
 .fb2-set-head{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--border);background:var(--bg-soft,#FAFAF7);position:sticky;top:0;z-index:2;}
 .fb2-set-badge{flex:none;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:999px;}
@@ -1431,8 +1452,12 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 .fb2-set-head .fb-move{flex:none;}
 .fb2-set-done{flex:none;border:1px solid var(--border-strong,#E0E2E6);background:var(--surface,#fff);border-radius:8px;padding:5px 13px;font-size:12px;font-weight:600;color:var(--text-2);cursor:pointer;}
 .fb2-set-done:hover{background:var(--accent);border-color:var(--accent);color:#fff;}
-/* Settings stack in a single column inside the narrow panel */
-#fb-set-body .fb-body{display:grid;grid-template-columns:1fr;gap:11px;padding:14px;}
+/* Settings stack in a single column inside the narrow panel. minmax(0,1fr)
+   (not bare 1fr) so a wide input/textarea's intrinsic min-content width
+   can't force the single column -- and with it the whole sheet's visible
+   content -- wider than the panel; same class of bug as the .fb2-canvas/
+   .fb2-side min-width:0 fixes above, just one level deeper. */
+#fb-set-body .fb-body{display:grid;grid-template-columns:minmax(0,1fr);gap:11px;padding:14px;}
 .fb2-hint{display:flex;gap:10px;align-items:flex-start;padding:14px;color:var(--muted);font-size:12.5px;line-height:1.5;border-bottom:1px solid var(--border);background:var(--bg-soft,#FAFAF7);}
 .fb2-hint svg{flex:none;color:var(--accent);margin-top:1px;}
 .fb2-group{border-bottom:1px solid var(--border);}
@@ -1535,7 +1560,13 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 
 @media (max-width:900px){
     .fb2{grid-template-columns:1fr;}
-    .fb2-side{position:static;order:-1;max-height:none;}
+    /* The palette used to sit statically above the canvas, which meant it
+       scrolled away on long forms with no way back to "add field" short of
+       scrolling to the top of the page. Keep it sticky + independently
+       scrollable, same pattern as desktop, just shorter so the canvas below
+       still gets most of the viewport. The .fb-editing override below still
+       wins while a field is being edited (settings bottom-sheet). */
+    .fb2-side{position:sticky;top:8px;z-index:5;order:-1;max-height:38vh;overflow-y:auto;}
     .fb2-hint{display:none;}
     .fb2-tiles{grid-template-columns:repeat(4,1fr);}
 
@@ -1598,6 +1629,12 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
     box-shadow:none !important;
     padding:7px 10px !important;font-size:12.5px !important;
     min-height:0 !important;height:auto !important;border-radius:8px !important;
+    /* Only input[type=text] had an explicit width:100% (an older, narrower
+       rule below) -- textareas, selects and other input types had none,
+       so they fell back to browser default intrinsic sizing instead of
+       filling the settings column. box-sizing:border-box so that 100%
+       width plus the padding above doesn't itself overflow the column. */
+    box-sizing:border-box !important;width:100% !important;max-width:100%;
     transition:border-color .12s, box-shadow .12s;
 }
 .fb-body input:not([type=checkbox]):not([type=radio]):focus,

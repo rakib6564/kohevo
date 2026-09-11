@@ -48,6 +48,7 @@ class Booking extends Plugin {
         Hook::addFilter('customer_nav_items',        [$this, 'addCustomerNav']);
         Hook::addFilter('customer_portal_activity',   [$this, 'addCustomerActivity'], 10, 2);
         Hook::addFilter('public_routes',             [$this, 'addPublicRoutes']);
+        Hook::addFilter('i18n_lang_paths',           [$this, 'addLangPath']);
         Hook::addAction('frequent_cron',             [$this, 'sendReminders']);
 
         // React to Stripe payments routed through the stripe-payment plugin.
@@ -141,13 +142,13 @@ class Booking extends Plugin {
     public function addAdminNav(array $items): array {
         if (!Auth::can('booking.view') && !Auth::isSuperAdmin()) return $items;
 
-        $items[] = ['slug' => 'booking',              'label' => __('booking', 'Booking'),
+        $items[] = ['slug' => 'booking',              'label' => __('booking', 'Booking overview'),
                     'href' => $this->url('admin/index.php'),
                     'icon' => 'calendar',  'order' => 600, 'group' => 'booking'];
-        $items[] = ['slug' => 'booking-calendar',     'label' => __('booking_calendar', 'Calendar'),
+        $items[] = ['slug' => 'booking-calendar',     'label' => __('booking_calendar', 'Calendar view'),
                     'href' => $this->url('admin/calendar.php'),
                     'icon' => 'calendar', 'perm' => 'booking.view', 'order' => 600, 'group' => 'booking'];
-        $items[] = ['slug' => 'booking-appointments', 'label' => __('booking_appointments', 'Appointments'),
+        $items[] = ['slug' => 'booking-appointments', 'label' => __('booking_appointments', 'Appointments list'),
                     'href' => $this->url('admin/appointments.php'),
                     'icon' => 'clipboard-list', 'perm' => 'booking.view', 'order' => 601, 'group' => 'booking'];
 
@@ -157,7 +158,7 @@ class Booking extends Plugin {
                         'icon' => 'message-square', 'perm' => 'booking.view', 'order' => 601, 'group' => 'booking'];
         }
 
-        $items[] = ['slug' => 'booking-customers',    'label' => __('booking_customers', 'Customers'),
+        $items[] = ['slug' => 'booking-customers',    'label' => __('booking_customers', 'All Customers'),
                     'href' => $this->url('admin/customers.php'),
                     'icon' => 'users', 'perm' => 'booking.view', 'order' => 601, 'group' => 'booking'];
         $items[] = ['slug' => 'booking-services',     'label' => __('booking_services', 'Services'),
@@ -243,6 +244,14 @@ class Booking extends Plugin {
         return $routes;
     }
 
+    /** Registers plugins/booking/lang/<locale>.php with core I18n. */
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
+    }
+
     public function addAdminDashboardWidget(array $widgets): array {
         if (!Auth::can('booking.view')) return $widgets;
         $tid = current_tenant_id();
@@ -259,7 +268,7 @@ class Booking extends Plugin {
                 "SELECT COUNT(*) FROM booking_services
                   WHERE tenant_id = ? AND is_active=1", [$tid]);
             $latest = Database::rows(
-                "SELECT a.customer_name, a.starts_at, a.status, s.name AS service_name
+                "SELECT a.customer_name, a.customer_email, a.starts_at, a.status, s.name AS service_name
                    FROM booking_appointments a
                    LEFT JOIN booking_services s ON s.id = a.service_id
                   WHERE a.tenant_id = ? ORDER BY a.id DESC LIMIT 5", [$tid]);
@@ -291,7 +300,7 @@ class Booking extends Plugin {
                         $colors = ['confirmed' => 'success', 'pending' => 'warning', 'completed' => 'info',
                                    'cancelled' => 'danger', 'no_show' => 'muted'];
                         slate_dlist_row([
-                            'avatar'       => $name,
+                            'avatar_html'  => slate_avatar_overlay_html(mb_substr($name, 0, 2), (string)($a['customer_email'] ?? '')),
                             'avatar_color' => $colors[$a['status']] ?? 'muted',
                             'title'        => $name,
                             'sub'          => trim((string)($a['service_name'] ?? '')) . ' · ' . ucfirst(str_replace('_', ' ', (string)$a['status'])),
@@ -496,8 +505,8 @@ class Booking extends Plugin {
 
     /** Human label for a lead time in minutes (e.g. 1440 → "24 hours"). */
     private function humanLead(int $minutes): string {
-        if ($minutes % 1440 === 0) { $d = $minutes / 1440; return $d . ' day' . ($d > 1 ? 's' : ''); }
-        if ($minutes % 60 === 0)   { $h = $minutes / 60;   return $h . ' hour' . ($h > 1 ? 's' : ''); }
+        if ($minutes % 1440 === 0) { $d = $minutes / 1440; return $d . ' jour' . ($d > 1 ? 's' : ''); }
+        if ($minutes % 60 === 0)   { $h = $minutes / 60;   return $h . ' heure' . ($h > 1 ? 's' : ''); }
         return $minutes . ' minutes';
     }
 

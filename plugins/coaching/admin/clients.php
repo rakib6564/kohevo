@@ -69,7 +69,7 @@ slate_breadcrumbs([
 
         $actions = '<a href="' . e(plugin_url('coaching', 'admin/client.php')) . '?id=' . (int)$c['id'] . '" class="btn btn-sm btn-primary">Open</a>';
         slate_data_row([
-            'avatar'       => mb_strtoupper(mb_substr($c['name'], 0, 1)),
+            'avatar_html'  => slate_avatar_overlay_html(mb_strtoupper(mb_substr($c['name'], 0, 1)), (string)($c['email'] ?? '')),
             'avatar_color' => $profileFilled ? 'info' : 'muted',
             'title'        => $c['name'],
             'meta'         => e($c['email']),

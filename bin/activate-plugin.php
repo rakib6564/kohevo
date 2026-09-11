@@ -14,6 +14,11 @@
  * hands off to PluginLoader::activate(), so manifest validation, install.sql
  * and permission registration all run exactly as they do from the UI.
  *
+ * The actual per-slug "seed a row if missing, then activate" work lives in
+ * PluginLoader::installFromDisk() — install.php's plugin-selection step
+ * uses the exact same method, so a fresh checkout reaches the same state
+ * whether it's brought up via this CLI script or the web installer.
+ *
  * Run:  php bin/activate-plugin.php <slug> [<slug> ...]
  *       php bin/activate-plugin.php --all      (every plugin in plugins/)
  * e.g.: php bin/activate-plugin.php booking membership coaching
@@ -34,13 +39,10 @@ if (!$args) {
 }
 
 if (in_array('--all', $args, true)) {
-    $args = [];
-    foreach (glob(SLATE_ROOT . '/plugins/*', GLOB_ONLYDIR) ?: [] as $dir) {
-        if (is_file($dir . '/plugin.json')) $args[] = basename($dir);
-    }
+    $args = array_column(PluginLoader::discoverOnDisk(), 'slug');
     sort($args);
     if (!$args) {
-        fwrite(STDERR, "No plugins with a plugin.json found under plugins/.\n");
+        fwrite(STDERR, "No plugins with a valid plugin.json found under plugins/.\n");
         exit(1);
     }
 }
@@ -48,40 +50,11 @@ if (in_array('--all', $args, true)) {
 $failed = 0;
 
 foreach ($args as $slug) {
-    $dir      = SLATE_ROOT . '/plugins/' . $slug;
-    $manifest = $dir . '/plugin.json';
+    $alreadyRegistered = (bool) Database::row("SELECT id FROM plugins WHERE slug = ?", [$slug]);
 
-    if (!is_dir($dir) || !is_file($manifest)) {
-        fwrite(STDERR, "  ✗ $slug — no plugins/$slug/plugin.json\n");
-        $failed++;
-        continue;
-    }
-
-    $json = json_decode((string) file_get_contents($manifest), true);
-    if (!is_array($json)) {
-        fwrite(STDERR, "  ✗ $slug — plugin.json is not valid JSON\n");
-        $failed++;
-        continue;
-    }
-
-    // Seed the row at 0.0.0 rather than the manifest's real version.
-    // PluginLoader::loadOne() only refreshes a plugin's manifest from disk when
-    // the FILE version is newer than the row's, so writing the real version here
-    // would pin whatever we happened to store — including, for a hand-made row,
-    // a manifest with no "capabilities" key, which silently disables every
-    // capability-gated hook. A version below any real one lets the file win.
-    if (!Database::row("SELECT id FROM plugins WHERE slug = ?", [$slug])) {
-        Database::query(
-            "INSERT INTO plugins (slug, name, version, status, manifest_json)
-             VALUES (?, ?, '0.0.0', 'installed', ?)",
-            [$slug, (string) ($json['name'] ?? $slug),
-             json_encode(['slug' => $slug, 'name' => $json['name'] ?? $slug, 'version' => '0.0.0'])]
-        );
-        echo "  + $slug — registered\n";
-    }
-
-    $res = PluginLoader::activate($slug);
+    $res = PluginLoader::installFromDisk($slug);
     if (!empty($res['ok'])) {
+        if (!$alreadyRegistered) echo "  + $slug — registered\n";
         $note = !empty($res['note']) ? " ({$res['note']})" : '';
         echo "  ✓ $slug$note\n";
     } else {

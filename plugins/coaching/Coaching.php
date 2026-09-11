@@ -44,6 +44,10 @@ class Coaching extends Plugin {
         // Deliver scheduled chat messages on cron ticks.
         Hook::addAction('frequent_cron',              [$this, 'runCron']);
 
+        // MCP AI Gateway integration (expose coaching tools to AI assistants)
+        require_once __DIR__ . '/CoachingMcpHandler.php';
+        CoachingMcpHandler::register();
+
         // Design-system CSS:
         //   /admin/*     → admin.css (coaching admin pages)
         //   /coaching*   → customer.css (bento dashboard)
@@ -83,31 +87,31 @@ class Coaching extends Plugin {
             && !Auth::isSuperAdmin()) {
             return $items;
         }
-        $items[] = ['slug' => 'coaching',           'label' => 'Coaching',
+        $items[] = ['slug' => 'coaching',           'label' => 'Coaching overview',
                     'href' => $this->url('admin/index.php'),
                     'icon' => 'user', 'perm' => 'coaching.view_clients',
-                    'order' => 620, 'group' => 'content'];
+                    'order' => 620, 'group' => 'nutrition-app'];
         $items[] = ['slug' => 'coaching-clients',   'label' => 'Program clients',
                     'href' => $this->url('admin/clients.php'),
                     'icon' => 'users', 'perm' => 'coaching.view_clients',
-                    'order' => 621, 'group' => 'content'];
+                    'order' => 621, 'group' => 'nutrition-app'];
         $items[] = ['slug' => 'coaching-feed',      'label' => 'Client feed',
                     'href' => $this->url('admin/feed.php'),
                     'icon' => 'bell', 'perm' => 'coaching.view_clients',
-                    'order' => 622, 'group' => 'content'];
+                    'order' => 622, 'group' => 'nutrition-app'];
         try { $unread = CoachingAPI::totalUnreadForPractitioner(); } catch (\Throwable $e) { $unread = 0; }
         $items[] = ['slug' => 'coaching-chat',      'label' => 'Client chat' . ($unread > 0 ? ' (' . $unread . ')' : ''),
                     'href' => $this->url('admin/chat.php'),
                     'icon' => 'mail', 'perm' => 'coaching.reply_chat',
-                    'order' => 623, 'group' => 'content'];
+                    'order' => 623, 'group' => 'nutrition-app'];
         $items[] = ['slug' => 'coaching-library',   'label' => 'Library',
                     'href' => $this->url('admin/library.php'),
                     'icon' => 'folder', 'perm' => 'coaching.manage_library',
-                    'order' => 624, 'group' => 'content'];
+                    'order' => 624, 'group' => 'nutrition-app'];
         $items[] = ['slug' => 'coaching-settings',  'label' => 'Coaching settings',
                     'href' => $this->url('admin/settings.php'),
                     'icon' => 'settings', 'perm' => 'coaching.manage_clients',
-                    'order' => 625, 'group' => 'content'];
+                    'order' => 625, 'group' => 'nutrition-app'];
         return $items;
     }
 

@@ -59,13 +59,13 @@ if ($routePath !== '' && $serviceId === 0) {
 // ── POST: confirm submission ─────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        bookpub_render_error('Security check failed. Please try again.', $embed);
+        bookpub_render_error(__('booking_security_check_failed_retry', 'Security check failed. Please try again.'), $embed);
         return;
     }
     // One-time submission token: a refresh, back-button re-POST, or fast
     // double-click would otherwise create a second appointment.
     if (!submit_token_consume()) {
-        bookpub_render_error('This booking was already submitted. Check your email for the confirmation, or start a new booking.', $embed);
+        bookpub_render_error(__('booking_already_submitted', 'This booking was already submitted. Check your email for the confirmation, or start a new booking.'), $embed);
         return;
     }
     $postService  = (int)($_POST['service']  ?? 0);
@@ -203,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . $firstResult['redirect_to']);
         exit;
     }
-    $err = $firstResult['error'] ?? 'Sorry, that booking could not be completed.';
+    $err = $firstResult['error'] ?? __('booking_could_not_complete', 'Sorry, that booking could not be completed.');
     bookpub_render_step4_with_error($baseArgs + ['starts_at' => $postDate . ' ' . $postSlot], $err, $embed, $isMultiBatch ? $multiStarts : []);
     return;
 }
@@ -215,7 +215,7 @@ if ($serviceId === 0) {
 }
 $service = BookingAPI::getService($serviceId);
 if (!$service || empty($service['is_active'])) {
-    bookpub_render_error('That service is no longer available.', $embed);
+    bookpub_render_error(__('booking_service_no_longer_available', 'That service is no longer available.'), $embed);
     return;
 }
 
@@ -226,7 +226,7 @@ if ($providerId === 0) {
 $provider = Database::row("SELECT * FROM booking_providers WHERE id = ? AND tenant_id = ? AND is_active = 1",
     [$providerId, current_tenant_id()]);
 if (!$provider) {
-    bookpub_render_error('That provider isn\'t available.', $embed);
+    bookpub_render_error(__('booking_provider_unavailable', 'That provider isn\'t available.'), $embed);
     return;
 }
 
@@ -266,9 +266,27 @@ bookpub_render_step4($service, $provider, $date, $slot, $party, [], '', $embed);
 //                      Helpers
 // ─────────────────────────────────────────────────────────────
 
-/** Build a querystring suffix, dropping empty values. */
-function bookpub_qs(array $params, bool $embed): string {
+/**
+ * Build a querystring suffix, dropping empty values.
+ *
+ * $inPageContext (default true): whether this link stays on whichever
+ * URL is currently serving the widget (the normal case -- step-to-step
+ * navigation, GET-form resubmission) vs. one of the handful of places
+ * that explicitly prefix an absolute SLATE_URL.'/book' (e.g. the
+ * membership-gate notice, sending the visitor away to sign in and back).
+ * Fragment mode's `portal=1` must only ever ride along on the former --
+ * an absolute /book link carrying it would land the visitor on the
+ * *standalone* page with fragment rendering forced on, i.e. no
+ * <!DOCTYPE>/<head>/<body> at all.
+ */
+function bookpub_qs(array $params, bool $embed, bool $inPageContext = true): string {
     if ($embed) $params['embed'] = 1;
+    // Fragment mode has to survive every step link, not just the first --
+    // without this, clicking "next step" drops back to $embed-but-not-
+    // fragment (bookpub_is_fragment() checks $_GET['portal'] fresh on
+    // every request), rendering a full <!DOCTYPE>/<head>/<body> document
+    // nested inside the portal page's own one.
+    if ($embed && $inPageContext && bookpub_is_fragment()) $params['portal'] = 1;
     $parts = [];
     foreach ($params as $k => $v) {
         if ($v === '' || $v === null) continue;
@@ -287,6 +305,11 @@ function bookpub_qs(array $params, bool $embed): string {
  * Anchoring to the absolute /book root sends the customer back to step 1.
  */
 function bookpub_home(bool $embed): string {
+    // Fragment mode: stay on whichever page is including this widget
+    // (e.g. /member/book) -- a relative link, same reasoning as
+    // bookpub_qs()'s query strings. Otherwise keep the absolute /book
+    // anchor documented above (escaping a sub-route reliably).
+    if ($embed && bookpub_is_fragment()) return '?embed=1&portal=1';
     return SLATE_URL . '/book' . ($embed ? '?embed=1' : '');
 }
 
@@ -412,6 +435,20 @@ function bookpub_store_upload(string $inputName): ?string {
 //                      Renderers
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * True when the widget is being included directly inside another Slate
+ * page's own <html>/<head>/<body> (currently: the member portal's
+ * customer/book.php) rather than served as its own document -- whether
+ * standalone (/book) or the classic <iframe src="/book?embed=1">. The
+ * host page is responsible for calling slate_ui_emit_css() /
+ * slate_brand_accent_emit() itself before including this; both are
+ * idempotent (SLATE_UI_COMPONENTS_EMITTED / the brand <style> tag guard)
+ * so calling them again here is harmless if it hasn't.
+ */
+function bookpub_is_fragment(): bool {
+    return !empty($_GET['portal']);
+}
+
 function bookpub_layout_start(string $title, bool $embed): void {
     $siteName = Database::setting('site_name') ?: 'Slate';
     slate_ui_emit_css();
@@ -419,6 +456,26 @@ function bookpub_layout_start(string $title, bool $embed): void {
     // --accent, so every `var(--accent)` in the widget rendered #2563EB blue
     // instead of the brand colour. Must follow slate_ui_emit_css().
     slate_brand_accent_emit();
+
+    // Inline the widget stylesheet instead of linking it. The booking
+    // widget is dynamic (per-date GET/POST, embedded in third-party
+    // iframes) and was being served behind a CDN/proxy that cached the
+    // external public.css by path and ignored the ?v= query string —
+    // so styling for newer components (calendar, promo, etc.) never
+    // updated. Inlining ties the CSS to the (uncacheable) HTML so it is
+    // always in sync. Falls back to a <link> if the file can't be read.
+    $bookCss = @file_get_contents(plugin_dir('booking', 'assets/css/public.css'));
+
+    if ($embed && bookpub_is_fragment()) {
+        // Native/fragment mode: no document at all -- the host page
+        // already has its own <html>/<head>/<body>. .book-public /
+        // .book-public-embed move from <body> to this wrapper <div>
+        // (public.css has both selector forms since this was added).
+        if ($bookCss !== false && $bookCss !== '') echo "<style>\n" . $bookCss . "\n</style>";
+        echo '<div class="book-public book-public-embed">';
+        echo '<main class="book-shell"><article class="book-card">';
+        return;
+    }
     ?>
     <!DOCTYPE html><html lang="<?= e(I18n::currentLocale()) ?>"><head>
         <meta charset="utf-8">
@@ -426,14 +483,6 @@ function bookpub_layout_start(string $title, bool $embed): void {
         <title><?= e($title) ?> — <?= e($siteName) ?></title>
         <meta name="csrf" content="<?= e(csrf_token()) ?>">
         <?php
-        // Inline the widget stylesheet instead of linking it. The booking
-        // widget is dynamic (per-date GET/POST, embedded in third-party
-        // iframes) and was being served behind a CDN/proxy that cached the
-        // external public.css by path and ignored the ?v= query string —
-        // so styling for newer components (calendar, promo, etc.) never
-        // updated. Inlining ties the CSS to the (uncacheable) HTML so it is
-        // always in sync. Falls back to a <link> if the file can't be read.
-        $bookCss = @file_get_contents(plugin_dir('booking', 'assets/css/public.css'));
         if ($bookCss !== false && $bookCss !== '') {
             echo "<style>\n" . $bookCss . "\n</style>";
         } else {
@@ -449,12 +498,19 @@ function bookpub_layout_start(string $title, bool $embed): void {
 }
 function bookpub_layout_end(bool $embed): void {
     echo '</article></main>';
+
+    if ($embed && bookpub_is_fragment()) {
+        echo '</div>'; // close the .book-public/.book-public-embed wrapper div
+        return; // no footer, no postMessage script -- there's no iframe boundary to report across
+    }
+
     if (!$embed) {
-        echo '<footer class="book-footer text-sm text-muted text-center">Powered by '
+        echo '<footer class="book-footer text-sm text-muted text-center">' . e(__('booking_powered_by', 'Powered by')) . ' '
            . e(Database::setting('site_name') ?: 'Slate') . '</footer>';
     } else {
-        // Embedded in a page (Content Builder "Booking" block): report our
-        // height to the parent so the host iframe auto-sizes with no scroll.
+        // Embedded in a page (Content Builder "Booking" block, or the
+        // classic <iframe src="/book?embed=1">): report our height to the
+        // parent so the host auto-sizes with no scroll.
         echo '<script>(function(){'
            . 'function h(){var b=document.body,d=document.documentElement;'
            . 'var ht=Math.max(b.scrollHeight,d.scrollHeight,b.offsetHeight,d.offsetHeight);'
@@ -467,7 +523,12 @@ function bookpub_layout_end(bool $embed): void {
 }
 
 function bookpub_stepper(int $current, bool $embed): void {
-    $labels = ['Service','Provider','When','Confirm'];
+    $labels = [
+        __('booking_step_service', 'Service'),
+        __('booking_step_provider', 'Provider'),
+        __('booking_step_when', 'When'),
+        __('booking_step_confirm', 'Confirm'),
+    ];
     echo '<ol class="book-stepper">';
     foreach ($labels as $i => $label) {
         $n = $i + 1;
@@ -481,9 +542,9 @@ function bookpub_stepper(int $current, bool $embed): void {
 }
 
 function bookpub_render_step1(bool $embed): void {
-    bookpub_layout_start('Book an appointment', $embed);
+    bookpub_layout_start(__('booking_page_title', 'Book an appointment'), $embed);
     bookpub_stepper(1, $embed);
-    echo '<h1>Pick a service</h1>';
+    echo '<h1>' . e(__('booking_pick_a_service', 'Pick a service')) . '</h1>';
     // One implementation of the cards, shared with the booking BLOCK — see
     // BookingAPI::renderServiceCatalogue(). The href keeps this page's embed and
     // query state, which is the only thing that differs between the two callers.
@@ -497,10 +558,11 @@ function bookpub_render_step2(array $service, bool $embed): void {
     $providers = BookingAPI::getProvidersForService((int)$service['id']);
     bookpub_layout_start($service['name'], $embed);
     bookpub_stepper(2, $embed);
-    echo '<a class="book-back" href="' . e(bookpub_qs([], $embed)) . '">&larr; back</a>';
-    echo '<h1>Choose a provider</h1><p class="book-sub">For <strong>' . e($service['name']) . '</strong>.</p>';
+    echo '<a class="book-back" href="' . e(bookpub_qs([], $embed)) . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
+    echo '<h1>' . e(__('booking_choose_a_provider', 'Choose a provider')) . '</h1><p class="book-sub">'
+       . sprintf(e(__('booking_for_service', 'For %s.')), '<strong>' . e($service['name']) . '</strong>') . '</p>';
     if (!$providers) {
-        echo '<div class="alert alert-warning">No providers are available for this service yet.</div>';
+        echo '<div class="alert alert-warning">' . e(__('booking_no_providers', 'No providers are available for this service yet.')) . '</div>';
     } else {
         echo '<div class="book-grid">';
         foreach ($providers as $p) {
@@ -508,7 +570,7 @@ function bookpub_render_step2(array $service, bool $embed): void {
             echo '<a class="book-card-link" href="'
                . e(bookpub_qs(['service' => (int)$service['id'], 'provider' => (int)$p['id']], $embed)) . '">';
             echo '<div class="book-card-title">' . e($p['name']) . '</div>';
-            echo '<div class="book-card-meta">' . ($price > 0 ? e($service['currency']) . ' ' . number_format($price / 100, 2) : 'Free') . '</div>';
+            echo '<div class="book-card-meta">' . ($price > 0 ? slate_format_price($price, $service['currency']) : e(__('booking_free', 'Free'))) . '</div>';
             if (!empty($p['bio'])) {
                 echo '<div class="book-card-desc">' . e(mb_strimwidth($p['bio'], 0, 140, '…')) . '</div>';
             }
@@ -519,12 +581,33 @@ function bookpub_render_step2(array $service, bool $embed): void {
     bookpub_layout_end($embed);
 }
 
+/**
+ * Locale-aware month/weekday names for the calendar widget. The names
+ * themselves are client-side JS state (typed by the user's month/day
+ * navigation clicks, not server-rendered per view), so the translation
+ * Replacer can never reach them — they're injected here as data instead.
+ */
+function bookpub_locale_month_names(): array {
+    if (strtolower(I18n::currentLocale()) === 'fr') {
+        return ['janvier','février','mars','avril','mai','juin','juillet',
+                'août','septembre','octobre','novembre','décembre'];
+    }
+    return ['January','February','March','April','May','June','July',
+            'August','September','October','November','December'];
+}
+function bookpub_locale_day_abbrevs(): array {
+    if (strtolower(I18n::currentLocale()) === 'fr') {
+        return ['Di','Lu','Ma','Me','Je','Ve','Sa'];
+    }
+    return ['Su','Mo','Tu','We','Th','Fr','Sa'];
+}
+
 function bookpub_calendar_script(): void {
+    $monthsJson = json_encode(bookpub_locale_month_names());
     ?>
     <script>
     (function () {
-        var MONTHS = ['January','February','March','April','May','June','July',
-                      'August','September','October','November','December'];
+        var MONTHS = <?= $monthsJson ?>;
         function pad(n){ return (n < 10 ? '0' : '') + n; }
         function iso(y, m, d){ return y + '-' + pad(m + 1) + '-' + pad(d); }
         function parse(s){ var p = (s || '').split('-'); return p.length === 3
@@ -612,13 +695,17 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
 
     bookpub_layout_start($service['name'] . ' — ' . $provider['name'], $embed);
     bookpub_stepper(3, $embed);
-    echo '<a class="book-back" href="' . e(bookpub_qs(['service' => (int)$service['id']], $embed)) . '">&larr; back</a>';
-    echo '<h1>Pick a time</h1>';
-    echo '<p class="book-sub"><strong>' . e($service['name']) . '</strong> with '
-       . e($provider['name']) . ' · ' . BookingAPI::effectiveDuration($service, (int)$provider['id']) . ' min</p>';
+    echo '<a class="book-back" href="' . e(bookpub_qs(['service' => (int)$service['id']], $embed)) . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
+    echo '<h1>' . e(__('booking_pick_a_time', 'Pick a time')) . '</h1>';
+    echo '<p class="book-sub">' . sprintf(
+        e(__('booking_with_provider_duration', '%s with %s · %d min')),
+        '<strong>' . e($service['name']) . '</strong>', e($provider['name']), BookingAPI::effectiveDuration($service, (int)$provider['id'])
+    ) . '</p>';
     if ($multiEnabled) {
-        echo '<p class="book-sub text-sm text-muted">Select up to ' . (int)$multiMax
-           . ' time slots from any dates, then continue to book them all at once.</p>';
+        echo '<p class="book-sub text-sm text-muted">' . sprintf(
+            e(__('booking_multiselect_intro', 'Select up to %d time slots from any dates, then continue to book them all at once.')),
+            (int)$multiMax
+        ) . '</p>';
     }
     ?>
     <div class="book-when">
@@ -626,8 +713,9 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
         <input type="hidden" name="service"  value="<?= (int)$service['id'] ?>">
         <input type="hidden" name="provider" value="<?= (int)$provider['id'] ?>">
         <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
+        <?php if ($embed && bookpub_is_fragment()): ?><input type="hidden" name="portal" value="1"><?php endif; ?>
 
-        <span class="field-label">Date</span>
+        <span class="field-label"><?= __('booking_date', 'Date') ?></span>
         <!-- JS-updated value; submitting the form (e.g. party change) keeps the date. -->
         <input type="hidden" name="date" value="<?= e($date) ?>">
         <?php if ($multiEnabled): ?>
@@ -641,16 +729,16 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
         <?php endif; ?>
         <div class="book-cal" data-selected="<?= e($date) ?>" data-today="<?= e(date('Y-m-d')) ?>" data-min="<?= e(date('Y-m-d')) ?>">
             <div class="book-cal-head">
-                <button type="button" class="book-cal-nav" data-cal-prev aria-label="Previous month">
+                <button type="button" class="book-cal-nav" data-cal-prev aria-label="<?= e(__('booking_prev_month', 'Previous month')) ?>">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
                 <div class="book-cal-title" data-cal-title aria-live="polite"></div>
-                <button type="button" class="book-cal-nav" data-cal-next aria-label="Next month">
+                <button type="button" class="book-cal-nav" data-cal-next aria-label="<?= e(__('booking_next_month', 'Next month')) ?>">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
             </div>
             <div class="book-cal-dow" aria-hidden="true">
-                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                <?php foreach (bookpub_locale_day_abbrevs() as $dow): ?><span><?= e($dow) ?></span><?php endforeach; ?>
             </div>
             <div class="book-cal-days" data-cal-days role="grid"></div>
         </div>
@@ -659,7 +747,7 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
         </noscript>
 
         <?php if ($capacity > 1): ?>
-            <label class="field-label" for="party" style="margin-top:8px;">People</label>
+            <label class="field-label" for="party" style="margin-top:8px;"><?= __('booking_people', 'People') ?></label>
             <select id="party" name="party" onchange="this.form.submit()">
                 <?php for ($n = 1; $n <= $capacity; $n++): ?>
                     <option value="<?= $n ?>" <?= $n === $party ? 'selected' : '' ?>><?= $n ?></option>
@@ -671,7 +759,7 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
     <div class="book-when-slots" data-day-label="<?= e(date('D j M', strtotime($date))) ?>">
     <?php
     if (empty($slotMap)) {
-        echo '<div class="alert alert-info">No slots available on this day. Pick another date.</div>';
+        echo '<div class="alert alert-info">' . e(__('booking_no_slots_today', 'No slots available on this day. Pick another date.')) . '</div>';
     } else {
         echo '<div class="book-slots" data-slot-list>';
         foreach ($slotMap as $time => $cap) {
@@ -680,7 +768,8 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
             $capBadge = '';
             if ($showCapacity) {
                 $left = (int)$cap['remaining'];
-                $capBadge = '<span class="book-slot-cap">' . (int)$left . ($left === 1 ? ' spot left' : ' spots left') . '</span>';
+                $capBadge = '<span class="book-slot-cap">' . (int)$left . ' '
+                          . e($left === 1 ? __('booking_spot_left', 'spot left') : __('booking_spots_left', 'spots left')) . '</span>';
             }
             // The href's "slot"/"date" values and the array key above must
             // stay the raw 24h "H:i" machine format ($time) — they round-
@@ -719,15 +808,18 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
                 <span class="book-multiselect-ring" id="book-multiselect-ring" aria-hidden="true">
                     <span class="book-multiselect-ring-label" id="book-multiselect-ring-label"></span>
                 </span>
-                <span class="book-multiselect-progress-label">selected</span>
+                <span class="book-multiselect-progress-label"><?= __('booking_selected', 'selected') ?></span>
                 <span class="book-sr-only" id="book-multiselect-count" aria-live="polite"></span>
             </div>
             <button type="submit" form="<?= e($dateFormId) ?>" name="multi" value="1"
-                    class="btn btn-primary" id="book-multiselect-continue" disabled>Continue</button>
+                    class="btn btn-primary" id="book-multiselect-continue" disabled><?= __('booking_continue', 'Continue') ?></button>
         </div>
     </div>
     <script>
     (function () {
+        var i18nRemove   = <?= json_encode(__('booking_remove', 'Remove')) ?>;
+        // {n}/{max} placeholders (not PHP sprintf -- this substitution happens in JS).
+        var i18nOfSelectedTpl = <?= json_encode(__('booking_n_of_m_selected', '{n} of {max} selected')) ?>;
         var field    = document.getElementById('book-multiselect-field');
         var bar      = document.getElementById('book-multiselect-bar');
         var chipsEl  = document.getElementById('book-multiselect-chips');
@@ -766,7 +858,7 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
                 var rm = document.createElement('button');
                 rm.type = 'button';
                 rm.className = 'book-chip-remove';
-                rm.setAttribute('aria-label', 'Remove ' + p.label);
+                rm.setAttribute('aria-label', i18nRemove + ' ' + p.label);
                 rm.textContent = '×';
                 rm.addEventListener('click', function () {
                     picks.splice(i, 1);
@@ -777,7 +869,7 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
             });
             bar.hidden = picks.length === 0;
             goBtn.disabled = picks.length === 0;
-            countEl.textContent = picks.length + ' of ' + max + ' selected';
+            countEl.textContent = i18nOfSelectedTpl.replace('{n}', picks.length).replace('{max}', max);
             var pct = max > 0 ? Math.min(100, Math.round((picks.length / max) * 100)) : 0;
             ring.style.setProperty('--pct', pct + '%');
             ringLbl.textContent = picks.length + '/' + max;
@@ -831,39 +923,54 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
     $mode     = (string)($service['payment_mode'] ?? 'free');
     $isMulti  = count($multiSelections) >= 2;
 
-    bookpub_layout_start('Confirm — ' . $service['name'], $embed);
+    // Preflight the same gate createAppointment() enforces on submit (e.g.
+    // Membership's active-plan/profile/insurance checks), so a signed-out or
+    // non-member visitor sees why — and what to do about it — before filling
+    // out the whole form, not after a wasted submit.
+    $gate = Hook::applyFilters('booking_can_book', ['ok' => true], [
+        'customer_id' => Auth::customerId(), 'service' => $service,
+        'starts_at'   => $isMulti ? null : ($date . ' ' . $slot),
+        'party_size'  => $party, 'source' => 'online',
+    ]);
+    $membershipBlocked = is_array($gate) && array_key_exists('ok', $gate) && $gate['ok'] === false;
+    $membershipError   = $membershipBlocked ? (string)($gate['error'] ?? '') : '';
+
+    bookpub_layout_start(__('booking_confirm_page_title', 'Confirm') . ' — ' . $service['name'], $embed);
     bookpub_stepper(4, $embed);
     if ($isMulti) {
         echo '<a class="book-back" href="'
            . e(bookpub_qs(['service' => (int)$service['id'], 'provider' => (int)$provider['id'], 'party' => $party,
                             'sel' => json_encode($multiSelections)], $embed))
-           . '">&larr; back</a>';
+           . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
     } else {
         echo '<a class="book-back" href="'
            . e(bookpub_qs(['service' => (int)$service['id'], 'provider' => (int)$provider['id'], 'date' => $date, 'party' => $party], $embed))
-           . '">&larr; back</a>';
+           . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
     }
-    echo '<h1>Confirm your booking</h1>';
+    echo '<h1>' . e(__('booking_confirm_your_booking', 'Confirm your booking')) . '</h1>';
     echo '<div class="book-summary">';
-    echo   '<div><span class="kv-label">Service</span><span class="kv-value">' . e($service['name']) . '</span></div>';
-    echo   '<div><span class="kv-label">With</span><span class="kv-value">' . e($provider['name']) . '</span></div>';
+    echo   '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value">' . e($service['name']) . '</span></div>';
+    echo   '<div><span class="kv-label">' . e(__('booking_with', 'With')) . '</span><span class="kv-value">' . e($provider['name']) . '</span></div>';
     if ($isMulti) {
-        echo '<div><span class="kv-label">When</span><span class="kv-value">' . count($multiSelections) . ' times selected</span></div>';
+        echo '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value">'
+           . sprintf(e(__('booking_n_times_selected', '%d times selected')), count($multiSelections)) . '</span></div>';
     } else {
-        echo '<div><span class="kv-label">When</span><span class="kv-value">'
+        echo '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value">'
            . e(date('l, j F Y', strtotime($date))) . ' · ' . e(slate_format_time($date . ' ' . $slot)) . '</span></div>';
     }
-    if ($party > 1) echo '<div><span class="kv-label">People</span><span class="kv-value">' . (int)$party . '</span></div>';
+    if ($party > 1) echo '<div><span class="kv-label">' . e(__('booking_people', 'People')) . '</span><span class="kv-value">' . (int)$party . '</span></div>';
     if ($basePrice > 0) {
-        echo '<div><span class="kv-label">Price</span><span class="kv-value">'
-           . e($service['currency']) . ' ' . number_format($basePrice / 100, 2)
+        echo '<div><span class="kv-label">' . e(__('booking_price', 'Price')) . '</span><span class="kv-value">'
+           . slate_format_price($basePrice, $service['currency'])
            . ($party > 1 ? ' × ' . (int)$party : '')
-           . ($isMulti ? ' per time' : '') . '</span></div>';
+           . ($isMulti ? ' ' . e(__('booking_per_time', 'per time')) : '') . '</span></div>';
     }
     echo '</div>';
 
     if ($isMulti) {
-        echo '<div class="book-multiselect-summary"><div class="book-multiselect-summary-title">Booking these ' . count($multiSelections) . ' times</div><ul class="book-multiselect-summary-list">';
+        echo '<div class="book-multiselect-summary"><div class="book-multiselect-summary-title">'
+           . sprintf(e(__('booking_these_n_times', 'Booking these %d times')), count($multiSelections))
+           . '</div><ul class="book-multiselect-summary-list">';
         foreach ($multiSelections as $dt) {
             // anti-drift-ignore: CLOCK — no clock comparison happens here. $dt
             // is a slot the visitor just picked in this form, parsed purely to
@@ -883,8 +990,16 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
         }
         echo '</ul></div>';
         if ($basePrice > 0) {
-            echo '<div class="alert alert-info">Payment (if required) covers your first selected time. The other times are booked the same way any booking on this site confirms, and each has its own confirmation you can pay from if it also needs payment.</div>';
+            echo '<div class="alert alert-info">' . e(__('booking_multi_payment_note', 'Payment (if required) covers your first selected time. The other times are booked the same way any booking on this site confirms, and each has its own confirmation you can pay from if it also needs payment.')) . '</div>';
         }
+    }
+
+    if ($membershipBlocked) {
+        // Filling out the form is pointless until this is resolved — show
+        // the reason plus a way forward instead of the contact fields.
+        bookpub_render_membership_notice($membershipError, $service, $provider, $date, $slot, $party, $embed, $multiSelections);
+        bookpub_layout_end($embed);
+        return;
     }
 
     if ($generalError !== '') echo '<div class="alert alert-error">' . e($generalError) . '</div>';
@@ -901,15 +1016,16 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
         <?php endif; ?>
         <input type="hidden" name="party"    value="<?= (int)$party ?>">
         <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
+        <?php if ($embed && bookpub_is_fragment()): ?><input type="hidden" name="portal" value="1"><?php endif; ?>
 
         <?php if ($addons): ?>
             <fieldset class="book-fieldset">
-                <legend>Add-ons</legend>
+                <legend><?= __('booking_addons', 'Add-ons') ?></legend>
                 <?php foreach ($addons as $a): ?>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:4px 0;">
                         <input type="checkbox" name="addons[]" value="<?= (int)$a['id'] ?>">
                         <span><?= e($a['name']) ?>
-                            <?php if ((int)$a['price_cents'] > 0): ?>· <?= e($service['currency']) ?> <?= number_format($a['price_cents'] / 100, 2) ?><?php endif; ?>
+                            <?php if ((int)$a['price_cents'] > 0): ?>· <?= slate_format_price((int)$a['price_cents'], $service['currency']) ?><?php endif; ?>
                             <?php if ((int)$a['duration_min'] > 0): ?>· +<?= (int)$a['duration_min'] ?> min<?php endif; ?>
                         </span>
                     </label>
@@ -919,23 +1035,23 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
 
         <div class="field-row field-row-2">
             <div class="field">
-                <label class="field-label" for="customer_name">Your name <span class="field-required">*</span></label>
+                <label class="field-label" for="customer_name"><?= __('booking_your_name', 'Your name') ?> <span class="field-required">*</span></label>
                 <input type="text" id="customer_name" name="customer_name" required maxlength="160" value="<?= e($cust['name'] ?? '') ?>">
             </div>
             <div class="field">
-                <label class="field-label" for="customer_email">Email <span class="field-required">*</span></label>
+                <label class="field-label" for="customer_email"><?= __('email', 'Email') ?> <span class="field-required">*</span></label>
                 <input type="email" id="customer_email" name="customer_email" required maxlength="200" value="<?= e($cust['email'] ?? '') ?>">
             </div>
         </div>
         <div class="field">
-            <label class="field-label" for="customer_phone">Phone <span class="text-muted text-xs">(optional)</span></label>
+            <label class="field-label" for="customer_phone"><?= __('booking_phone', 'Phone') ?> <span class="text-muted text-xs">(<?= __('auth_optional', 'optional') ?>)</span></label>
             <input type="tel" id="customer_phone" name="customer_phone" maxlength="40">
         </div>
 
         <?php foreach ($fields as $f) bookpub_render_custom_field($f); ?>
 
         <div class="field">
-            <label class="field-label" for="notes">Notes <span class="text-muted text-xs">(optional)</span></label>
+            <label class="field-label" for="notes"><?= __('booking_notes', 'Notes') ?> <span class="text-muted text-xs">(<?= __('auth_optional', 'optional') ?>)</span></label>
             <textarea id="notes" name="notes" maxlength="2000"></textarea>
         </div>
 
@@ -955,24 +1071,24 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
             <section class="book-section">
                 <div class="book-section-title">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                    Promo / gift code
+                    <?= __('booking_promo_gift_code', 'Promo / gift code') ?>
                 </div>
                 <div class="field-row field-row-2">
                     <?php if ($showCoupon): ?>
                     <div class="field">
-                        <label class="field-label" for="coupon_code">Coupon code</label>
+                        <label class="field-label" for="coupon_code"><?= __('booking_coupon_code', 'Coupon code') ?></label>
                         <div class="book-input-icon">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                            <input type="text" id="coupon_code" name="coupon_code" maxlength="60" autocomplete="off" placeholder="e.g. SAVE10">
+                            <input type="text" id="coupon_code" name="coupon_code" maxlength="60" autocomplete="off" placeholder="<?= e(__('booking_coupon_placeholder', 'e.g. SAVE10')) ?>">
                         </div>
                     </div>
                     <?php endif; ?>
                     <?php if ($showGift): ?>
                     <div class="field">
-                        <label class="field-label" for="gift_card_code">Gift card</label>
+                        <label class="field-label" for="gift_card_code"><?= __('booking_gift_card', 'Gift card') ?></label>
                         <div class="book-input-icon">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-                            <input type="text" id="gift_card_code" name="gift_card_code" maxlength="60" autocomplete="off" placeholder="Gift card code">
+                            <input type="text" id="gift_card_code" name="gift_card_code" maxlength="60" autocomplete="off" placeholder="<?= e(__('booking_gift_card_code_ph', 'Gift card code')) ?>">
                         </div>
                     </div>
                     <?php endif; ?>
@@ -984,24 +1100,24 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
         <section class="book-section">
             <div class="book-section-title">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                Repeat
+                <?= __('booking_repeat', 'Repeat') ?>
             </div>
             <div class="book-options">
                 <label class="book-option">
                     <input type="radio" name="recur" value="none" checked>
                     <span class="book-option-body">
-                        <span class="book-option-title">One-time</span>
-                        <span class="book-option-sub">A single appointment</span>
+                        <span class="book-option-title"><?= __('booking_one_time', 'One-time') ?></span>
+                        <span class="book-option-sub"><?= __('booking_single_appointment', 'A single appointment') ?></span>
                     </span>
                 </label>
                 <label class="book-option">
                     <input type="radio" name="recur" value="weekly">
                     <span class="book-option-body">
-                        <span class="book-option-title">Weekly for
+                        <span class="book-option-title"><?= __('booking_weekly_for', 'Weekly for') ?>
                             <input type="number" name="recur_count" min="2" max="12" value="4" class="book-weeks-input"
                                    onfocus="this.closest('label').querySelector('input[type=radio]').checked=true">
-                            weeks</span>
-                        <span class="book-option-sub">Repeats on the same day &amp; time each week</span>
+                            <?= __('booking_weeks', 'weeks') ?></span>
+                        <span class="book-option-sub"><?= __('booking_repeats_same_day_time', 'Repeats on the same day &amp; time each week') ?></span>
                     </span>
                 </label>
             </div>
@@ -1009,13 +1125,47 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
         <?php endif; ?>
 
         <?php if ($mode === 'full' || $mode === 'deposit'): ?>
-            <div class="alert alert-info">This service requires <?= $mode === 'deposit' ? 'a deposit' : 'payment' ?>. You'll be taken to secure checkout to confirm your slot.</div>
+            <div class="alert alert-info"><?= sprintf(
+                e(__('booking_requires_payment_note', 'This service requires %s. You\'ll be taken to secure checkout to confirm your slot.')),
+                $mode === 'deposit' ? e(__('booking_a_deposit', 'a deposit')) : e(__('booking_payment_word', 'payment'))
+            ) ?></div>
         <?php endif; ?>
 
-        <button type="submit" class="btn btn-primary btn-lg btn-block"><?= ($mode === 'full' || $mode === 'deposit') ? 'Continue to payment' : 'Confirm booking' ?></button>
+        <button type="submit" class="btn btn-primary btn-lg btn-block"><?= ($mode === 'full' || $mode === 'deposit') ? __('booking_continue_to_payment', 'Continue to payment') : __('booking_confirm_booking', 'Confirm booking') ?></button>
     </form>
     <?php
     bookpub_layout_end($embed);
+}
+
+/**
+ * Notice shown on step 4 in place of the contact form when a membership (or
+ * other booking_can_book) gate blocks this customer. Gives a single clear
+ * next step — sign in, or go pick up whatever is missing — that returns the
+ * visitor to this exact step-4 URL once resolved.
+ */
+function bookpub_render_membership_notice(string $message, array $service, array $provider, string $date, string $slot, int $party, bool $embed, array $multiSelections = []): void {
+    $returnParams = [
+        'service' => (int)$service['id'], 'provider' => (int)$provider['id'], 'party' => $party,
+    ];
+    if (count($multiSelections) >= 2) {
+        $returnParams['multi'] = 1;
+        $returnParams['sel']   = json_encode($multiSelections);
+    } else {
+        $returnParams['date'] = $date;
+        $returnParams['slot'] = $slot;
+    }
+    $returnUrl = SLATE_URL . '/book' . bookpub_qs($returnParams, $embed, false);
+
+    echo '<div class="alert alert-warning">' . e($message) . '</div>';
+
+    if (!Auth::customerId()) {
+        $ctaUrl   = SLATE_URL . '/customer/login.php?next=' . rawurlencode($returnUrl);
+        $ctaLabel = __('membership_login_cta', 'Log In / Sign Up');
+    } else {
+        $ctaUrl   = SLATE_URL . '/member/membership/plans?return_to=' . rawurlencode($returnUrl);
+        $ctaLabel = __('membership_plans_cta', 'View Membership Plans');
+    }
+    echo '<a href="' . e($ctaUrl) . '" class="btn btn-primary btn-lg btn-block">' . e($ctaLabel) . '</a>';
 }
 
 /** Render a single custom field input. */
@@ -1032,13 +1182,13 @@ function bookpub_render_custom_field(array $f): void {
         case 'select':
             $opts = json_decode((string)($f['options_json'] ?? '[]'), true) ?: [];
             echo '<select id="cf_' . e($name) . '" name="custom[' . e($name) . ']"' . ($req ? ' required' : '') . '>';
-            echo '<option value="">— choose —</option>';
+            echo '<option value="">' . e(__('booking_choose_placeholder', '— choose —')) . '</option>';
             foreach ($opts as $o) echo '<option value="' . e($o) . '">' . e($o) . '</option>';
             echo '</select>';
             break;
         case 'checkbox':
             echo '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
-               . '<input type="checkbox" name="custom[' . e($name) . ']" value="1"' . ($req ? ' required' : '') . '><span>Yes</span></label>';
+               . '<input type="checkbox" name="custom[' . e($name) . ']" value="1"' . ($req ? ' required' : '') . '><span>' . e(__('booking_yes', 'Yes')) . '</span></label>';
             break;
         case 'file':
             echo '<input type="file" id="cf_' . e($name) . '" name="custom_file_' . e($name) . '"' . ($req ? ' required' : '') . '>';
@@ -1062,28 +1212,28 @@ function bookpub_render_step4_with_error(array $args, string $error, bool $embed
 }
 
 function bookpub_render_success(string $ref, array $args, bool $embed, string $status = 'confirmed', int $booked = 1, int $requested = 1, bool $isMultiBatch = false, array $failedTimes = []): void {
-    bookpub_layout_start('Booking confirmed', $embed);
+    bookpub_layout_start(__('booking_confirmed_title', 'Booking confirmed'), $embed);
     ?>
     <div class="book-success">
         <div class="book-success-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <h1><?= $status === 'pending' ? 'Slot reserved' : ($status === 'awaiting_approval' ? 'Request received' : "You're booked") ?></h1>
+        <h1><?= $status === 'pending' ? e(__('booking_slot_reserved', 'Slot reserved')) : ($status === 'awaiting_approval' ? e(__('booking_request_received', 'Request received')) : e(__('booking_youre_booked', "You're booked"))) ?></h1>
         <?php if ($status === 'pending'): ?>
-            <p>Your slot is reserved. We'll follow up to collect payment.</p>
+            <p><?= __('booking_slot_reserved_sub', "Your slot is reserved. We'll follow up to collect payment.") ?></p>
         <?php elseif ($status === 'awaiting_approval'): ?>
-            <p>Your time is held while we review the request — we'll email <strong><?= e($args['customer_email']) ?></strong> as soon as it's approved.</p>
+            <p><?= sprintf(e(__('booking_awaiting_approval_sub', "Your time is held while we review the request — we'll email %s as soon as it's approved.")), '<strong>' . e($args['customer_email']) . '</strong>') ?></p>
         <?php else: ?>
-            <p>We've sent a confirmation to <strong><?= e($args['customer_email']) ?></strong>.</p>
+            <p><?= sprintf(e(__('booking_confirmation_sent', "We've sent a confirmation to %s.")), '<strong>' . e($args['customer_email']) . '</strong>') ?></p>
         <?php endif; ?>
         <?php if ($requested > 1 && !$isMultiBatch): ?>
-            <p class="text-sm text-muted"><?= (int)$booked ?> of <?= (int)$requested ?> weekly appointments booked.</p>
+            <p class="text-sm text-muted"><?= sprintf(e(__('booking_n_of_m_weekly_booked', '%1$d of %2$d weekly appointments booked.')), (int)$booked, (int)$requested) ?></p>
         <?php elseif ($isMultiBatch): ?>
-            <p class="text-sm text-muted"><?= (int)$booked ?> of <?= (int)$requested ?> selected times booked.</p>
+            <p class="text-sm text-muted"><?= sprintf(e(__('booking_n_of_m_times_booked', '%1$d of %2$d selected times booked.')), (int)$booked, (int)$requested) ?></p>
             <?php if ($failedTimes): ?>
                 <div class="alert alert-warning" style="text-align:left;">
-                    <div>These times couldn't be booked — someone else may have taken them. Please pick a different time for each:</div>
+                    <div><?= __('booking_times_couldnt_be_booked', "These times couldn't be booked — someone else may have taken them. Please pick a different time for each:") ?></div>
                     <ul class="book-multiselect-summary-list">
                         <?php foreach ($failedTimes as $dt): ?>
                             <li><?= e(slate_format_datetime($dt, 'D j M Y')) ?></li>
@@ -1092,8 +1242,8 @@ function bookpub_render_success(string $ref, array $args, bool $embed, string $s
                 </div>
             <?php endif; ?>
         <?php endif; ?>
-        <p class="text-sm text-muted">Reference: <code><?= e($ref) ?></code></p>
-        <p class="mt-3"><a href="<?= e(bookpub_home($embed)) ?>" class="btn btn-ghost">Book something else</a></p>
+        <p class="text-sm text-muted"><?= __('booking_reference', 'Reference:') ?> <code><?= e($ref) ?></code></p>
+        <p class="mt-3"><a href="<?= e(bookpub_home($embed)) ?>" class="btn btn-ghost"><?= __('booking_something_else', 'Book something else') ?></a></p>
     </div>
     <?php
     bookpub_layout_end($embed);
@@ -1146,19 +1296,19 @@ function bookpub_render_payment(array $appt, bool $embed): void {
         && !(strtolower((string)($appt['currency'] ?? 'usd')) === 'eur'
             && $sset('method_bancontact'));
 
-    bookpub_layout_start('Payment — ' . (string)($service['name'] ?? 'Booking'), $embed);
-    echo '<h1>Secure payment</h1>';
+    bookpub_layout_start(__('booking_payment_page_title', 'Payment') . ' — ' . (string)($service['name'] ?? __('booking_default_title', 'Booking')), $embed);
+    echo '<h1>' . e(__('booking_secure_payment', 'Secure payment')) . '</h1>';
 
     echo '<div class="book-summary">';
-    echo   '<div><span class="kv-label">Service</span><span class="kv-value">' . e((string)($service['name'] ?? '')) . '</span></div>';
+    echo   '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value">' . e((string)($service['name'] ?? '')) . '</span></div>';
     if ($provider) {
-        echo '<div><span class="kv-label">With</span><span class="kv-value">' . e((string)$provider['name']) . '</span></div>';
+        echo '<div><span class="kv-label">' . e(__('booking_with', 'With')) . '</span><span class="kv-value">' . e((string)$provider['name']) . '</span></div>';
     }
-    echo   '<div><span class="kv-label">When</span><span class="kv-value">'
+    echo   '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value">'
          . e(slate_format_datetime((string)$appt['starts_at'], 'l, j F Y')) . '</span></div>';
-    echo   '<div><span class="kv-label">Reference</span><span class="kv-value"><code>' . e((string)$appt['ref']) . '</code></span></div>';
-    echo   '<div><span class="kv-label">' . ($isDeposit ? 'Deposit due' : 'Amount due') . '</span>'
-         . '<span class="kv-value"><strong>' . e($currency) . ' ' . number_format($due / 100, 2) . '</strong></span></div>';
+    echo   '<div><span class="kv-label">' . e(__('booking_reference_label', 'Reference')) . '</span><span class="kv-value"><code>' . e((string)$appt['ref']) . '</code></span></div>';
+    echo   '<div><span class="kv-label">' . e($isDeposit ? __('booking_deposit_due', 'Deposit due') : __('booking_amount_due', 'Amount due')) . '</span>'
+         . '<span class="kv-value"><strong>' . slate_format_price((int)$due, $currency) . '</strong></span></div>';
     echo '</div>';
     ?>
     <style>
@@ -1194,11 +1344,11 @@ function bookpub_render_payment(array $appt, bool $embed): void {
         <div class="book-pay-wrap">
             <div id="book-pay-loading" class="book-pay-loading">
                 <span class="book-pay-spinner" aria-hidden="true"></span>
-                <span>Loading secure payment form…</span>
+                <span><?= __('booking_loading_payment_form', 'Loading secure payment form…') ?></span>
             </div>
             <?php if ($cardOnly): ?>
             <div id="book-pay-card-fields" hidden>
-                <label class="field-label">Card details</label>
+                <label class="field-label"><?= __('booking_card_details', 'Card details') ?></label>
                 <div class="book-pay-card-inline">
                     <div id="book-pay-card-number" class="bpc-num"></div>
                     <div id="book-pay-card-expiry" class="bpc-exp"></div>
@@ -1210,13 +1360,13 @@ function bookpub_render_payment(array $appt, bool $embed): void {
             <?php endif; ?>
             <div id="book-pay-errors" class="alert alert-error" role="alert" style="display:none;margin-top:14px;"></div>
             <noscript>
-                <div class="alert alert-error">JavaScript is required to pay inline. Please enable it and reload.</div>
+                <div class="alert alert-error"><?= __('booking_js_required', 'JavaScript is required to pay inline. Please enable it and reload.') ?></div>
             </noscript>
         </div>
         <button type="submit" id="book-pay-btn" class="btn btn-primary btn-lg btn-block" disabled>
-            Pay <?= e($currency) ?> <?= number_format($due / 100, 2) ?>
+            <span><?= __('booking_pay', 'Pay') ?></span> <?= slate_format_price((int)$due, $currency) ?>
         </button>
-        <a href="<?= e(bookpub_home($embed)) ?>" class="book-pay-cancel">Cancel</a>
+        <a href="<?= e(bookpub_home($embed)) ?>" class="book-pay-cancel"><?= __('booking_cancel', 'Cancel') ?></a>
     </form>
 
     <script src="https://js.stripe.com/v3/"></script>
@@ -1233,6 +1383,19 @@ function bookpub_render_payment(array $appt, bool $embed): void {
         var cardOnly      = <?= $cardOnly ? 'true' : 'false' ?>;
         var custName      = <?= json_encode((string)($appt['customer_name']  ?? '')) ?>;
         var custEmail     = <?= json_encode((string)($appt['customer_email'] ?? '')) ?>;
+
+        var i18n = {
+            couldNotLoadStripe:   <?= json_encode(__('booking_could_not_load_stripe', 'Could not load Stripe. Refresh and try again.')) ?>,
+            networkError:        <?= json_encode(__('booking_network_error', 'Network error contacting payment server.')) ?>,
+            couldNotInitPayment: <?= json_encode(__('booking_could_not_init_payment', 'Could not initialise payment.')) ?>,
+            couldNotLoadForm:    <?= json_encode(__('booking_could_not_load_payment_form', 'Could not load payment form.')) ?>,
+            stripeJsError:       <?= json_encode(__('booking_stripe_js_error', 'Stripe.js error:')) ?>,
+            stillLoading:        <?= json_encode(__('booking_payment_form_still_loading', 'Payment form is still loading — please wait a moment.')) ?>,
+            processing:          <?= json_encode(__('booking_processing', 'Processing…')) ?>,
+            unexpectedError:     <?= json_encode(__('booking_unexpected_error', 'Unexpected error:')) ?>,
+            paymentFailed:       <?= json_encode(__('booking_payment_failed', 'Payment failed.')) ?>,
+            paymentIncomplete:   <?= json_encode(__('booking_payment_incomplete', 'Payment did not complete (status: %s).')) ?>
+        };
 
         var state = 'idle';
         var stripe = null, elements = null, paymentElement = null, cardElement = null;
@@ -1267,7 +1430,7 @@ function bookpub_render_payment(array $appt, bool $embed): void {
             if (window.Stripe) return cb();
             var n = 0, iv = setInterval(function () {
                 if (window.Stripe) { clearInterval(iv); cb(); }
-                else if (++n > 100) { clearInterval(iv); showError('Could not load Stripe. Refresh and try again.'); }
+                else if (++n > 100) { clearInterval(iv); showError(i18n.couldNotLoadStripe); }
             }, 100);
         }
 
@@ -1290,12 +1453,12 @@ function bookpub_render_payment(array $appt, bool $embed): void {
                 data = await resp.json();
             } catch (e) {
                 state = 'idle'; setLoading(false);
-                showError('Network error contacting payment server.');
+                showError(i18n.networkError);
                 return;
             }
             if (!resp.ok || !data || !data.client_secret) {
                 state = 'idle'; setLoading(false);
-                showError((data && data.error) ? data.error : 'Could not initialise payment.');
+                showError((data && data.error) ? data.error : i18n.couldNotInitPayment);
                 return;
             }
             clientSecret = data.client_secret;
@@ -1331,14 +1494,14 @@ function bookpub_render_payment(array $appt, bool $embed): void {
                     paymentElement.on('ready', markReady);
                     paymentElement.on('loaderror', function (ev) {
                         state = 'idle'; setLoading(false);
-                        showError((ev && ev.error && ev.error.message) || 'Could not load payment form.');
+                        showError((ev && ev.error && ev.error.message) || i18n.couldNotLoadForm);
                     });
                     state = 'mounting';
                     paymentElement.mount('#book-pay-element');
                 }
             } catch (e) {
                 state = 'idle'; setLoading(false);
-                showError('Stripe.js error: ' + (e.message || e));
+                showError(i18n.stripeJsError + ' ' + (e.message || e));
                 return;
             }
             // Safety net: if Stripe's 'ready' event is delayed or missed (seen
@@ -1353,14 +1516,14 @@ function bookpub_render_payment(array $appt, bool $embed): void {
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
             if (state !== 'ready' || !stripe || !elements) {
-                showError('Payment form is still loading — please wait a moment.');
+                showError(i18n.stillLoading);
                 return;
             }
             hideError();
             state = 'submitting';
             btn.disabled = true;
             var orig = btn.textContent;
-            btn.textContent = 'Processing…';
+            btn.textContent = i18n.processing;
 
             var billing = { name: custName || undefined, email: custEmail || undefined };
             var result;
@@ -1383,18 +1546,18 @@ function bookpub_render_payment(array $appt, bool $embed): void {
                 }
             } catch (e2) {
                 state = 'ready'; btn.disabled = false; btn.textContent = orig;
-                showError('Unexpected error: ' + (e2.message || e2));
+                showError(i18n.unexpectedError + ' ' + (e2.message || e2));
                 return;
             }
             if (result.error) {
                 state = 'ready'; btn.disabled = false; btn.textContent = orig;
-                showError(result.error.message || 'Payment failed.');
+                showError(result.error.message || i18n.paymentFailed);
                 return;
             }
             var pi = result.paymentIntent;
             if (!pi || (pi.status !== 'succeeded' && pi.status !== 'requires_capture')) {
                 state = 'ready'; btn.disabled = false; btn.textContent = orig;
-                showError('Payment did not complete (status: ' + (pi ? pi.status : 'unknown') + ').');
+                showError(i18n.paymentIncomplete.replace('%s', pi ? pi.status : 'unknown'));
                 return;
             }
             // Paid inline — hand off to the done page to verify + confirm.
@@ -1409,10 +1572,10 @@ function bookpub_render_payment(array $appt, bool $embed): void {
 }
 
 function bookpub_render_error(string $msg, bool $embed): void {
-    bookpub_layout_start('Booking', $embed);
-    echo '<h1>Something went wrong</h1>';
+    bookpub_layout_start(__('booking_default_title', 'Booking'), $embed);
+    echo '<h1>' . e(__('booking_something_went_wrong', 'Something went wrong')) . '</h1>';
     echo '<div class="alert alert-error">' . e($msg) . '</div>';
-    echo '<a href="' . e(bookpub_home($embed)) . '" class="btn">Start over</a>';
+    echo '<a href="' . e(bookpub_home($embed)) . '" class="btn">' . e(__('booking_start_over', 'Start over')) . '</a>';
     bookpub_layout_end($embed);
 }
 
@@ -1423,14 +1586,14 @@ function bookpub_render_error(string $msg, bool $embed): void {
 function bookpub_manage(bool $embed): void {
     $token = (string)($_GET['token'] ?? ($_POST['token'] ?? ''));
     if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
-        bookpub_render_error('Invalid or missing management link.', $embed);
+        bookpub_render_error(__('booking_invalid_manage_link', 'Invalid or missing management link.'), $embed);
         return;
     }
     $appt = BookingAPI::findByManageToken($token);
-    if (!$appt) { bookpub_render_error('Booking not found.', $embed); return; }
+    if (!$appt) { bookpub_render_error(__('booking_not_found', 'Booking not found.'), $embed); return; }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (!csrf_verify()) { bookpub_render_error('Security check failed.', $embed); return; }
+        if (!csrf_verify()) { bookpub_render_error(__('booking_security_check_failed', 'Security check failed.'), $embed); return; }
         $action = $_POST['_action'] ?? '';
         if ($action === 'cancel') {
             // Policy check FIRST — the view hides the button once a booking
@@ -1440,7 +1603,7 @@ function bookpub_manage(bool $embed): void {
             // hit this gate.
             $gate = BookingAPI::canSelfCancel($appt);
             if (empty($gate['ok'])) {
-                bookpub_manage_view($appt, $embed, $gate['error'] ?? 'This booking can\'t be cancelled online.');
+                bookpub_manage_view($appt, $embed, $gate['error'] ?? __('booking_cannot_cancel_online', 'This booking can\'t be cancelled online.'));
                 return;
             }
             BookingAPI::cancelAppointment((int)$appt['id'], 'Cancelled by customer');
@@ -1452,16 +1615,16 @@ function bookpub_manage(bool $embed): void {
                     'icon' => 'x-circle',
                 ]);
             }
-            bookpub_layout_start('Cancelled', $embed);
-            echo '<div class="book-success"><h1>Booking cancelled</h1>'
-               . '<p>Your appointment for <strong>' . e($appt['service_name']) . '</strong> has been cancelled.</p></div>';
+            bookpub_layout_start(__('booking_cancelled_title', 'Cancelled'), $embed);
+            echo '<div class="book-success"><h1>' . e(__('booking_cancelled_heading', 'Booking cancelled')) . '</h1>'
+               . '<p>' . sprintf(e(__('booking_appt_cancelled_msg', 'Your appointment for %s has been cancelled.')), '<strong>' . e($appt['service_name']) . '</strong>') . '</p></div>';
             bookpub_layout_end($embed);
             return;
         }
         if ($action === 'reschedule') {
             $gate = BookingAPI::canSelfReschedule($appt);
             if (empty($gate['ok'])) {
-                bookpub_manage_view($appt, $embed, $gate['error'] ?? 'This booking can\'t be rescheduled online.');
+                bookpub_manage_view($appt, $embed, $gate['error'] ?? __('booking_cannot_reschedule_online', 'This booking can\'t be rescheduled online.'));
                 return;
             }
             $newStart = (string)($_POST['date'] ?? '') . ' ' . (string)($_POST['slot'] ?? '');
@@ -1475,13 +1638,13 @@ function bookpub_manage(bool $embed): void {
                         'icon' => 'calendar',
                     ]);
                 }
-                bookpub_layout_start('Rescheduled', $embed);
-                echo '<div class="book-success"><h1>All set</h1>'
-                   . '<p>Your appointment was moved to <strong>' . e(slate_format_datetime($newStart, 'l, j F Y')) . '</strong>.</p></div>';
+                bookpub_layout_start(__('booking_rescheduled_title', 'Rescheduled'), $embed);
+                echo '<div class="book-success"><h1>' . e(__('booking_all_set', 'All set')) . '</h1>'
+                   . '<p>' . sprintf(e(__('booking_appt_moved_msg', 'Your appointment was moved to %s.')), '<strong>' . e(slate_format_datetime($newStart, 'l, j F Y')) . '</strong>') . '</p></div>';
                 bookpub_layout_end($embed);
                 return;
             }
-            bookpub_manage_view($appt, $embed, $res['error'] ?? 'Could not reschedule.');
+            bookpub_manage_view($appt, $embed, $res['error'] ?? __('booking_could_not_reschedule', 'Could not reschedule.'));
             return;
         }
     }
@@ -1495,25 +1658,25 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d', max(time(), strtotime($appt['starts_at'])));
     $party = max(1, (int)($appt['party_size'] ?? 1));
 
-    bookpub_layout_start('Manage booking', $embed);
-    echo '<h1 style="margin-bottom:6px;">Your booking</h1>';
-    echo '<p class="book-sub" style="margin-bottom:16px;">View details, reschedule your time, or cancel your appointment.</p>';
+    bookpub_layout_start(__('booking_manage_title', 'Manage booking'), $embed);
+    echo '<h1 style="margin-bottom:6px;">' . e(__('booking_your_booking_title', 'Your booking')) . '</h1>';
+    echo '<p class="book-sub" style="margin-bottom:16px;">' . e(__('booking_manage_sub', 'View details, reschedule your time, or cancel your appointment.')) . '</p>';
 
     echo '<div class="book-summary">';
-    echo '<div><span class="kv-label">Service</span><span class="kv-value"><strong>' . e($appt['service_name']) . '</strong></span></div>';
-    echo '<div><span class="kv-label">With</span><span class="kv-value">' . e($appt['provider_name']) . '</span></div>';
-    echo '<div><span class="kv-label">When</span><span class="kv-value"><strong>' . e(slate_format_datetime($appt['starts_at'], 'l, j F Y')) . '</strong></span></div>';
+    echo '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value"><strong>' . e($appt['service_name']) . '</strong></span></div>';
+    echo '<div><span class="kv-label">' . e(__('booking_with', 'With')) . '</span><span class="kv-value">' . e($appt['provider_name']) . '</span></div>';
+    echo '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value"><strong>' . e(slate_format_datetime($appt['starts_at'], 'l, j F Y')) . '</strong></span></div>';
 
     $statusColor = $appt['status'] === 'confirmed' ? '#15803D;background:#DCFCE7' : ($cancelled ? '#B91C1C;background:#FEE2E2' : '#B45309;background:#FEF3C7');
-    $statusLabel = ['pending' => 'Awaiting payment', 'awaiting_approval' => 'Awaiting confirmation'][$appt['status']] ?? ucfirst((string)$appt['status']);
-    echo '<div><span class="kv-label">Status</span><span class="kv-value"><span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' . $statusColor . ';">' . e($statusLabel) . '</span></span></div>';
-    echo '<div><span class="kv-label">Reference</span><span class="kv-value"><code style="font-weight:700;letter-spacing:0.04em;">' . e($appt['ref']) . '</code></span></div>';
+    $statusLabel = ['pending' => __('booking_status_awaiting_payment', 'Awaiting payment'), 'awaiting_approval' => __('booking_status_awaiting_confirmation', 'Awaiting confirmation')][$appt['status']] ?? ucfirst((string)$appt['status']);
+    echo '<div><span class="kv-label">' . e(__('booking_status', 'Status')) . '</span><span class="kv-value"><span style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' . $statusColor . ';">' . e($statusLabel) . '</span></span></div>';
+    echo '<div><span class="kv-label">' . e(__('booking_reference_label', 'Reference')) . '</span><span class="kv-value"><code style="font-weight:700;letter-spacing:0.04em;">' . e($appt['ref']) . '</code></span></div>';
     echo '</div>';
 
     if ($error !== '') echo '<div class="alert alert-error">' . e($error) . '</div>';
 
     if ($cancelled) {
-        echo '<div class="alert alert-info">This booking can no longer be changed.</div>';
+        echo '<div class="alert alert-info">' . e(__('booking_no_longer_changed', 'This booking can no longer be changed.')) . '</div>';
         bookpub_layout_end($embed);
         return;
     }
@@ -1525,7 +1688,7 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     $cancelGate     = BookingAPI::canSelfCancel($appt);
 
     if (empty($rescheduleGate['ok'])) {
-        echo '<div class="alert alert-info" style="margin-top:20px;">' . e($rescheduleGate['error'] ?? 'Rescheduling isn\'t available for this booking.') . '</div>';
+        echo '<div class="alert alert-info" style="margin-top:20px;">' . e($rescheduleGate['error'] ?? __('booking_reschedule_unavailable', 'Rescheduling isn\'t available for this booking.')) . '</div>';
     } else {
 
     // Modern Reschedule Card
@@ -1537,8 +1700,8 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     echo '      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
     echo '    </span>';
     echo '    <div>';
-    echo '      <h2 style="margin:0;font-size:16px;font-weight:700;color:var(--text, #111217);">Reschedule appointment</h2>';
-    echo '      <p style="margin:2px 0 0;font-size:12.5px;color:var(--muted, #6B7280);">Select a new date and choose from available slots.</p>';
+    echo '      <h2 style="margin:0;font-size:16px;font-weight:700;color:var(--text, #111217);">' . e(__('booking_reschedule_appointment', 'Reschedule appointment')) . '</h2>';
+    echo '      <p style="margin:2px 0 0;font-size:12.5px;color:var(--muted, #6B7280);">' . e(__('booking_reschedule_sub', 'Select a new date and choose from available slots.')) . '</p>';
     echo '    </div>';
     echo '  </div>';
     echo '</div>';
@@ -1549,26 +1712,27 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     echo '<input type="hidden" name="_route_path" value="manage">';
     echo '<input type="hidden" name="token" value="' . e($token) . '">';
     if ($embed) echo '<input type="hidden" name="embed" value="1">';
+    if ($embed && bookpub_is_fragment()) echo '<input type="hidden" name="portal" value="1">';
     echo '<input type="hidden" name="date" value="' . e($date) . '">';
 
-    echo '<span class="field-label" style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:var(--text, #111217);">Choose new date</span>';
+    echo '<span class="field-label" style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:var(--text, #111217);">' . e(__('booking_choose_new_date', 'Choose new date')) . '</span>';
     echo '<div class="book-cal" data-selected="' . e($date) . '" data-today="' . e(date('Y-m-d')) . '" data-min="' . e(date('Y-m-d')) . '">';
     echo '  <div class="book-cal-head">';
-    echo '    <button type="button" class="book-cal-nav" data-cal-prev aria-label="Previous month">';
+    echo '    <button type="button" class="book-cal-nav" data-cal-prev aria-label="' . e(__('booking_prev_month', 'Previous month')) . '">';
     echo '      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
     echo '    </button>';
     echo '    <div class="book-cal-title" data-cal-title aria-live="polite"></div>';
-    echo '    <button type="button" class="book-cal-nav" data-cal-next aria-label="Next month">';
+    echo '    <button type="button" class="book-cal-nav" data-cal-next aria-label="' . e(__('booking_next_month', 'Next month')) . '">';
     echo '      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
     echo '    </button>';
     echo '  </div>';
     echo '  <div class="book-cal-dow" aria-hidden="true">';
-    echo '    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>';
+    foreach (bookpub_locale_day_abbrevs() as $dow) echo '<span>' . e($dow) . '</span>';
     echo '  </div>';
     echo '  <div class="book-cal-days" data-cal-days role="grid"></div>';
     echo '</div>';
     echo '<noscript>';
-    echo '  <label class="field-label" for="date">New date</label>';
+    echo '  <label class="field-label" for="date">' . e(__('booking_new_date', 'New date')) . '</label>';
     echo '  <input type="date" id="date" name="date" value="' . e($date) . '" min="' . e(date('Y-m-d')) . '" onchange="this.form.submit()">';
     echo '</noscript>';
     echo '</form>';
@@ -1576,21 +1740,21 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     echo '<div class="book-when-slots">';
     echo '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
     echo '    <span style="font-weight:600;font-size:13.5px;color:var(--text, #111217);">';
-    echo '      Available times &middot; <span style="color:var(--accent, #2563EB);">' . e(date('D, j M Y', strtotime($date))) . '</span>';
+    echo '      ' . e(__('booking_available_times', 'Available times')) . ' &middot; <span style="color:var(--accent, #2563EB);">' . e(date('D, j M Y', strtotime($date))) . '</span>';
     echo '    </span>';
 
     $slots = BookingAPI::computeAvailableSlots((int)$appt['service_id'], (int)$appt['provider_id'], $date, $party);
     if ($slots) {
-        echo '<span style="font-size:12px;color:var(--muted, #6B7280);font-weight:500;">' . count($slots) . ' slots</span>';
+        echo '<span style="font-size:12px;color:var(--muted, #6B7280);font-weight:500;">' . sprintf(e(__('booking_n_slots', '%d slots')), count($slots)) . '</span>';
     }
     echo '  </div>';
 
     if (!$slots) {
-        echo '<div class="alert alert-info" style="margin-top:6px;">No available slots on this day. Please select another date on the calendar.</div>';
+        echo '<div class="alert alert-info" style="margin-top:6px;">' . e(__('booking_no_slots_this_day', 'No available slots on this day. Please select another date on the calendar.')) . '</div>';
     } else {
         echo '<div class="book-slots">';
         foreach ($slots as $time) {
-            echo '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'Confirm rescheduling your appointment to ' . e(date('l, j F Y', strtotime($date))) . ' at ' . e($time) . '?\')">'
+            echo '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'' . e(sprintf(__('booking_confirm_reschedule_prompt', 'Confirm rescheduling your appointment to %s at %s?'), date('l, j F Y', strtotime($date)), $time)) . '\')">'
                . csrf_field()
                . '<input type="hidden" name="token" value="' . e($token) . '">'
                . '<input type="hidden" name="_action" value="reschedule">'
@@ -1613,14 +1777,14 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     // Cancel Section at the bottom of the card
     echo '<div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border, rgba(0,0,0,0.07));display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">';
     if (empty($cancelGate['ok'])) {
-        echo '  <span style="font-size:13px;color:var(--muted, #6B7280);">' . e($cancelGate['error'] ?? 'Cancellation isn\'t available for this booking.') . '</span>';
+        echo '  <span style="font-size:13px;color:var(--muted, #6B7280);">' . e($cancelGate['error'] ?? __('booking_cancel_unavailable', 'Cancellation isn\'t available for this booking.')) . '</span>';
     } else {
-        echo '  <span style="font-size:13px;color:var(--muted, #6B7280);">Need to cancel this appointment entirely?</span>';
-        echo '  <form method="post" onsubmit="return confirm(\'Are you sure you want to cancel this booking? This action cannot be undone.\')" style="margin:0;">'
+        echo '  <span style="font-size:13px;color:var(--muted, #6B7280);">' . e(__('booking_cancel_prompt', 'Need to cancel this appointment entirely?')) . '</span>';
+        echo '  <form method="post" onsubmit="return confirm(\'' . e(__('booking_cancel_confirm', 'Are you sure you want to cancel this booking? This action cannot be undone.')) . '\')" style="margin:0;">'
            . csrf_field()
            . '<input type="hidden" name="token" value="' . e($token) . '">'
            . '<input type="hidden" name="_action" value="cancel">'
-           . '<button type="submit" class="btn btn-sm btn-ghost" style="color:var(--danger, #DC2626);border-color:color-mix(in srgb, var(--danger, #DC2626) 30%, transparent);font-size:13px;cursor:pointer;">Cancel booking</button>'
+           . '<button type="submit" class="btn btn-sm btn-ghost" style="color:var(--danger, #DC2626);border-color:color-mix(in srgb, var(--danger, #DC2626) 30%, transparent);font-size:13px;cursor:pointer;">' . e(__('booking_cancel_booking_btn', 'Cancel booking')) . '</button>'
            . '</form>';
     }
     echo '</div>';
@@ -1637,11 +1801,11 @@ function bookpub_pay_done(bool $embed): void {
     $sessionId = (string)($_GET['session_id'] ?? '');
     $piId      = (string)($_GET['payment_intent'] ?? '');
     if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
-        bookpub_render_error('Invalid payment link.', $embed);
+        bookpub_render_error(__('booking_invalid_payment_link', 'Invalid payment link.'), $embed);
         return;
     }
     $appt = BookingAPI::findByManageToken($token, false);
-    if (!$appt) { bookpub_render_error('Booking not found.', $embed); return; }
+    if (!$appt) { bookpub_render_error(__('booking_not_found', 'Booking not found.'), $embed); return; }
 
     // Fallback in case the webhook hasn't arrived yet: verify the session is
     // paid with Stripe, then record + mark paid (all idempotent).
@@ -1718,25 +1882,24 @@ function bookpub_pay_done(bool $embed): void {
     // gentle holding message with a resume link rather than a false "Thank
     // you", and let the webhook flip it to paid in the background.
     if (($appt['payment_status'] ?? '') !== 'paid') {
-        bookpub_layout_start('Payment processing', $embed);
+        bookpub_layout_start(__('booking_payment_processing_title', 'Payment processing'), $embed);
         echo '<div class="book-success">';
-        echo '<h1>Almost there</h1>';
-        echo '<p>We\'re confirming your payment for <strong>' . e($appt['service_name']) . '</strong>. '
-           . 'This can take a moment — you\'ll get an email once it\'s confirmed.</p>';
-        echo '<p class="text-sm text-muted">Reference: <code>' . e($appt['ref']) . '</code></p>';
-        echo '<p class="mt-3"><a href="' . e(SLATE_URL . '/book/manage?token=' . rawurlencode((string)$appt['manage_token']) . ($embed ? '&embed=1' : '')) . '" class="btn btn-ghost">View / retry payment</a></p>';
+        echo '<h1>' . e(__('booking_almost_there', 'Almost there')) . '</h1>';
+        echo '<p>' . sprintf(e(__('booking_confirming_payment_msg', 'We\'re confirming your payment for %s. This can take a moment — you\'ll get an email once it\'s confirmed.')), '<strong>' . e($appt['service_name']) . '</strong>') . '</p>';
+        echo '<p class="text-sm text-muted">' . e(__('booking_reference', 'Reference:')) . ' <code>' . e($appt['ref']) . '</code></p>';
+        echo '<p class="mt-3"><a href="' . e(SLATE_URL . '/book/manage?token=' . rawurlencode((string)$appt['manage_token']) . ($embed ? '&embed=1' : '')) . '" class="btn btn-ghost">' . e(__('booking_view_retry_payment', 'View / retry payment')) . '</a></p>';
         echo '</div>';
         bookpub_layout_end($embed);
         return;
     }
 
-    bookpub_layout_start('Payment received', $embed);
+    bookpub_layout_start(__('booking_payment_received_title', 'Payment received'), $embed);
     echo '<div class="book-success">';
     echo '<div class="book-success-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>';
-    echo '<h1>Thank you</h1>';
-    echo '<p>Your booking for <strong>' . e($appt['service_name']) . '</strong> is confirmed.</p>';
-    echo '<p class="text-sm text-muted">Reference: <code>' . e($appt['ref']) . '</code></p>';
-    echo '<p class="mt-3"><a href="' . e(bookpub_home($embed)) . '" class="btn btn-ghost">Book something else</a></p>';
+    echo '<h1>' . e(__('booking_thank_you', 'Thank you')) . '</h1>';
+    echo '<p>' . sprintf(e(__('booking_booking_confirmed_msg', 'Your booking for %s is confirmed.')), '<strong>' . e($appt['service_name']) . '</strong>') . '</p>';
+    echo '<p class="text-sm text-muted">' . e(__('booking_reference', 'Reference:')) . ' <code>' . e($appt['ref']) . '</code></p>';
+    echo '<p class="mt-3"><a href="' . e(bookpub_home($embed)) . '" class="btn btn-ghost">' . e(__('booking_something_else', 'Book something else')) . '</a></p>';
     echo '</div>';
     bookpub_layout_end($embed);
 }

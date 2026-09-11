@@ -16,7 +16,13 @@
 .mlt-spacer{flex:1}
 
 .mlt-stats{margin-bottom:var(--space-4,16px)}
-.mlt-flag-badge{font-size:18px;line-height:1}
+/* Flag glyphs come from the OS emoji font, not an SVG sprite, so the
+   .dash-stat-badge svg{width:20px;height:20px} rule in ui_components.php
+   never applies to them — font-size alone doesn't pin an emoji's
+   rendered size consistently across platforms. Box it to match every
+   other .dash-stat-badge icon instead of trusting font metrics. */
+.mlt-flag-badge{display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;font-size:20px;line-height:1;overflow:hidden}
 .mlt-lang-stat{position:relative}
 .mlt-lang-stat.is-off{opacity:.65}
 .mlt-badge-off{font-size:9.5px;font-weight:700;color:var(--muted);border:1px solid var(--border);border-radius:999px;

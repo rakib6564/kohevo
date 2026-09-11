@@ -20,7 +20,9 @@ class Database {
 
     public static function get(): \PDO {
         if (self::$pdo === null) {
-            $dsn  = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+            $port = defined('DB_PORT') ? trim((string) DB_PORT) : '';
+            $dsn  = 'mysql:host=' . DB_HOST . ($port !== '' ? ';port=' . $port : '')
+                  . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
             $opts = [
                 \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,

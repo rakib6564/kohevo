@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'code'          => mb_substr($code, 0, 60),
                         'initial_cents' => $initial,
                         'balance_cents' => $initial,
-                        'currency'      => mb_substr(strtoupper(trim((string)($_POST['currency'] ?? 'USD'))), 0, 8),
+                        'currency'      => slate_default_currency(),
                         'is_active'     => !empty($_POST['is_active']) ? 1 : 0,
                     ]);
                     AuditLog::record('booking.giftcard_created', (string)$newId);
@@ -87,7 +87,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php if ($flash): ?><div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['msg']) ?></div><?php endif; ?>
 
 <?php if ($isNew || $editing):
-    $g = $editing ?: ['id'=>0,'code'=>'','initial_cents'=>0,'balance_cents'=>0,'currency'=>'USD','is_active'=>1];
+    $g = $editing ?: ['id'=>0,'code'=>'','initial_cents'=>0,'balance_cents'=>0,'currency'=>slate_default_currency(),'is_active'=>1];
     $gInitials = ($editing && trim((string)$editing['code']) !== '') ? mb_strtoupper(mb_substr($editing['code'], 0, 2)) : 'GC';
     $gDepleted = $editing && (int)$g['balance_cents'] <= 0;
 ?>
@@ -119,26 +119,22 @@ require SLATE_ROOT . '/admin/partials/header.php';
             'status_on'    => 'Active · redeemable',
             'status_off'   => $gDepleted ? 'Empty' : 'Inactive',
             'stats'        => $editing ? [
-                ['Balance', e($g['currency']) . '&nbsp;' . number_format(((int)$g['balance_cents'])/100, 2)],
-                ['Initial', e($g['currency']) . '&nbsp;' . number_format(((int)$g['initial_cents'])/100, 2)],
+                ['Balance', slate_format_price((int)$g['balance_cents'], $g['currency'])],
+                ['Initial', slate_format_price((int)$g['initial_cents'], $g['currency'])],
                 ['Created', !empty($g['created_at']) ? '<small>' . e(date('j M Y', strtotime($g['created_at']))) . '</small>' : '—'],
             ] : [],
         ]); ?>
 
         <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => 'General', 'title' => $editing ? 'Balance' : 'Gift card details']); ?>
             <?php if (!$editing): ?>
-                <div class="field-row field-row-3" style="margin-bottom:0;">
+                <div class="field-row field-row-2" style="margin-bottom:0;">
                     <div class="field" style="margin-bottom:0;">
                         <label class="field-label" for="name">Code <span class="text-muted text-xs">(blank = auto)</span></label>
                         <input type="text" id="name" name="code" maxlength="60" value="" placeholder="GC-XXXXXXXX" style="text-transform:uppercase;">
                     </div>
                     <div class="field" style="margin-bottom:0;">
-                        <label class="field-label" for="initial">Initial amount <span class="field-required">*</span></label>
+                        <label class="field-label" for="initial">Initial amount <span class="text-muted text-xs">(<?= e(slate_default_currency()) ?>)</span> <span class="field-required">*</span></label>
                         <input type="number" id="initial" name="initial" min="0" step="0.01" required value="">
-                    </div>
-                    <div class="field" style="margin-bottom:0;">
-                        <label class="field-label" for="currency">Currency</label>
-                        <input type="text" id="currency" name="currency" maxlength="8" value="USD">
                     </div>
                 </div>
             <?php else: ?>
@@ -182,11 +178,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 'avatar'       => mb_substr($g['code'], 0, 1),
                 'avatar_color' => ($g['is_active'] && !$depleted) ? 'accent' : 'muted',
                 'title'        => $g['code'],
-                'meta'         => $g['currency'] . ' ' . number_format($g['balance_cents']/100, 2) . ' of ' . number_format($g['initial_cents']/100, 2),
+                'meta'         => slate_format_price_plain((int)$g['balance_cents'], $g['currency']) . ' of ' . number_format($g['initial_cents']/100, 2),
                 'badge'        => $depleted ? ['Empty', 'inactive'] : ($g['is_active'] ? ['Active', 'active'] : ['Inactive', 'inactive']),
                 'detail'       => [
-                    'Balance' => $g['currency'] . ' ' . number_format($g['balance_cents']/100, 2),
-                    'Initial' => $g['currency'] . ' ' . number_format($g['initial_cents']/100, 2),
+                    'Balance' => slate_format_price_plain((int)$g['balance_cents'], $g['currency']),
+                    'Initial' => slate_format_price_plain((int)$g['initial_cents'], $g['currency']),
                     'Created' => date('j M Y', strtotime($g['created_at'])),
                 ],
                 'actions'      => $actions,

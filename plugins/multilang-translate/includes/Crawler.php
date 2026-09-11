@@ -5,6 +5,22 @@
  * AJAX requests without one long request timing out.
  */
 class MLT_Crawler {
+    // Pages whose body is a rendered transcript of ephemeral, per-admin
+    // dynamic content (chat history, live report output) rather than static
+    // UI copy. Scanning them harvests whatever conversation happened to be
+    // in the initiating admin's session at scan time — including AI replies
+    // in whatever language they were generated in — as bogus "source"
+    // strings. Matched as a substring against the URL path.
+    const EPHEMERAL_URL_FRAGMENTS = ['/mcp-gateway/admin/chat.php'];
+
+    private static function isEphemeralUrl(string $url): bool {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        foreach (self::EPHEMERAL_URL_FRAGMENTS as $fragment) {
+            if (str_contains($path, $fragment)) return true;
+        }
+        return false;
+    }
+
     public static function discoverUrls(int $tid = 0): array {
         $urls = ['admin' => [], 'customer' => [], 'public' => []];
         $base = rtrim(SLATE_URL, '/');
@@ -26,7 +42,7 @@ class MLT_Crawler {
         foreach ($urls as $area => $list) {
             $valid = [];
             foreach ($list as $url) {
-                if ($url !== null && self::sameHost($url, SLATE_URL)) $valid[$url] = true;
+                if ($url !== null && self::sameHost($url, SLATE_URL) && !self::isEphemeralUrl($url)) $valid[$url] = true;
             }
             $urls[$area] = array_keys($valid);
         }
@@ -144,6 +160,13 @@ class MLT_Crawler {
             'X-Requested-With: XMLHttpRequest',
             'Accept: text/html,application/xhtml+xml',
             'Referer: ' . rtrim(SLATE_URL, '/') . '/admin/index.php',
+            // Forces every crawled page to render in the source (English)
+            // locale regardless of the initiating admin's own language —
+            // otherwise a scan run while French is active on the switcher
+            // harvests French page text as bogus "English" source strings.
+            // Generic, core-level mechanism (not MLT-specific) — see
+            // I18n::currentLocale().
+            'X-Slate-Force-Locale: en',
         ];
         if (!empty($_SERVER['HTTP_USER_AGENT'])) $headers[] = 'User-Agent: ' . $_SERVER['HTTP_USER_AGENT'];
         if (!empty($_SERVER['HTTP_AUTHORIZATION'])) $headers[] = 'Authorization: ' . $_SERVER['HTTP_AUTHORIZATION'];

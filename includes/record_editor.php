@@ -408,7 +408,11 @@ if (!function_exists('slate_editor_css')) {
 .pv-svc.is-on .pv-svc-fields { display: flex; }
 .pv-svc-fields input { flex: 1; min-width: 0; }
 
-/* Bottom action footer — modern split bar, sticky to the viewport on desktop */
+/* Bottom action footer — a normal, in-flow split bar at the end of the
+   form. Used to be position:sticky to the viewport bottom on desktop
+   (>=768px); dropped per feedback that a floating white bar detached
+   from the form while scrolling read as visually awkward rather than
+   helpful. Same static styling at every width now. */
 .pv-actionbar {
     display: flex; align-items: center; justify-content: flex-end; gap: 14px;
     margin-top: var(--space-4); padding: 12px 16px;
@@ -425,9 +429,6 @@ if (!function_exists('slate_editor_css')) {
 .pv-actionbar-right { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
 .pv-actionbar .btn { min-width: 124px; justify-content: center; }
 .pv-actionbar .btn-primary { box-shadow: 0 6px 16px rgba(37,99,235,0.22); }
-@media (min-width: 768px) {
-    .pv-actionbar { position: sticky; bottom: 0; z-index: 6; box-shadow: 0 -6px 18px rgba(15,17,23,0.06), 0 1px 2px rgba(15,17,23,0.04); }
-}
 
 /* Overrides / inline list rows */
 .pv-ov { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 14px; }

@@ -31,7 +31,7 @@ if (!$hasIns && $insPlan && $locked):
         <b><?= slate_icon('lock') ?> <?= sprintf(__('membership_unlock_n', 'Unlock %d more course(s)'), count($locked)) ?></b>
         <p><?= sprintf(__('membership_unlock_p', 'Add the %s plan to access %s.'), e(MembershipAPI::planName($insPlan)), e(implode(' · ', $lnames))) ?></p>
     </div>
-    <form method="post" action="<?= e(SLATE_URL) ?>/member">
+    <form method="post" action="<?= e(SLATE_URL) ?>/member?view=plans">
         <?= csrf_field() ?>
         <input type="hidden" name="_action" value="buy">
         <input type="hidden" name="plan_id" value="<?= (int)$insPlan['id'] ?>">
@@ -62,7 +62,7 @@ if (!$hasIns && $insPlan && $locked):
             </ul>
             <div class="mplan-foot">
             <?php if ($cust): ?>
-                <form method="post" action="<?= e(SLATE_URL) ?>/member">
+                <form method="post" action="<?= e(SLATE_URL) ?>/member?view=plans">
                     <?= csrf_field() ?>
                     <input type="hidden" name="_action" value="buy">
                     <input type="hidden" name="plan_id" value="<?= (int)$p['id'] ?>">

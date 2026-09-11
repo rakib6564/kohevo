@@ -68,9 +68,13 @@ if (!function_exists('slate_data_row')) {
            . ($hasDetail ? '' : ' disabled') . '>';
 
         if ($avatarHtml !== null && $avatarHtml !== '') {
-            // Caller-supplied icon markup (e.g. an inline SVG). Trusted: only
-            // ever passed curated icon HTML, never user input.
-            echo '<span class="' . $avatarClass . ' has-icon" aria-hidden="true">'
+            // Caller-supplied icon/photo markup (e.g. an inline SVG, or
+            // initials + a photo <img> overlay from slate_avatar_overlay_html()).
+            // Trusted: only ever passed curated HTML, never user input.
+            // has-media (clips/covers a photo) vs has-icon (centers a small
+            // SVG) based on which kind of markup was actually handed in.
+            $avatarVariant = stripos($avatarHtml, '<img') !== false ? 'has-media' : 'has-icon';
+            echo '<span class="' . $avatarClass . ' ' . $avatarVariant . '" aria-hidden="true">'
                . $avatarHtml . '</span>';
         } elseif ($avatar !== '') {
             echo '<span class="' . $avatarClass . '" aria-hidden="true">'
@@ -222,10 +226,18 @@ if (!function_exists('slate_stat_card')) {
         $cls = 'dash-stat' . ($tone !== '' ? ' is-' . preg_replace('/[^a-z]/', '', strtolower($tone)) : '');
         $sparkSvg = count($spark) >= 2 ? slate_sparkline_svg($spark, ['width' => 64, 'height' => 26]) : '';
 
+        // .dash-stat-num's 40px size was designed around short counts ("8",
+        // "150"); a caller passing a formatted amount (Booking's revenue
+        // card sends e.g. "EUR 2,137.00") overflowed the card at that size
+        // -- scale down for longer content instead of asking every caller
+        // to know or care about this.
+        $numLen = mb_strlen($number);
+        $numCls = 'dash-stat-num' . ($numLen > 10 ? ' dash-stat-num--sm' : ($numLen > 6 ? ' dash-stat-num--md' : ''));
+
         echo '<div class="' . $cls . '">';
         echo   '<div class="dash-stat-top">';
         echo     '<span class="dash-stat-badge">' . slate_admin_nav_icon($icon) . '</span>';
-        echo     '<span class="dash-stat-num">' . e($number) . '</span>';
+        echo     '<span class="' . $numCls . '">' . e($number) . '</span>';
         echo   '</div>';
         echo   '<div class="dash-stat-k">' . e($label) . '</div>';
         if ($caption !== '') {
@@ -529,6 +541,49 @@ if (!function_exists('slate_sidebar_theme_emit')) {
             echo e($prop) . ':' . e($val) . ';';
         }
         echo "}</style>\n";
+    }
+}
+
+// ── Settings tab strip (shared by admin/settings.php and any
+//    settings-adjacent page, e.g. the Translations plugin, that needs the
+//    same strip with itself marked active) ────────────────────────────
+if (!function_exists('slate_settings_tabs')) {
+    /**
+     * The canonical list of settings-area tabs: label, icon (a key from
+     * slate_admin_nav_icon()'s map), and an absolute href. Absolute hrefs
+     * (not "?tab=slug") so the strip renders identically regardless of
+     * which page it's called from -- a relative "?tab=" only makes sense
+     * when the current page IS admin/settings.php.
+     */
+    function slate_settings_tabs(): array {
+        $base = SLATE_URL . '/admin/settings.php?tab=';
+        return [
+            'general'      => ['label' => __('general',      'General'),      'icon' => 'settings', 'href' => $base . 'general'],
+            'permalinks'   => ['label' => __('permalinks',   'Permalinks'),   'icon' => 'link',      'href' => $base . 'permalinks'],
+            'datetime'     => ['label' => __('datetime',     'Date & Time'),  'icon' => 'clock',     'href' => $base . 'datetime'],
+            'branding'     => ['label' => __('branding',      'Branding'),    'icon' => 'palette',   'href' => $base . 'branding'],
+            'media'        => ['label' => __('media',         'Media'),       'icon' => 'film',      'href' => $base . 'media'],
+            'smtp'         => ['label' => __('smtp',          'SMTP'),        'icon' => 'mail',      'href' => $base . 'smtp'],
+            'security'     => ['label' => __('security',      'Security'),    'icon' => 'shield',    'href' => $base . 'security'],
+            'landing'      => ['label' => __('landing',       'Landing'),     'icon' => 'home',      'href' => $base . 'landing'],
+            'translations' => ['label' => __('translations',  'Translations'),'icon' => 'globe',
+                                'href' => SLATE_URL . '/plugins/multilang-translate/admin/index.php'],
+            'system'       => ['label' => __('system',        'System'),      'icon' => 'sliders',   'href' => $base . 'system'],
+        ];
+    }
+
+    /** Render the tab strip, marking $activeSlug current. */
+    function slate_render_settings_tabs(string $activeSlug): void {
+        $tabs = slate_settings_tabs();
+        echo '<nav class="settings-tabs" role="tablist" aria-label="' . e(__('settings_sections', 'Settings sections')) . '">';
+        foreach ($tabs as $slug => $tab) {
+            $isActive = $activeSlug === $slug;
+            echo '<a href="' . e($tab['href']) . '" class="settings-tab' . ($isActive ? ' is-active' : '') . '"'
+               . ' role="tab" aria-selected="' . ($isActive ? 'true' : 'false') . '">'
+               . (function_exists('slate_admin_nav_icon') ? slate_admin_nav_icon($tab['icon']) : '')
+               . e($tab['label']) . '</a>';
+        }
+        echo '</nav>';
     }
 }
 
@@ -1244,6 +1299,14 @@ hr {
 @media (min-width: 640px) {
     .field-row-2 { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
     .field-row-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    /* Asymmetric ratios for specific field groups (title+dropdown+number,
+       a narrow label beside a wide textarea, etc.) that still need the
+       same single-column-below-640px / min-width:0 protections as
+       .field-row-2/-3 above -- added when plugin code was found hardcoding
+       its own ad-hoc grid-template-columns with neither. */
+    .field-row-title  { grid-template-columns: minmax(0,2fr) minmax(0,1fr) minmax(0,1fr); }
+    .field-row-wide   { grid-template-columns: minmax(0,1fr) minmax(0,3fr); }
+    .field-row-recipe { grid-template-columns: minmax(0,2fr) minmax(0,1fr); }
 }
 
 .field-row-variant {
@@ -1876,6 +1939,12 @@ hr {
 /* color:inherit overrides .nav-icon's sidebar colour so the glyph shows in
    the avatar's tone colour (is-info/is-warning/…) instead of being invisible. */
 .data-row-avatar.has-icon svg { width: 19px; height: 19px; display: block; color: inherit; }
+/* Photo overlay variant (initials underneath, an <img> layered on top --
+   see slate_avatar_overlay_html() in includes/helpers.php). Mirrors
+   .dlist-ava.has-media below; .has-icon above stays SVG-icon-only so
+   existing callers (Forms, Coaching feed) are unaffected. */
+.data-row-avatar.has-media { position: relative; overflow: hidden; width: 38px; height: 38px; }
+.data-row-avatar.has-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .data-row-main {
     display: flex;
@@ -2164,7 +2233,18 @@ hr {
     font-family: var(--font-display);
     font-size: 40px; font-weight: 700; letter-spacing: -0.045em; line-height: 1;
     color: var(--text); font-variant-numeric: tabular-nums;
+    /* Same flex-shrink gap as .fb2-canvas/.fb2-side elsewhere in this
+       codebase: a flex item's default min-width is its own content size,
+       so without this a long value pushes the row (and the card) wider
+       instead of shrinking/wrapping within it. */
+    min-width: 0;
+    text-align: right;
 }
+/* Longer content (e.g. a formatted currency amount) at length-based
+   tiers -- see slate_stat_card()'s $numCls. Sized down enough to fit a
+   typical card's inner width instead of overflowing it. */
+.dash-stat-num.dash-stat-num--md { font-size: 26px; letter-spacing: -0.02em; }
+.dash-stat-num.dash-stat-num--sm { font-size: 20px; letter-spacing: -0.01em; }
 /* label with a small accent marker — the single restrained spot of colour */
 .dash-stat-k {
     position: relative; z-index: 1; margin-top: 18px;
@@ -2198,6 +2278,82 @@ hr {
 
 /* Smooth momentum scrolling for any intentionally-scrollable strip. */
 .table-wrap, .topbar-pop-body, .snippet { -webkit-overflow-scrolling: touch; }
+
+/* ─── Settings tab strip ─────────────────────────────────────
+   Moved here from admin/settings.php so slate_render_settings_tabs()
+   (below) renders identically wherever it's called from -- settings.php
+   itself, or a settings-adjacent page like the Translations plugin that
+   needs the same strip with itself marked active. */
+.settings-tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1.5px solid var(--border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Hiding the scrollbar (above/below) removes the one native cue that
+       there's more to scroll -- on a touch device with no visible
+       scrollbar at all, a clipped tab at the edge (e.g. "Translations"
+       cut down to "Tr...") just looks broken instead of "scroll for
+       more". These four background layers are the standard scroll-shadow
+       technique: two gradients scroll WITH the content via
+       background-attachment:local (so they mask right up to the true
+       edge and vanish once you've scrolled past it), the other two are
+       fixed-position radial shadows that only peek out from behind that
+       mask while there's still unscrolled content in that direction. */
+    background:
+        linear-gradient(to right, var(--bg) 0, transparent 24px) left / 32px 100% local,
+        linear-gradient(to left,  var(--bg) 0, transparent 24px) right / 32px 100% local,
+        radial-gradient(farthest-side at 0 50%,   rgba(0,0,0,.12), transparent) left / 14px 100% scroll,
+        radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), transparent) right / 14px 100% scroll;
+    background-repeat: no-repeat;
+}
+.settings-tabs::-webkit-scrollbar { display: none; }
+
+.settings-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px 10px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1.5px;
+    white-space: nowrap;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.settings-tab:hover {
+    color: var(--text);
+    background: var(--surface-2);
+    text-decoration: none;
+}
+.settings-tab.is-active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+}
+/* Generic svg selector, not a specific icon-helper's class name --
+   slate_render_settings_tabs() feeds this via slate_admin_nav_icon()
+   (class="nav-icon"), so pinning to that class's own name isn't needed
+   and would be one more thing to keep in sync if the icon source changes.
+   color:inherit is the important part: .nav-icon (admin/partials/header.php)
+   hardcodes color:var(--sidebar-muted) for its native dark-sidebar context,
+   which is a near-white, low-opacity color -- invisible against this
+   light-background tab strip unless overridden back to inheriting the
+   tab's own text color, same as .settings-tab's original bare .tab-icon
+   (no explicit color, just currentColor from the parent) rendered before. */
+.settings-tab svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    opacity: 0.75;
+    color: inherit;
+}
+.settings-tab.is-active svg { opacity: 1; }
 </style>
         <?php
     }

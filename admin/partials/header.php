@@ -120,22 +120,13 @@ $coreNav = [
         'group' => 'content',
     ],
     [
-        'slug'  => 'content-styles',
-        'label' => __('global_styles', 'Global Styles'),
-        'href'  => SLATE_URL . '/admin/styles.php',
-        'icon'  => 'palette',
-        'perm'  => 'content.edit',
-        'order' => 140,
-        'group' => 'content',
-    ],
-    [
         'slug'       => 'media',
         'label'      => __('media_library', 'Media Library'),
         'href'       => SLATE_URL . '/admin/media.php',
         'icon'       => 'image',
         'perm'       => 'media.view',
         'order'      => 150,
-        'group'      => 'content',
+        'group'      => 'settings',
         'mobile_tab' => false,
     ],
     // ── Settings ──
@@ -241,6 +232,19 @@ $coreNav = [
     ],
 ];
 
+// 'editor', 'content-page', 'content-post', 'content-templates' and
+// 'content-menus' ship in core but only do anything once the optional
+// Content Builder plugin is installed — without it they're dead ends (the
+// bridge pages just say "The Content Builder plugin is required..."), and
+// Templates' "Use Template" / "Insert in Editor" buttons all lead into the
+// same broken Editor. Hide them while the plugin is absent rather than
+// leaving dummy links in the sidebar; they reappear automatically if
+// Content Builder is ever installed.
+if (!PluginLoader::isActive('content-builder')) {
+    $contentBuilderOnly = ['editor', 'content-page', 'content-post', 'content-templates', 'content-menus'];
+    $coreNav = array_values(array_filter($coreNav, fn(array $item): bool => !in_array($item['slug'], $contentBuilderOnly, true)));
+}
+
 // Plugin nav contributions
 $navItems = Hook::applyFilters('admin_nav_items', $coreNav);
 
@@ -264,7 +268,6 @@ if (!$currentNav) {
         'editor.php'        => 'editor',
         'templates.php'     => 'content-templates',
         'menus.php'         => 'content-menus',
-        'styles.php'        => 'content-styles',
         'media.php'         => 'media',
         'plugins.php'       => 'plugins',
         'users.php'         => 'users',
@@ -310,18 +313,22 @@ foreach ($navItems as $item) {
 }
 unset($_navGroupKey, $item);
 
-// Canonical group ordering: Overview -> Editor -> Content -> Business plugins -> Settings -> System -> other
+// Canonical group ordering: Overview -> Editor -> Business plugins -> Settings -> Tools/System -> other
+// 'content' is deliberately absent — its only surviving items (Global
+// Styles, Media Library) now live under 'settings'; Pages/Posts/Templates/
+// Navigation stay hidden while the optional Content Builder plugin isn't
+// installed (see the PluginLoader::isActive('content-builder') filter above).
 static $groupPriorities = [
-    'overview' => 10,
-    'editor'   => 20,
-    'content'  => 30,
-    'shop'     => 40,
-    'booking'  => 45,
-    'coaching' => 50,
-    'forms'    => 55,
-    'plugins'  => 60,
-    'settings' => 70,
-    'system'   => 80,
+    'overview'      => 10,
+    'editor'        => 20,
+    'shop'          => 40,
+    'booking'       => 45,
+    'nutrition-app' => 50,
+    'form-builder'  => 55,
+    'plugins'       => 60,
+    'mcp-ai-hub'    => 65,
+    'settings'      => 70,
+    'system'        => 80,
 ];
 uksort($navGroups, function ($a, $b) use ($groupPriorities) {
     $pA = $groupPriorities[$a] ?? 60;
@@ -335,23 +342,31 @@ uksort($navGroups, function ($a, $b) use ($groupPriorities) {
 // Friendly display label for a group key.
 if (!function_exists('slate_admin_group_label')) {
     function slate_admin_group_label(string $key): string {
-        // First check for an i18n key (lets plugins translate their own group).
+        // Sidebar-specific overrides win first — several of these group
+        // KEYS (e.g. 'settings') double as generic i18n keys used elsewhere
+        // (page titles, breadcrumbs) with their own stored translation, so
+        // checking __($key) first would pull in that unrelated string
+        // instead of the label this sidebar section actually wants.
+        static $defaults = [
+            'overview'      => 'Overview',
+            'editor'        => 'Editor',
+            'content'       => 'Content',
+            'booking'       => 'Booking engine',
+            'settings'      => 'Site settings',
+            'system'        => 'Tools & connection',
+            'plugins'       => 'Plugins',
+            'shop'          => 'Shop',
+            'media'         => 'Media',
+            'mcp-ai-hub'    => 'MCP & AI Hub',
+        ];
+        if (isset($defaults[$key])) return strtoupper($defaults[$key]);
+
+        // Otherwise let a plugin translate its own group key.
         $translated = __($key, '');
         if ($translated !== '' && $translated !== $key) {
             return strtoupper($translated);
         }
-        static $defaults = [
-            'overview' => 'Overview',
-            'editor'   => 'Editor',
-            'content'  => 'Content',
-            'settings' => 'Settings',
-            'system'   => 'System',
-            'plugins'  => 'Plugins',
-            'shop'     => 'Shop',
-            'media'    => 'Media',
-        ];
-        $label = $defaults[$key] ?? str_replace(['-', '_'], ' ', $key);
-        return strtoupper($label);
+        return strtoupper(str_replace(['-', '_'], ' ', $key));
     }
 }
 
@@ -847,6 +862,25 @@ if (!function_exists('slate_admin_nav_icon')) {
     /* Collapse toggle is a desktop control (mobile uses the bottom sheet). */
     .sidebar-toggle { display: none; }
 
+    /* Base SIZE (only) for every slate_admin_nav_icon() SVG, unconditional.
+       This used to live only inside the min-width:768px block below
+       (written for the desktop sidebar/tabbar), so any plain .btn using
+       the same icon helper (e.g. a plugin's toolbar buttons) had NO
+       sizing at all below 768px and fell back to the SVG's browser-
+       default intrinsic size (~300x150px) -- a giant icon filling most
+       of a mobile button. Deliberately NOT moving color here too: with
+       no color rule at all below 768px, a .btn's icon was already
+       falling back to inheriting the button's own (correct, visible)
+       text color via currentColor -- adding color:var(--sidebar-muted)
+       unconditionally would break exactly that, the same near-invisible-
+       icon bug already fixed once for .settings-tab svg. The desktop-
+       only color (plus its hover/active variants) stays below, scoped
+       to where a sidebar-muted default actually makes sense. */
+    .nav-icon {
+        width: 18px; height: 18px;
+        flex-shrink: 0;
+    }
+
     @media (min-width: 768px) {
         /* Desktop: the page itself doesn't scroll — the content panel scrolls
            inside. (Both cards are sized to the viewport.) */
@@ -1037,18 +1071,40 @@ if (!function_exists('slate_admin_nav_icon')) {
             margin-top: 2px;
         }
 
-        /* ── Section labels ────────────────────────────────────── */
+        /* ── Nav groups — native <details>/<summary> dropdowns ───────────
+             The browser owns open/closed state entirely; no JS height
+             math, so there's no animation edge case to get wrong. Content
+             show/hide is instant (a native <details> limitation), traded
+             deliberately for rock-solid reliability over a fancier but
+             fragile JS-measured height animation. Only the chevron
+             rotates, via a plain CSS transition — that part is safe to
+             animate since it's a simple transform, never height/'none'. */
+        .nav-group { display: block; }
+        .nav-group > summary { list-style: none; }
+        .nav-group > summary::-webkit-details-marker,
+        .nav-group > summary::marker { display: none; content: ""; }
+        .nav-group:first-of-type > .nav-section-label { padding-top: 8px; }
+        .nav-group .sidebar-nav { padding-top: 2px; }
+
         .nav-section-label {
             display: flex;
             align-items: center;
             gap: 8px;
+            width: 100%;
+            font: inherit;
+            background: none;
+            border: 0;
+            cursor: pointer;
             font-size: 10.5px;
             letter-spacing: 0.10em;
             text-transform: uppercase;
             color: var(--sidebar-subtle);
             padding: 16px 12px 7px;
             font-weight: 700;
+            border-radius: 8px;
+            transition: color .14s ease;
         }
+        .nav-section-label:hover { color: var(--sidebar-strong); }
         .nav-section-label::before {
             content: "";
             flex: none;
@@ -1056,7 +1112,13 @@ if (!function_exists('slate_admin_nav_icon')) {
             border-radius: 2px;
             background: color-mix(in srgb, var(--accent) 55%, var(--sidebar-subtle));
         }
-        .nav-section-label:first-of-type { padding-top: 8px; }
+        .nav-section-label-text { flex: 1; text-align: left; }
+        .nav-section-chevron {
+            flex: none;
+            width: 13px; height: 13px;
+            transition: transform .2s ease;
+        }
+        .nav-group[open] > .nav-section-label .nav-section-chevron { transform: rotate(90deg); }
 
         /* ── Nav items (rounded icon-tile style — reference look) ─── */
         .sidebar-nav { list-style: none; padding: 0; margin: 0 0 4px; }
@@ -1112,9 +1174,10 @@ if (!function_exists('slate_admin_nav_icon')) {
             box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 50%, transparent),
                         inset 0 1px 0 rgba(255, 255, 255, 0.30);
         }
+        /* Width/height/flex-shrink moved to the unconditional base rule
+           above (needed on mobile too); this desktop-scoped rule now only
+           carries the sidebar/tabbar-appropriate default color. */
         .nav-icon {
-            width: 18px; height: 18px;
-            flex-shrink: 0;
             color: var(--sidebar-muted);
             transition: color .14s ease;
         }
@@ -1181,6 +1244,13 @@ if (!function_exists('slate_admin_nav_icon')) {
             font-size: 0; letter-spacing: 0;
         }
         html.sidebar-collapsed .nav-section-label::before { width: 18px; }
+        html.sidebar-collapsed .nav-section-chevron { display: none; }
+        /* Icon rail always shows every icon — per-group collapse state is a
+           text-label affordance that doesn't make sense once labels are gone.
+           A closed <details> hides its non-summary children via UA styles;
+           forcing them back to display:block (overriding that) is the
+           standard way to show <details> content regardless of [open]. */
+        html.sidebar-collapsed .nav-group > .sidebar-nav { display: block !important; }
         /* Footer → centred avatar with the logout icon stacked beneath. */
         html.sidebar-collapsed .sidebar-footer {
             flex-direction: column; gap: 8px; padding: 10px 0 4px;
@@ -1382,11 +1452,21 @@ if (!function_exists('slate_admin_nav_icon')) {
                 mask-image: linear-gradient(180deg, #000 calc(100% - 22px), transparent);
     }
     .sheet-section-label {
+        display: flex; align-items: center; gap: 8px; width: 100%;
         font-family: var(--font-mono);
-        font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+        font: 600 10.5px var(--font-mono);
+        letter-spacing: 0.1em; text-transform: uppercase;
         color: var(--subtle); font-weight: 600;
         padding: 14px 20px 7px;
+        background: none; border: 0;
+        list-style: none;
     }
+    .sheet-section-label::-webkit-details-marker,
+    .sheet-section-label::marker { display: none; content: ""; }
+    details.nav-group > .sheet-section-label { cursor: pointer; }
+    .sheet-section-label .nav-section-label-text { flex: 1; text-align: left; }
+    .sheet-section-label .nav-section-chevron { flex: none; width: 13px; height: 13px; transition: transform .2s ease; }
+    details.nav-group[open] > .sheet-section-label .nav-section-chevron { transform: rotate(90deg); }
     /* App-style quick-menu: 2-column tile grid, grouped by section. */
     /* App-style single-column list rows. */
     .sheet-nav {
@@ -1569,21 +1649,36 @@ if (!function_exists('slate_admin_nav_icon')) {
                 <?php endif; ?>
             </a>
 
-            <?php foreach ($navGroups as $groupKey => $groupItems): ?>
-                <div class="nav-section-label"><?= e(slate_admin_group_label((string)$groupKey)) ?></div>
-                <ul class="sidebar-nav">
-                    <?php foreach ($groupItems as $item):
-                        $isActive = ($currentNav === ($item['slug'] ?? null));
-                    ?>
-                        <li class="sidebar-item <?= $isActive ? 'is-active' : '' ?>">
-                            <a href="<?= e($item['href']) ?>"
-                               <?= $isActive ? 'aria-current="page"' : '' ?>>
-                                <?= slate_admin_nav_icon($item['icon'] ?? 'circle') ?>
-                                <span><?= e($item['label']) ?></span>
-                            </a>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
+            <?php foreach ($navGroups as $groupKey => $groupItems):
+                $groupKeyAttr = (string)$groupKey;
+                // The group holding the current page starts expanded; every
+                // other group starts collapsed. Native <details>/<summary>
+                // does the actual show/hide — no JS, no height math, so
+                // there's no animation edge case left to get wrong.
+                $groupHasActive = false;
+                foreach ($groupItems as $gi) {
+                    if (($gi['slug'] ?? null) === $currentNav) { $groupHasActive = true; break; }
+                }
+            ?>
+                <details class="nav-group" <?= $groupHasActive ? 'open' : '' ?>>
+                    <summary class="nav-section-label">
+                        <span class="nav-section-label-text"><?= e(slate_admin_group_label($groupKeyAttr)) ?></span>
+                        <svg class="nav-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+                    </summary>
+                    <ul class="sidebar-nav">
+                        <?php foreach ($groupItems as $item):
+                            $isActive = ($currentNav === ($item['slug'] ?? null));
+                        ?>
+                            <li class="sidebar-item <?= $isActive ? 'is-active' : '' ?>">
+                                <a href="<?= e($item['href']) ?>"
+                                   <?= $isActive ? 'aria-current="page"' : '' ?>>
+                                    <?= slate_admin_nav_icon($item['icon'] ?? 'circle') ?>
+                                    <span><?= e($item['label']) ?></span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </details>
             <?php endforeach; ?>
 
             <div class="sidebar-footer">

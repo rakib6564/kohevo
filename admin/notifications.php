@@ -140,6 +140,27 @@ require SLATE_ROOT . '/admin/partials/header.php';
     </div>
 <?php else: ?>
 
+    <?php
+    // Notification titles are stored as "<static label> · <ref>" (e.g.
+    // "New booking · BK-1234"), built once at creation time. The translation
+    // system (multilang-translate) works by matching exact rendered text —
+    // it can't match a string that ends in a different order reference each
+    // time, so left as one blob these titles could never be translated. Split
+    // on the first " · " so the static label renders as its own text node,
+    // separate from the always-different reference, the same as the
+    // "When"/"Link" detail labels below already do.
+    if (!function_exists('slate_notif_title_html')) {
+        function slate_notif_title_html(string $title): string {
+            $parts = explode(' · ', $title, 2);
+            if (count($parts) !== 2) return e($title);
+            // The <span> boundary (not just the " · " text) is what actually
+            // makes the two halves separate text nodes to the tokenizer that
+            // both harvests and replaces translatable text — string
+            // concatenation alone still reads as one continuous run.
+            return '<span>' . e($parts[0]) . '</span> · <span>' . e($parts[1]) . '</span>';
+        }
+    }
+    ?>
     <div class="data-list" data-single-open>
         <?php foreach ($rows as $n):
             $nUrl  = (string)($n['url'] ?? '');
@@ -177,7 +198,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             slate_data_row([
                 'avatar'       => mb_substr((string)($n['title'] ?: 'N'), 0, 1),
                 'avatar_color' => (int)$n['is_read'] === 1 ? 'muted' : 'info',
-                'title'        => (string)$n['title'],
+                'title_html'   => slate_notif_title_html((string)$n['title']),
                 'meta'         => trim(((string)($n['body'] ?? '')) . ($n['body'] ? ' · ' : '') . $time),
                 'badge'        => (int)$n['is_read'] === 1 ? ['Read', 'inactive'] : ['New', 'warning'],
                 'detail'       => $detail,

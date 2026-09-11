@@ -12,7 +12,10 @@
 class MLT_Tokenizer {
 
     /** Tags whose text content is never translatable. */
-    const SKIP_TAGS = ['script', 'style', 'noscript', 'template', 'code', 'pre'];
+    // 'textarea' holds editable form data (e.g. an admin's raw HTML email-
+    // body draft), not static UI copy — harvesting it pollutes the source
+    // strings table with whatever content happens to be in the box.
+    const SKIP_TAGS = ['script', 'style', 'noscript', 'template', 'code', 'pre', 'textarea'];
 
     /** Attributes that hold user-visible text worth translating. */
     const TEXT_ATTRS = ['placeholder', 'title', 'alt', 'aria-label', 'data-mlt'];
@@ -27,6 +30,41 @@ class MLT_Tokenizer {
      * (used by the Replacer). Returns the (possibly modified) html.
      */
     public static function walk(string $html, callable $onText): string {
+        // Protect whole SKIP_TAGS blocks (script/style/...) BEFORE the
+        // generic '<...>' tag split below, which has no real understanding
+        // of HTML — it treats any '<' ... next '>' as a tag. A '<' used as a
+        // JS comparison operator inside a <script> (e.g. `i < first`) reads
+        // as the start of one; the regex then greedily consumes everything
+        // up to the NEXT unrelated '>' anywhere later in the page as a
+        // single bogus "tag" — very often swallowing the real closing
+        // </script> along with it. Once that happens, the skip-tracking
+        // below never sees a matching close tag, skipDepth never drops back
+        // to 0, and every single text node for the REST of the page is then
+        // silently treated as "still inside a skip zone" — never reaching
+        // $onText at all, so neither harvesting nor translation-replacement
+        // ever touches any of it. Symptom in production: a page translates
+        // correctly right up to some inline <script>, then everything after
+        // it stays in English no matter how many strings are published.
+        // Protecting complete blocks up front removes their content from
+        // the generic split entirely, so stray '<'/'>' inside them can't
+        // corrupt anything past their own closing tag.
+        $protected = [];
+        $skipPattern = implode('|', array_map(fn(string $t): string => preg_quote($t, '/'), self::SKIP_TAGS));
+        $protectedHtml = preg_replace_callback(
+            '/<(' . $skipPattern . ')\b[^>]*>.*?<\/\1\s*>/is',
+            function (array $m) use (&$protected): string {
+                // Control-byte placeholder deliberately has NO letters, so
+                // translateTextNode()'s own \p{L} check skips it unchanged —
+                // it never reaches $onText, so it can't be mistaken for a
+                // translatable string by the harvester or the replacer.
+                $key = "\x01" . count($protected) . "\x02";
+                $protected[$key] = $m[0];
+                return $key;
+            },
+            $html
+        );
+        if ($protectedHtml !== null) $html = $protectedHtml;
+
         $tokens = preg_split('/(<[^>]+>)/s', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
         if ($tokens === false) return $html;
 
@@ -61,6 +99,8 @@ class MLT_Tokenizer {
 
             $out .= self::translateTextNode($tok, $onText);
         }
+
+        if ($protected) $out = strtr($out, $protected);
 
         return $out;
     }

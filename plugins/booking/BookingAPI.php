@@ -1519,29 +1519,29 @@ class BookingAPI {
     /** Best-effort human-readable reason for a Stripe payment failure event. */
     private static function stripeFailureReason(array $obj, string $eventType): string {
         if ($eventType === 'checkout.session.expired') {
-            return 'The checkout session expired before payment was completed.';
+            return 'La session de paiement a expiré avant que le paiement ne soit finalisé.';
         }
         $lastErr = $obj['last_payment_error']['message'] ?? null;
-        if (is_string($lastErr) && $lastErr !== '') return $lastErr;
+        if (is_string($lastErr) && $lastErr !== '') return $lastErr; // Stripe's own message, passed through as-is
         $declineCode = $obj['last_payment_error']['decline_code'] ?? null;
-        if (is_string($declineCode) && $declineCode !== '') return 'Declined (' . $declineCode . ').';
-        return 'The payment was declined.';
+        if (is_string($declineCode) && $declineCode !== '') return 'Refusé (' . $declineCode . ').';
+        return 'Le paiement a été refusé.';
     }
 
     /** Email the customer that their payment attempt didn't go through. */
     public static function sendPaymentFailedNotice(array $a, string $reason = ''): bool {
-        $siteName  = Database::setting('site_name') ?: 'Slate';
         $manageUrl = defined('SLATE_URL') && !empty($a['manage_token'])
                    ? SLATE_URL . '/book/manage?token=' . rawurlencode((string)$a['manage_token']) : '';
-        $body = '<p>Hi ' . e($a['customer_name']) . ',</p>'
-              . '<p>We weren\'t able to process your payment for <strong>' . e($a['service_name'] ?? '') . '</strong>'
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Problème de paiement</h2>'
+              . '<p style="margin:0 0 14px;">Bonjour ' . e($a['customer_name']) . ',</p>'
+              . '<p style="margin:0 0 14px;">Nous n\'avons pas pu traiter votre paiement pour <strong>' . e($a['service_name'] ?? '') . '</strong>'
               . ($reason !== '' ? ' (' . e($reason) . ')' : '') . '.</p>'
-              . '<p>No charge was made. Your requested time is still being held, but it needs a successful '
-              . 'payment to be confirmed.</p>'
-              . ($manageUrl !== '' ? '<p><a href="' . e($manageUrl) . '">Try the payment again</a></p>' : '')
-              . '<p>Reference: <code>' . e($a['ref']) . '</code></p>'
-              . '<p style="color:#888;font-size:12px;margin-top:24px;">— ' . e($siteName) . '</p>';
-        return (bool) Mailer::send($a['customer_email'], 'We couldn\'t process your payment (' . $a['ref'] . ')', $body, $a['customer_name']);
+              . '<p style="margin:0 0 8px;">Aucun montant n\'a été débité. Votre créneau est toujours réservé, mais un paiement réussi '
+              . 'est nécessaire pour le confirmer.</p>'
+              . self::emailInfoCard([['Référence', '<code>' . e($a['ref']) . '</code>']])
+              . ($manageUrl !== '' ? self::emailButton($manageUrl, 'Réessayer le paiement') : '');
+        $body = self::brandedEmailShell($inner, 'Action requise : votre paiement n\'a pas abouti');
+        return (bool) Mailer::send($a['customer_email'], 'Nous n\'avons pas pu traiter votre paiement (' . $a['ref'] . ')', $body, $a['customer_name']);
     }
 
     /**
@@ -1836,35 +1836,40 @@ class BookingAPI {
 
     public static function sendConfirmation(array $args): bool {
         $siteName = Database::setting('site_name') ?: 'Slate';
-        $when     = slate_format_datetime($args['starts_at'], 'l, j F Y');
+        $when     = self::frenchDate(slate_format_datetime($args['starts_at'], 'l, j F Y'));
 
-        // Per-service template override (placeholders rendered) or default.
+        // Per-service template override (placeholders rendered, then still
+        // wrapped in the branded shell — the stored template is just the
+        // inner message, so admins editing it never have to touch the
+        // header/footer chrome) or a branded default.
         if (!empty($args['confirm_body'])) {
-            $subject = self::renderTemplate((string)($args['confirm_subject'] ?: 'Your booking is confirmed ({{ref}})'), $args);
-            $body    = self::renderTemplate((string)$args['confirm_body'], $args);
+            $subject = self::renderTemplate((string)($args['confirm_subject'] ?: 'Confirmation de votre rendez-vous ({{ref}})'), $args);
+            $inner   = self::renderTemplate((string)$args['confirm_body'], $args);
         } else {
-            $subject = 'Your booking is confirmed (' . $args['ref'] . ')';
-            $body    = '<p>Hi ' . e($args['customer_name']) . ',</p>'
-                     . '<p>Your booking is confirmed.</p>'
-                     . '<table style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">'
-                     . '<tr><td style="padding:6px 12px;color:#555;">Service</td><td style="padding:6px 12px;">' . e($args['service_name']) . '</td></tr>'
-                     . '<tr><td style="padding:6px 12px;color:#555;">With</td><td style="padding:6px 12px;">'    . e($args['provider_name']) . '</td></tr>'
-                     . '<tr><td style="padding:6px 12px;color:#555;">When</td><td style="padding:6px 12px;">'    . e($when) . '</td></tr>'
-                     . '<tr><td style="padding:6px 12px;color:#555;">Reference</td><td style="padding:6px 12px;"><code>' . e($args['ref']) . '</code></td></tr>'
-                     . '</table>';
+            $subject = 'Confirmation de votre rendez-vous (' . $args['ref'] . ')';
+            $inner   = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rendez-vous confirmé</h2>'
+                     . '<p style="margin:0 0 14px;">Bonjour ' . e($args['customer_name']) . ',</p>'
+                     . '<p style="margin:0 0 4px;">Votre rendez-vous est confirmé — au plaisir de vous accueillir.</p>'
+                     . self::emailInfoCard([
+                           ['Service', e($args['service_name'])],
+                           ['Praticien(ne)', e($args['provider_name'])],
+                           ['Date', e($when)],
+                           ['Référence', '<code>' . e($args['ref']) . '</code>'],
+                       ]);
             if (!empty($args['manage_token']) && defined('SLATE_URL')) {
                 $manageUrl = SLATE_URL . '/book/manage?token=' . rawurlencode((string)$args['manage_token']);
-                $body .= '<p>Need to change it? <a href="' . e($manageUrl) . '">Manage your booking</a> (cancel or reschedule).</p>';
+                $inner .= self::emailButton($manageUrl, 'Gérer ma réservation');
+                $inner .= '<p style="margin:6px 0 0;font-size:13px;color:#8a7d61;">Annuler ou reprogrammer en un clic.</p>';
             } else {
-                $body .= '<p>If you need to cancel or reschedule, reply to this email.</p>';
+                $inner .= '<p style="margin:18px 0 0;">Pour annuler ou reprogrammer, répondez simplement à cet e-mail.</p>';
             }
-            $body .= '<p style="color:#888;font-size:12px;margin-top:24px;">— ' . e($siteName) . '</p>';
         }
+        $body = self::brandedEmailShell($inner, 'Votre rendez-vous est confirmé — ' . $args['service_name']);
         $ok = (bool) Mailer::send($args['customer_email'], $subject, $body, $args['customer_name']);
 
         if (!empty($args['customer_phone'])) {
             self::notifySms((string)$args['customer_phone'],
-                $siteName . ': booking confirmed for ' . $args['service_name'] . ' on ' . $when . '. Ref ' . $args['ref']);
+                $siteName . ' : réservation confirmée pour ' . $args['service_name'] . ' le ' . $when . '. Réf ' . $args['ref']);
         }
         return $ok;
     }
@@ -1876,52 +1881,58 @@ class BookingAPI {
      * confirmed yet, and must not read like it is.
      */
     public static function sendAwaitingApprovalNotice(array $args): bool {
-        $siteName = Database::setting('site_name') ?: 'Slate';
-        $when     = slate_format_datetime($args['starts_at'] ?? '', 'l, j F Y');
-        $body = '<p>Hi ' . e($args['customer_name']) . ',</p>'
-              . '<p>Thanks — we\'ve received your booking request. It isn\'t confirmed yet: our team reviews '
-              . 'requests before they\'re finalised, and we\'ll email you as soon as it\'s approved.</p>'
-              . '<table style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">'
-              . '<tr><td style="padding:6px 12px;color:#555;">Service</td><td style="padding:6px 12px;">' . e($args['service_name'] ?? '') . '</td></tr>'
-              . '<tr><td style="padding:6px 12px;color:#555;">With</td><td style="padding:6px 12px;">'    . e($args['provider_name'] ?? '') . '</td></tr>'
-              . '<tr><td style="padding:6px 12px;color:#555;">Requested time</td><td style="padding:6px 12px;">' . e($when) . '</td></tr>'
-              . '<tr><td style="padding:6px 12px;color:#555;">Reference</td><td style="padding:6px 12px;"><code>' . e($args['ref'] ?? '') . '</code></td></tr>'
-              . '</table>';
+        $when = self::frenchDate(slate_format_datetime($args['starts_at'] ?? '', 'l, j F Y'));
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Demande reçue</h2>'
+              . '<p style="margin:0 0 14px;">Bonjour ' . e($args['customer_name']) . ',</p>'
+              . '<p style="margin:0 0 4px;">Merci — nous avons bien reçu votre demande de réservation. Elle n\'est pas encore confirmée : notre '
+              . 'équipe examine chaque demande avant validation, et nous vous enverrons un e-mail dès qu\'elle sera approuvée.</p>'
+              . self::emailInfoCard([
+                    ['Service', e($args['service_name'] ?? '')],
+                    ['Avec', e($args['provider_name'] ?? '')],
+                    ['Créneau demandé', e($when)],
+                    ['Référence', '<code>' . e($args['ref'] ?? '') . '</code>'],
+                ]);
         if (!empty($args['manage_token']) && defined('SLATE_URL')) {
             $manageUrl = SLATE_URL . '/book/manage?token=' . rawurlencode((string)$args['manage_token']);
-            $body .= '<p>You can view or cancel the request any time: <a href="' . e($manageUrl) . '">Manage your booking</a>.</p>';
+            $inner .= self::emailButton($manageUrl, 'Gérer ma demande');
+            $inner .= '<p style="margin:6px 0 0;font-size:13px;color:#8a7d61;">Consulter ou annuler à tout moment.</p>';
         }
-        $body .= '<p style="color:#888;font-size:12px;margin-top:24px;">— ' . e($siteName) . '</p>';
-        return (bool) Mailer::send($args['customer_email'], 'We received your booking request (' . $args['ref'] . ')', $body, $args['customer_name']);
+        $body = self::brandedEmailShell($inner, 'Votre demande de réservation est en cours d\'examen');
+        return (bool) Mailer::send($args['customer_email'], 'Nous avons bien reçu votre demande de réservation (' . $args['ref'] . ')', $body, $args['customer_name']);
     }
 
     public static function sendReminder(array $appt, string $when, int $leadMinutes = 0): void {
-        $body = '<p>Hi ' . e($appt['customer_name']) . ',</p>'
-              . '<p>This is a reminder that your appointment for <strong>' . e($appt['service_name']) . '</strong> '
-              . 'with ' . e($appt['provider_name']) . ' is in ' . e($when) . '.</p>'
-              . '<p>Starts: <strong>' . e(slate_format_datetime($appt['starts_at'], 'l, j F Y')) . '</strong></p>'
-              . '<p>Reference: <code>' . e($appt['ref']) . '</code></p>';
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rappel de rendez-vous</h2>'
+              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
+              . '<p style="margin:0 0 4px;">Ceci est un rappel : votre rendez-vous pour <strong>' . e($appt['service_name']) . '</strong> '
+              . 'avec ' . e($appt['provider_name']) . ' a lieu dans ' . e($when) . '.</p>'
+              . self::emailInfoCard([
+                    ['Début', '<strong>' . e(self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'))) . '</strong>'],
+                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                ]);
         // Extension point: companion plugins (e.g. Booking+) may override the
-        // body per-service and per-lead-time. No-op when nothing listens.
-        $body = Hook::applyFilters('booking_reminder_body', $body, $appt, $leadMinutes);
-        Mailer::send($appt['customer_email'], 'Reminder: ' . $appt['service_name'] . ' in ' . $when, $body, $appt['customer_name']);
+        // inner content per-service and per-lead-time. No-op when nothing
+        // listens. Still runs through brandedEmailShell() below either way.
+        $inner = Hook::applyFilters('booking_reminder_body', $inner, $appt, $leadMinutes);
+        $body  = self::brandedEmailShell($inner, 'Votre rendez-vous approche — ' . $appt['service_name']);
+        Mailer::send($appt['customer_email'], 'Rappel : ' . $appt['service_name'] . ' dans ' . $when, $body, $appt['customer_name']);
 
         if (!empty($appt['customer_phone'])) {
             $siteName = Database::setting('site_name') ?: 'Slate';
             self::notifySms((string)$appt['customer_phone'],
-                $siteName . ' reminder: ' . $appt['service_name'] . ' ' . $when . ' ('
-                . slate_format_datetime($appt['starts_at'], 'j M') . '). Ref ' . $appt['ref']);
+                $siteName . ' rappel : ' . $appt['service_name'] . ' ' . $when . ' ('
+                . self::frenchDate(slate_format_datetime($appt['starts_at'], 'j M')) . '). Réf ' . $appt['ref']);
         }
     }
 
     /** Feedback / follow-up email sent after an appointment completes. */
     public static function sendFollowup(array $appt): void {
-        $siteName = Database::setting('site_name') ?: 'Slate';
-        $body = '<p>Hi ' . e($appt['customer_name']) . ',</p>'
-              . '<p>Thanks for visiting us for <strong>' . e($appt['service_name']) . '</strong>. '
-              . 'We\'d love your feedback — just reply to this email.</p>'
-              . '<p style="color:#888;font-size:12px;margin-top:24px;">— ' . e($siteName) . '</p>';
-        Mailer::send($appt['customer_email'], 'How was your ' . $appt['service_name'] . '?', $body, $appt['customer_name']);
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Votre avis compte pour nous</h2>'
+              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
+              . '<p style="margin:0;">Merci de votre visite pour <strong>' . e($appt['service_name']) . '</strong>. '
+              . 'Votre avis nous intéresse — répondez simplement à cet e-mail.</p>';
+        $body = self::brandedEmailShell($inner, 'Comment s\'est passé votre rendez-vous ?');
+        Mailer::send($appt['customer_email'], 'Comment s\'est passé votre rendez-vous · ' . $appt['service_name'] . ' ?', $body, $appt['customer_name']);
     }
 
     /**
@@ -1932,45 +1943,53 @@ class BookingAPI {
      */
     public static function sendStaffNotification(array $provider, array $appt, bool $needsApproval = false): bool {
         if (empty($provider['email'])) return false;
-        $when = slate_format_datetime($appt['starts_at'], 'l, j F Y');
-        $body = '<p>Hi ' . e($provider['name'] ?? '') . ',</p>'
-              . ($needsApproval
-                    ? '<p>A new booking request needs your approval.</p>'
-                    : '<p>You have a new booking.</p>')
-              . '<table style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">'
-              . '<tr><td style="padding:6px 12px;color:#555;">Service</td><td style="padding:6px 12px;">' . e($appt['service_name']) . '</td></tr>'
-              . '<tr><td style="padding:6px 12px;color:#555;">When</td><td style="padding:6px 12px;">' . e($when) . '</td></tr>'
-              . '<tr><td style="padding:6px 12px;color:#555;">Customer</td><td style="padding:6px 12px;">' . e($appt['customer_name'])
-              . ' &lt;' . e($appt['customer_email']) . '&gt;' . (!empty($appt['customer_phone']) ? ' · ' . e($appt['customer_phone']) : '') . '</td></tr>'
-              . (($appt['party_size'] ?? 1) > 1 ? '<tr><td style="padding:6px 12px;color:#555;">Party</td><td style="padding:6px 12px;">' . (int)$appt['party_size'] . '</td></tr>' : '')
-              . '<tr><td style="padding:6px 12px;color:#555;">Reference</td><td style="padding:6px 12px;"><code>' . e($appt['ref']) . '</code></td></tr>'
-              . '</table>';
-        $subject = ($needsApproval ? 'Approval needed · ' : 'New booking · ') . $appt['service_name'] . ' (' . $appt['ref'] . ')';
+        $when = self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'));
+        $badge = $needsApproval
+            ? '<span style="display:inline-block;padding:4px 10px;border-radius:20px;background-color:#fdf0e0;color:#9a6a1a;font-size:12px;font-weight:700;margin-bottom:14px;">APPROBATION REQUISE</span><br>'
+            : '<span style="display:inline-block;padding:4px 10px;border-radius:20px;background-color:#eef7ee;color:#2f7d3c;font-size:12px;font-weight:700;margin-bottom:14px;">NOUVELLE RÉSERVATION</span><br>';
+        $inner = $badge
+              . '<h2 style="margin:10px 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">'
+              . ($needsApproval ? 'Une réservation attend votre validation' : 'Vous avez une nouvelle réservation') . '</h2>'
+              . '<p style="margin:0 0 4px;">Bonjour ' . e($provider['name'] ?? '') . ',</p>'
+              . self::emailInfoCard(array_filter([
+                    ['Service', e($appt['service_name'])],
+                    ['Date', e($when)],
+                    ['Client', e($appt['customer_name']) . ' &lt;' . e($appt['customer_email']) . '&gt;'
+                        . (!empty($appt['customer_phone']) ? ' · ' . e($appt['customer_phone']) : '')],
+                    (($appt['party_size'] ?? 1) > 1) ? ['Participants', (int)$appt['party_size']] : null,
+                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                ]));
+        $body = self::brandedEmailShell($inner, ($needsApproval ? 'Approbation requise · ' : 'Nouvelle réservation · ') . $appt['service_name']);
+        $subject = ($needsApproval ? 'Approbation requise · ' : 'Nouvelle réservation · ') . $appt['service_name'] . ' (' . $appt['ref'] . ')';
         return (bool) Mailer::send($provider['email'], $subject, $body, (string)($provider['name'] ?? ''));
     }
 
     /** Email the customer that their appointment was cancelled. */
     public static function sendCancellation(array $appt, string $reason = ''): bool {
-        $siteName = Database::setting('site_name') ?: 'Slate';
-        $when = slate_format_datetime($appt['starts_at'], 'l, j F Y');
-        $body = '<p>Hi ' . e($appt['customer_name']) . ',</p>'
-              . '<p>Your appointment for <strong>' . e($appt['service_name']) . '</strong> on ' . e($when) . ' has been cancelled.</p>'
-              . ($reason !== '' ? '<p>Reason: ' . e($reason) . '</p>' : '')
-              . '<p>Reference: <code>' . e($appt['ref']) . '</code></p>'
-              . '<p style="color:#888;font-size:12px;margin-top:24px;">— ' . e($siteName) . '</p>';
-        return (bool) Mailer::send($appt['customer_email'], 'Your booking was cancelled (' . $appt['ref'] . ')', $body, $appt['customer_name']);
+        $when = self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'));
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rendez-vous annulé</h2>'
+              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
+              . '<p style="margin:0 0 4px;">Votre rendez-vous pour <strong>' . e($appt['service_name']) . '</strong> du ' . e($when) . ' a été annulé.</p>'
+              . self::emailInfoCard(array_filter([
+                    $reason !== '' ? ['Motif', e($reason)] : null,
+                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                ]));
+        $body = self::brandedEmailShell($inner, 'Votre rendez-vous a été annulé');
+        return (bool) Mailer::send($appt['customer_email'], 'Votre réservation a été annulée (' . $appt['ref'] . ')', $body, $appt['customer_name']);
     }
 
     /** Email the customer that their appointment was moved. */
     public static function sendReschedule(array $appt, string $newStartsAt): bool {
-        $siteName = Database::setting('site_name') ?: 'Slate';
-        $when = slate_format_datetime($newStartsAt, 'l, j F Y');
-        $body = '<p>Hi ' . e($appt['customer_name']) . ',</p>'
-              . '<p>Your appointment for <strong>' . e($appt['service_name']) . '</strong> has been moved.</p>'
-              . '<p>New time: <strong>' . e($when) . '</strong></p>'
-              . '<p>Reference: <code>' . e($appt['ref']) . '</code></p>'
-              . '<p style="color:#888;font-size:12px;margin-top:24px;">— ' . e($siteName) . '</p>';
-        return (bool) Mailer::send($appt['customer_email'], 'Your booking was rescheduled (' . $appt['ref'] . ')', $body, $appt['customer_name']);
+        $when = self::frenchDate(slate_format_datetime($newStartsAt, 'l, j F Y'));
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rendez-vous reprogrammé</h2>'
+              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
+              . '<p style="margin:0 0 4px;">Votre rendez-vous pour <strong>' . e($appt['service_name']) . '</strong> a été déplacé.</p>'
+              . self::emailInfoCard([
+                    ['Nouvel horaire', '<strong>' . e($when) . '</strong>'],
+                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                ]);
+        $body = self::brandedEmailShell($inner, 'Votre rendez-vous a été reprogrammé');
+        return (bool) Mailer::send($appt['customer_email'], 'Votre réservation a été replanifiée (' . $appt['ref'] . ')', $body, $appt['customer_name']);
     }
 
     // ── Notification config + channels ────────────────────────────
@@ -1996,6 +2015,105 @@ class BookingAPI {
         return array_keys($leads) ?: [1440, 60];
     }
 
+    // ── Branded email chrome ────────────────────────────────────────────
+    // Table-based markup with everything inlined — no <style> block, no
+    // flexbox/grid, no CSS shorthand Outlook's Word rendering engine drops.
+    // Every booking email (customer and staff) is built as: brandedEmailShell(
+    // heading + paragraphs + optional emailInfoCard() + optional emailButton() ).
+
+    /** The tenant's brand accent color (Global Styles), falling back to Slate's default blue. */
+    private static function brandAccent(): string {
+        $accent = trim((string) Database::setting('brand_accent_color'));
+        return preg_match('/^#[0-9a-fA-F]{3,8}$/', $accent) ? $accent : '#2563EB';
+    }
+
+    /**
+     * Wrap inner content HTML in the branded header/card/footer chrome —
+     * logo (or site name) on an accent-colored band, a white rounded card
+     * for the message, a quiet footer. $innerHtml is trusted HTML built by
+     * the caller (already-escaped dynamic values); this does no escaping
+     * of its own beyond the site name / accent color it reads itself.
+     */
+    private static function brandedEmailShell(string $innerHtml, string $preheader = ''): string {
+        $siteName = (string) (Database::setting('site_name') ?: 'Slate');
+        $accent   = self::brandAccent();
+        $logoRel  = trim((string) Database::setting('brand_logo_path'));
+        $logoUrl  = ($logoRel !== '' && defined('SLATE_URL')) ? SLATE_URL . '/' . ltrim($logoRel, '/') : '';
+        $year     = date('Y');
+
+        $logoHtml = $logoUrl !== ''
+            ? '<img src="' . e($logoUrl) . '" alt="' . e($siteName) . '" height="52" style="height:52px;max-height:52px;display:block;border:0;outline:none;">'
+            : '<span style="font-family:Georgia,\'Times New Roman\',serif;font-size:26px;letter-spacing:.03em;color:' . e($accent) . ';">' . e($siteName) . '</span>';
+
+        return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1"><title>' . e($siteName) . '</title></head>'
+            . '<body style="margin:0;padding:0;background-color:#f3ede0;font-family:Arial,Helvetica,sans-serif;">'
+            . ($preheader !== '' ? '<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">' . e($preheader) . '</div>' : '')
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3ede0;padding:32px 12px;">'
+            . '<tr><td align="center">'
+            . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:14px;overflow:hidden;">'
+            . '<tr><td align="center" bgcolor="#faf5e8" style="background-color:#faf5e8;background-image:linear-gradient(135deg,#fffdf8 0%,#f6ecd4 100%);padding:34px 24px;border-bottom:1px solid #efe2c0;">' . $logoHtml . '</td></tr>'
+            . '<tr><td style="padding:38px 34px;color:#2d2a26;font-size:15px;line-height:1.65;">' . $innerHtml . '</td></tr>'
+            . '<tr><td style="padding:18px 34px 26px;border-top:1px solid #ece4d3;">'
+            . '<p style="margin:0;color:#a49a86;font-size:12px;text-align:center;">' . e($siteName) . ' &middot; ' . $year . '</p>'
+            . '</td></tr>'
+            . '</table>'
+            . '</td></tr>'
+            . '</table>'
+            . '</body></html>';
+    }
+
+    /**
+     * A soft accent-tinted "details" card for service/provider/date/time/
+     * ref rows. $rows is a list of [label, valueHtml] pairs — valueHtml is
+     * NOT escaped here (matches every existing caller's own e($x) calls),
+     * so callers stay in full control of what's already-safe vs. raw.
+     */
+    private static function emailInfoCard(array $rows): string {
+        $out = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#faf6ec;border:1px solid #ece0c4;border-radius:10px;margin:22px 0;">'
+             . '<tr><td style="padding:18px 22px;">'
+             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">';
+        foreach ($rows as [$label, $valueHtml]) {
+            $out .= '<tr>'
+                  . '<td style="padding:7px 0;color:#8a7d61;font-size:12.5px;width:130px;vertical-align:top;white-space:nowrap;">' . e($label) . '</td>'
+                  . '<td style="padding:7px 0;color:#2d2a26;font-size:14px;font-weight:600;">' . $valueHtml . '</td>'
+                  . '</tr>';
+        }
+        $out .= '</table></td></tr></table>';
+        return $out;
+    }
+
+    /** Bulletproof branded CTA button (table+link, not a bare <a> — renders correctly in Outlook). */
+    private static function emailButton(string $url, string $label): string {
+        $accent = self::brandAccent();
+        return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="border-radius:8px;background-color:' . e($accent) . ';">'
+             . '<a href="' . e($url) . '" style="display:inline-block;padding:13px 28px;color:#ffffff;font-size:14px;font-weight:700;'
+             . 'text-decoration:none;border-radius:8px;font-family:Arial,Helvetica,sans-serif;">' . e($label) . '</a>'
+             . '</td></tr></table>';
+    }
+
+    /**
+     * PHP's date() has no locale awareness (strftime(), which did, was
+     * removed in 8.1) — 'l'/'F'/'M' always come out in English regardless
+     * of site language. Scoped to this file's own email/SMS text rather
+     * than fixed in the shared slate_format_datetime() helper, since that
+     * helper is used site-wide (admin UI, other plugins, EN-language
+     * pages too) and forcing French there would be a much bigger, riskier
+     * change than what was actually asked for here.
+     */
+    private static function frenchDate(string $formatted): string {
+        static $map = [
+            'Monday' => 'Lundi', 'Tuesday' => 'Mardi', 'Wednesday' => 'Mercredi', 'Thursday' => 'Jeudi',
+            'Friday' => 'Vendredi', 'Saturday' => 'Samedi', 'Sunday' => 'Dimanche',
+            'January' => 'janvier', 'February' => 'février', 'March' => 'mars', 'April' => 'avril',
+            'May' => 'mai', 'June' => 'juin', 'July' => 'juillet', 'August' => 'août',
+            'September' => 'septembre', 'October' => 'octobre', 'November' => 'novembre', 'December' => 'décembre',
+            'Jan' => 'janv.', 'Feb' => 'févr.', 'Mar' => 'mars', 'Apr' => 'avr.', 'Jun' => 'juin', 'Jul' => 'juil.',
+            'Aug' => 'août', 'Sep' => 'sept.', 'Oct' => 'oct.', 'Nov' => 'nov.', 'Dec' => 'déc.',
+        ];
+        return strtr($formatted, $map);
+    }
+
     /** Substitute {{placeholders}} in a per-service template (HTML-escaped). */
     public static function renderTemplate(string $tpl, array $a): string {
         $ts  = strtotime((string)($a['starts_at'] ?? 'now')) ?: time();
@@ -2003,8 +2121,8 @@ class BookingAPI {
             '{{name}}'     => e((string)($a['customer_name'] ?? '')),
             '{{service}}'  => e((string)($a['service_name'] ?? '')),
             '{{provider}}' => e((string)($a['provider_name'] ?? '')),
-            '{{when}}'     => e(slate_format_datetime($ts, 'l, j F Y')),
-            '{{date}}'     => e(date('j M Y', $ts)),
+            '{{when}}'     => e(self::frenchDate(slate_format_datetime($ts, 'l, j F Y'))),
+            '{{date}}'     => e(self::frenchDate(date('j M Y', $ts))),
             '{{time}}'     => e(slate_format_time($ts)),
             '{{ref}}'      => e((string)($a['ref'] ?? '')),
         ];
@@ -2133,8 +2251,8 @@ class BookingAPI {
         if (!$services) {
             return '<div class="alert alert-info">'
                  . ($onlyServiceId !== null
-                      ? 'That service is no longer available.'
-                      : 'No services are currently available.')
+                      ? e(__('booking_service_no_longer_available', 'That service is no longer available.'))
+                      : e(__('booking_no_services_available', 'No services are currently available.')))
                  . '</div>';
         }
 
@@ -2159,12 +2277,24 @@ class BookingAPI {
             $out .= '<div class="book-grid">';
             foreach ($list as $s) {
                 $price = ((int)$s['price_cents']) > 0
-                    ? e($s['currency']) . ' ' . number_format($s['price_cents'] / 100, 2)
-                    : 'Free';
+                    ? slate_format_price((int)$s['price_cents'], $s['currency'])
+                    : e(__('booking_free', 'Free'));
+                // Extension point: other plugins (e.g. Membership) flag a
+                // service card with a small pill — "Membership required" etc.
+                // — without BookingAPI needing to know they exist.
+                $badges = Hook::applyFilters('booking_service_card_badges', [], $s);
                 $out .= '<a class="book-card-link" href="' . e((string) $href((int)$s['id'])) . '">'
                       . '<div class="book-card-title">' . e($s['name']) . '</div>'
-                      . '<div class="book-card-meta">' . (int)$s['duration_min'] . ' min · ' . $price
-                      . (!empty($s['is_online']) ? ' · online' : '') . '</div>';
+                      . '<div class="book-card-meta">' . sprintf(e(__('booking_n_min', '%d min')), (int)$s['duration_min']) . ' · ' . $price
+                      . (!empty($s['is_online']) ? ' · ' . e(__('booking_online', 'online')) : '') . '</div>';
+                if ($badges) {
+                    $out .= '<div class="book-card-badges">';
+                    foreach ($badges as $b) {
+                        $tone = e((string)($b['tone'] ?? 'accent'));
+                        $out .= '<span class="book-badge book-badge-' . $tone . '">' . e((string)($b['label'] ?? '')) . '</span>';
+                    }
+                    $out .= '</div>';
+                }
                 if (!empty($s['description'])) {
                     $out .= '<div class="book-card-desc">'
                           . e(mb_strimwidth($s['description'], 0, 140, '…')) . '</div>';

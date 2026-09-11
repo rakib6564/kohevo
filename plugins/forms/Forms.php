@@ -19,6 +19,11 @@ class Forms extends Plugin {
         Hook::addFilter('admin_nav_items',          [$this, 'addAdminNav']);
         Hook::addFilter('admin_dashboard_widgets',  [$this, 'addDashboardWidget']);
         Hook::addFilter('public_routes',            [$this, 'addPublicRoutes']);
+        Hook::addFilter('i18n_lang_paths',          [$this, 'addLangPath']);
+
+        // MCP AI Gateway integration (expose forms tools to AI assistants)
+        require_once __DIR__ . '/FormsMcpHandler.php';
+        FormsMcpHandler::register();
 
         // The form block renders inline now, so its stylesheet and logic script
         // have to reach the HOST page's <head> — the iframe used to carry them.
@@ -66,7 +71,7 @@ class Forms extends Plugin {
             'icon'  => 'clipboard-list',
             'perm'  => 'forms.view',
             'order' => 230,
-            'group' => 'content',
+            'group' => 'form-builder',
         ];
         $items[] = [
             'slug'  => 'forms-submissions',
@@ -75,7 +80,7 @@ class Forms extends Plugin {
             'icon'  => 'mail',
             'perm'  => 'forms.view',
             'order' => 231,
-            'group' => 'content',
+            'group' => 'form-builder',
         ];
         $items[] = [
             'slug'  => 'forms-contacts',
@@ -84,7 +89,7 @@ class Forms extends Plugin {
             'icon'  => 'users',
             'perm'  => 'forms.view',
             'order' => 232,
-            'group' => 'content',
+            'group' => 'form-builder',
         ];
         $items[] = [
             'slug'  => 'forms-spam-log',
@@ -93,7 +98,7 @@ class Forms extends Plugin {
             'icon'  => 'shield',
             'perm'  => 'forms.view',
             'order' => 233,
-            'group' => 'content',
+            'group' => 'form-builder',
         ];
         return $items;
     }
@@ -119,6 +124,14 @@ class Forms extends Plugin {
             'methods' => ['GET', 'POST'],
         ];
         return $routes;
+    }
+
+    /** Registers plugins/forms/lang/<locale>.php with core I18n. */
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
     }
 
     public function addDashboardWidget(array $widgets): array {

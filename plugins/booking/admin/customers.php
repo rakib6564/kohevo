@@ -204,7 +204,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 if ($tags) $detail['Tags'] = implode(', ', $tags);
                 $actions = '<a href="?id=' . (int)$c['id'] . '" class="btn btn-sm btn-primary">Open</a>';
                 slate_data_row([
-                    'avatar'       => mb_substr($c['name'], 0, 1),
+                    'avatar_html'  => slate_avatar_overlay_html(mb_substr($c['name'], 0, 1), (string)($c['email'] ?? '')),
                     'avatar_color' => (int)$c['no_show_count'] > 0 ? 'warning' : 'info',
                     'title'        => $c['name'],
                     'meta'         => $c['email'] . ' · ' . (int)$c['booking_count'] . ' booking(s)',

@@ -900,7 +900,7 @@ class FormsAPI {
             if ($type === 'checkbox') {
                 $checked = !empty($raw);
                 if ($required && !$checked) {
-                    $errors[$name] = ($f['label'] ?? $name) . ' is required.';
+                    $errors[$name] = sprintf(__('forms_field_required', '%s is required.'), ($f['label'] ?? $name));
                 }
                 $data[$name] = $checked;
                 continue;
@@ -920,7 +920,7 @@ class FormsAPI {
                 }
                 $chosen = array_values(array_unique($chosen));
                 if ($required && !$chosen) {
-                    $errors[$name] = ($f['label'] ?? $name) . ' is required.';
+                    $errors[$name] = sprintf(__('forms_field_required', '%s is required.'), ($f['label'] ?? $name));
                 }
                 $data[$name] = $chosen;
                 continue;
@@ -934,7 +934,7 @@ class FormsAPI {
 
             if ($value === '') {
                 if ($required) {
-                    $errors[$name] = ($f['label'] ?? $name) . ' is required.';
+                    $errors[$name] = sprintf(__('forms_field_required', '%s is required.'), ($f['label'] ?? $name));
                 }
                 $data[$name] = '';
                 continue;
@@ -2176,7 +2176,7 @@ class FormsAPI {
         echo   '<div class="forms-wiztop">';
         echo     '<span class="forms-steptitle-top" data-forms-steptitle></span>';
         echo     '<button type="button" class="forms-back-top" data-forms-back hidden>'
-               .   self::navIcon('arrow-left') . '<span>Back</span></button>';
+               .   self::navIcon('arrow-left') . '<span>' . e(__('forms_back', 'Back')) . '</span></button>';
         echo   '</div>';
         foreach ($steps as $i => $st) {
             echo '<fieldset class="forms-step" data-forms-step="' . $i . '" data-step-title="' . e($st['title']) . '"' . ($i > 0 ? ' hidden' : '') . '>';
@@ -2196,8 +2196,8 @@ class FormsAPI {
         }
         // Read-only review step — JS fills it with every answer when reached.
         if ($summaryOn) {
-            echo '<fieldset class="forms-step forms-summary-step" data-forms-step="' . $total . '" data-step-title="Review" data-forms-summary hidden>';
-            echo   '<div class="forms-step-head"><p class="forms-step-sub">Please review your answers before submitting.</p></div>';
+            echo '<fieldset class="forms-step forms-summary-step" data-forms-step="' . $total . '" data-step-title="' . e(__('forms_review', 'Review')) . '" data-forms-summary hidden>';
+            echo   '<div class="forms-step-head"><p class="forms-step-sub">' . e(__('forms_review_sub', 'Please review your answers before submitting.')) . '</p></div>';
             echo   '<div class="forms-step-fields"><div class="forms-summary" data-forms-summary-body></div></div>';
             echo '</fieldset>';
         }
@@ -2208,7 +2208,7 @@ class FormsAPI {
                .   '<b class="forms-ring-num" data-forms-stepnum>1</b>'
                . '</span>';
         echo     '<button type="button" class="btn btn-primary fbtn fbtn-go" data-forms-next>'
-               .   '<span>Next</span>' . self::navIcon('arrow-right') . '</button>';
+               .   '<span>' . e(__('forms_next', 'Next')) . '</span>' . self::navIcon('arrow-right') . '</button>';
         echo     '<button type="submit" class="btn btn-primary btn-lg fbtn fbtn-go" data-forms-submit hidden>'
                .   '<span>' . e($submitLabel) . '</span>' . self::navIcon('check') . '</button>';
         echo   '</div>';
@@ -2261,7 +2261,7 @@ class FormsAPI {
             $fileMeta = $_FILES[$name] ?? null;
             if (!$fileMeta || (int)($fileMeta['error'] ?? 4) === UPLOAD_ERR_NO_FILE) {
                 if ($required) {
-                    $errors[$name] = ($f['label'] ?? $name) . ' is required.';
+                    $errors[$name] = sprintf(__('forms_field_required', '%s is required.'), ($f['label'] ?? $name));
                 }
                 continue;
             }
@@ -2314,7 +2314,7 @@ class FormsAPI {
 
             $raw = is_string($data[$name] ?? null) ? trim((string)$data[$name]) : '';
             if ($raw === '') {
-                if ($required) $errors[$name] = ($f['label'] ?? $name) . ' is required.';
+                if ($required) $errors[$name] = sprintf(__('forms_field_required', '%s is required.'), ($f['label'] ?? $name));
                 $data[$name] = '';
                 continue;
             }
@@ -2627,7 +2627,7 @@ class FormsAPI {
               data-animate="<?= $set['animate'] ? '1' : '0' ?>" data-validate="<?= $set['validate'] ? '1' : '0' ?>">
             <?= csrf_field() ?>
             <div style="display:none !important;" aria-hidden="true">
-                <label>Leave this field empty
+                <label><?= __('forms_leave_empty', 'Leave this field empty') ?>
                     <input type="text" name="hp_field" tabindex="-1" autocomplete="off">
                 </label>
             </div>
@@ -2636,7 +2636,7 @@ class FormsAPI {
                     $form['fields'],
                     [],
                     [],
-                    (string)($form['submit_label'] ?: 'Submit'),
+                    (string)($form['submit_label'] ?: __('forms_submit', 'Submit')),
                     [
                         'rail'          => $set['rail'],
                         'before_submit' => $beforeSubmit,

@@ -429,7 +429,7 @@ $roles = Database::rows("SELECT id, name, slug FROM roles WHERE tenant_id = ? OR
                 $actions = ob_get_clean();
 
                 slate_data_row([
-                    'avatar'       => $initials,
+                    'avatar_html'  => slate_avatar_overlay_html($initials, (string)($u['email'] ?? '')),
                     'avatar_color' => $statusColor,
                     'title'        => $u['name'] ?: '(no name)',
                     'meta'         => $u['email'],

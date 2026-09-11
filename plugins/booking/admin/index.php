@@ -143,8 +143,6 @@ try {
     $customersSpark = $customersSpark ?? [];
 }
 
-$moneyFmt = fn(int $cents, string $cur) => $cur . ' ' . number_format($cents / 100, 2);
-
 // Status → avatar tint, shared with Booking's own main-dashboard widget
 // (Booking.php::addAdminDashboardWidget()) for a consistent colour language.
 $statusColors = ['confirmed' => 'success', 'pending' => 'warning', 'completed' => 'info',
@@ -185,7 +183,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     ]); ?>
     <?php slate_stat_card([
         'icon'    => 'credit-card',
-        'number'  => $moneyFmt($revenueThisMonth, $revenueCurrency),
+        'number'  => slate_format_price_plain($revenueThisMonth, $revenueCurrency),
         'label'   => __('booking_revenue_month', 'Revenue this month'),
         'spark'   => $revenueSpark,
         'tone'    => 'success',
@@ -212,7 +210,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <?php foreach ($todayList as $a):
                         $name = trim((string)($a['customer_name'] ?? '')) ?: __('booking_guest', 'Guest');
                         slate_dlist_row([
-                            'avatar'       => $name,
+                            'avatar_html'  => slate_avatar_overlay_html(mb_substr($name, 0, 2), (string)($a['customer_email'] ?? '')),
                             'avatar_color' => $statusColors[$a['status']] ?? 'muted',
                             'title'        => $name,
                             'sub'          => $a['service_name'] . ' · with ' . $a['provider_name'],
@@ -234,7 +232,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <?php foreach ($weekList as $a):
                         $name = trim((string)($a['customer_name'] ?? '')) ?: __('booking_guest', 'Guest');
                         slate_dlist_row([
-                            'avatar'       => $name,
+                            'avatar_html'  => slate_avatar_overlay_html(mb_substr($name, 0, 2), (string)($a['customer_email'] ?? '')),
                             'avatar_color' => $statusColors[$a['status']] ?? 'muted',
                             'title'        => $name,
                             'sub'          => $a['service_name'],

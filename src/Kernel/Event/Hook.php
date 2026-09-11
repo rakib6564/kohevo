@@ -62,6 +62,34 @@ class Hook
         return $value;
     }
 
+    /**
+     * Like applyFilters(), but does NOT catch listener exceptions — they
+     * propagate to the caller instead of being logged-and-swallowed.
+     *
+     * applyFilters()'s swallow-and-continue is correct for filters like
+     * admin_nav_items, where one misbehaving plugin must never be able to
+     * break a shared surface for every other plugin. It's wrong for a
+     * filter whose whole point is dispatching to exactly one recognizing
+     * listener and getting back its result-or-error — e.g. slate_mcp_call_tool,
+     * where a listener throws intentionally (bad arguments, not-found, etc.)
+     * and the caller needs that real message, not a generic fallback.
+     * Only use this for filters designed around that single-responder,
+     * throw-to-report-an-error contract.
+     */
+    public static function applyFiltersStrict(string $name, $value, ...$context)
+    {
+        if (empty(self::$filters[$name])) return $value;
+        $buckets = self::$filters[$name];
+        ksort($buckets);
+        foreach ($buckets as $listeners) {
+            foreach ($listeners as $l) {
+                $args  = array_slice(array_merge([$value], $context), 0, $l['args']);
+                $value = call_user_func_array($l['cb'], $args);
+            }
+        }
+        return $value;
+    }
+
     public static function removeFilter(string $name, callable $cb, int $priority = 10): bool
     {
         if (empty(self::$filters[$name][$priority])) return false;

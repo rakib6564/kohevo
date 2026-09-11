@@ -109,14 +109,21 @@ class CoachingAPI {
 
     /**
      * Is this customer currently enrolled in the 3-month program?
-     * Delegated to MembershipAPI::isActive() when the membership plugin
-     * is present. Returns true when no gate is configured (dev / preview).
+     * Enrollment means an active, unexpired subscription to the specific
+     * plan an admin picked in Coaching → Settings ("Program access gate"),
+     * not just any active membership — MembershipAPI::isActive() only
+     * recognizes 'membership'-type plans and ignores the configured plan
+     * entirely, which is wrong when (as here) the gate plan is course-type.
+     * Without a plan configured, no client is enrolled (see admin/settings.php).
      */
     public static function isEnrolled(int $customerId): bool {
         if ($customerId <= 0) return false;
         if (!class_exists('MembershipAPI')) return false;
+        $gatePlanId = (int) Database::setting('coaching.program_plan_id');
+        if ($gatePlanId <= 0) return false;
         try {
-            return (bool) MembershipAPI::isActive($customerId);
+            $sub = MembershipAPI::activeSubscription($customerId);
+            return $sub !== null && (int)$sub['plan_id'] === $gatePlanId;
         } catch (\Throwable $e) {
             return false;
         }

@@ -14,6 +14,12 @@ $active = MLT_I18nBridge::activeLocale($tid);
 
 $style    = $this->setting('switcher_style', 'dropdown');   // dropdown | flags | list
 $position = $this->setting('switcher_position', 'bottom-right');
+// 'header' has no floating CSS rule (mlt-pos-header doesn't exist) — it only
+// means something to the admin-topbar/customer-portal-bar hooks. If this
+// floating widget is still being rendered while that's selected, it's on a
+// page with no header-bar slot (public site, embeds, login screens, etc.),
+// so fall back to a sane floating corner instead of an unpositioned widget.
+if ($position === 'header') $position = 'bottom-right';
 $bg       = $this->setting('switcher_bg', '#111827');
 $fg       = $this->setting('switcher_fg', '#ffffff');
 $accent   = $this->setting('switcher_accent', '#2563eb');

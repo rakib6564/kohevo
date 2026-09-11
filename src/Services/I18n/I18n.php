@@ -45,6 +45,20 @@ class I18n
     {
         $supported = self::supportedLanguages();
 
+        // Generic, core-level escape hatch for a same-origin internal
+        // request that needs a specific locale regardless of the
+        // requester's own session state -- e.g. a content crawler
+        // rendering the source-language version of a page to harvest
+        // strings, without touching $_SESSION (so the scan never inherits
+        // -- or leaves behind -- whatever language the initiating admin's
+        // session was on). Deliberately not named after any one caller:
+        // core has no business knowing which plugin sends it. Currently
+        // used by the multilang-translate crawler (MLT_Crawler::fetch()).
+        $forced = (string)($_SERVER['HTTP_X_SLATE_FORCE_LOCALE'] ?? '');
+        if ($forced !== '' && isset($supported[$forced])) {
+            return $forced;
+        }
+
         if (!empty($_GET['lang']) && isset($supported[$_GET['lang']])) {
             $_SESSION['slate_lang'] = $_GET['lang'];
             return $_GET['lang'];

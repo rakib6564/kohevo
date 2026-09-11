@@ -16,9 +16,9 @@ Options -Indexes -FollowSymLinks +SymLinksIfOwnerMatch
 AddDefaultCharset UTF-8
 
 # Branded error pages (relative to RewriteBase below)
-ErrorDocument 403 /slate/403.php
-ErrorDocument 404 /slate/404.php
-ErrorDocument 500 /slate/500.php
+ErrorDocument 403 /online-booking/403.php
+ErrorDocument 404 /online-booking/404.php
+ErrorDocument 500 /online-booking/500.php
 
 # ── Block sensitive files at the root ───────────────────────
 <FilesMatch "^\.env|composer\.json|composer\.lock|README\.md|INSTALL\.md|ARCHITECTURE\.md|CONTRIBUTING\.md|CHANGELOG\.md$">
@@ -78,7 +78,7 @@ RedirectMatch 403 ^/data/
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /slate/
+    RewriteBase /online-booking/
 
     # ── Maintenance-script directories, at ANY depth ────────────
     # Deny before anything else, because the rules below serve real files
@@ -197,6 +197,17 @@ RedirectMatch 403 ^/data/
     # Keep this for back-compat; new plugins use the public_routes filter.
     RewriteRule ^shop/?$               plugins/shop/storefront/router.php?_path= [L,QSA]
     RewriteRule ^shop/(.+)$            plugins/shop/storefront/router.php?_path=$1 [L,QSA]
+
+    # Core /api/v1 gateway (headless/mobile API, MCP gateway, etc.) — maps
+    # pretty URLs to the real api/v1.php, which reads _route_path itself.
+    # Two rules, both requiring "/" or end-of-string right after v1, so
+    # neither can also match a direct request for the real api/v1.php file.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/v1/?$              api/v1.php?_route_path= [L,QSA]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/v1/(.+)$           api/v1.php?_route_path=$1 [L,QSA]
 
     # Generic public-router catch-all. Anything that isn't a file/dir
     # and didn't match an earlier rule lands here. PublicRouter then

@@ -207,6 +207,27 @@ if (!function_exists('slate_portal_shell_head')) {
     if (class_exists('Hook')) { Hook::doAction('customer_head'); }
     if (class_exists('PluginLoader')) { echo PluginLoader::renderQueuedStyles(); }
     ?>
+    <script>
+    /* Generic auto-resize for a classic <iframe src=".../book?embed=1">
+       booking-widget embed, should the portal (or anything else in this
+       shell) ever use one instead of a native/fragment include. The
+       widget already posts {type:"cb-booking-height",height} on load/
+       resize -- nothing on this side listened for it, so an iframed
+       widget taller than its fixed box just got cut off. No-op if no
+       matching iframe is on the page. */
+    (function () {
+        window.addEventListener('message', function (e) {
+            if (!e.data || e.data.type !== 'cb-booking-height' || !e.data.height) return;
+            var frames = document.querySelectorAll('iframe');
+            for (var i = 0; i < frames.length; i++) {
+                if (frames[i].contentWindow === e.source) {
+                    frames[i].style.height = Math.max(0, parseInt(e.data.height, 10)) + 'px';
+                    break;
+                }
+            }
+        });
+    })();
+    </script>
 </head>
 <body class="<?= e($cls) ?>">
 <a class="skip-link" href="#portal-main"><?= __('skip_to_content', 'Skip to main content') ?></a>

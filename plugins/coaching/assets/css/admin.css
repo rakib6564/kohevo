@@ -85,6 +85,13 @@
     font-size: 14px;
     color: var(--coach-muted);
     margin: 0;
+    /* An email has no spaces to break at, so even though .coach-hero-body
+       correctly shrinks (min-width:0 above), the address itself had no
+       break opportunity and overflowed past the shrunk box, painting
+       under the action buttons instead of wrapping. Same fix already
+       used for the topbar account popover's own email
+       (admin/partials/header.php, .topbar-pop-useremail). */
+    overflow-wrap: anywhere;
 }
 .coach-hero-tags {
     display: inline-flex;
@@ -98,6 +105,23 @@
     gap: 8px;
     flex-shrink: 0;
     align-self: center;
+}
+
+/* .coach-hero had no breakpoint at all -- the row just degraded
+   continuously as the viewport narrowed (avatar + un-wrapping actions
+   keep their fixed footprint; only the body shrinks) until the actions
+   collided with the now-overflowing email. Mirrors the equivalent,
+   already-working stacking breakpoint on the shared identity-hero
+   component (includes/record_editor.php, .pv-hero-row/.pv-hero-actions). */
+@media (max-width: 640px) {
+    .coach-hero { flex-wrap: wrap; }
+    .coach-hero-actions {
+        order: 3;
+        width: 100%;
+        justify-content: stretch;
+        align-self: auto;
+    }
+    .coach-hero-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
 
 /* ── Status pill ───────────────────────────────────────────────── */
