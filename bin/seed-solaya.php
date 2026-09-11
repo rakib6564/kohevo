@@ -210,50 +210,64 @@ $planData = [
                       . "structure alimentaire, recettes et récapitulatif de fin de programme. "
                       . "Donne accès à l'application téléchargeable.",
     'plan_type'      => 'course',
+    // Attach the plan to the Suivi follow-up service. A 'course' plan's
+    // course_id is what MembershipAPI::serviceRequiresMembership() reads, so
+    // this is what makes Suivi — and only Suivi — members-only, matching the
+    // Appendix ("Suivi Programme Corps & Âme") and §1 (programme clients).
+    // Price and session_quota are deliberately not set here: they are the
+    // practice's own figures, set in the admin, and the seed must not
+    // overwrite them on a re-run.
+    'course_id'      => ($ids['suivi-corps-ame'] ?? 0) ?: null,
     'duration_days'  => 90,
     'currency'       => 'EUR',
     'is_active'      => 1,
 ];
 if ($plan) {
     if (!$DRY) Database::update('membership_plans', $planData, 'id = ?', [$plan['id']]);
-    say("  = plan      Corps & Âme (90 days, course)");
+    say("  = plan      Corps & Âme (90 days, course, gates Suivi)");
 } elseif ($DRY) {
-    say("  + plan      Corps & Âme (90 days, course)");
+    say("  + plan      Corps & Âme (90 days, course, gates Suivi)");
 } else {
     Database::query(
         "INSERT INTO membership_plans
-           (tenant_id, name, name_fr, description, description_fr, plan_type, duration_days, currency, price_cents, is_active)
-         VALUES (?,?,?,?,?,?,?,?,0,1)",
+           (tenant_id, name, name_fr, description, description_fr, plan_type, course_id, duration_days, currency, price_cents, is_active)
+         VALUES (?,?,?,?,?,?,?,?,?,0,1)",
         [$tid, $planData['name'], $planData['name_fr'], $planData['description'],
-         $planData['description_fr'], 'course', 90, 'EUR']
+         $planData['description_fr'], 'course', $planData['course_id'], 90, 'EUR']
     );
-    say("  + plan      Corps & Âme (90 days, course)");
+    say("  + plan      Corps & Âme (90 days, course, gates Suivi)");
 }
 $todo[] = "Set the Corps & Âme programme price in Membership → Plans (currently 0.00 EUR).";
+
+// ── The Level 1 / Level 2 boundary (§1) ──────────────────────
+// §1 puts every Level 1 service — Discovery Call, Bilan Nutrition, Hypnose
+// Sérénité and HSR — in front of "toutes les prospects & clientes avant un
+// programme", people with no membership yet. Only the Suivi follow-up is for
+// programme clients.
+//
+// require_membership_to_book is ON. It used to gate every booking, which
+// locked prospects out entirely, so an earlier version of this seed forced it
+// OFF. Membership::gateBooking() now applies it only to services a 'course'
+// plan is attached to via course_id (see the plan above), so ON means exactly
+// "Suivi is members-only" and nothing else. Forcing it OFF here would silently
+// unlock Suivi for anyone.
+//
+// require_profile_to_book stays OFF: that gate is still global, and a
+// prospect booking a first Discovery Call has no member profile to complete.
+//
+// The strict boundary the document insists on ("un Bilan Nutrition ponctuel
+// ne donne JAMAIS accès à l'application") is about APP access, and coaching
+// enforces it separately: CoachingAPI::hasAccess() delegates to
+// MembershipAPI::isActive().
+if (!$DRY) {
+    Database::setSetting('membership.require_membership_to_book', '1');
+    Database::setSetting('membership.require_profile_to_book', '0');
+}
+say("  + settings  Level 1 open to prospects; Suivi members-only (Level 2 app still membership-gated)");
 
 // ── Reminder cadence (§ Booking+ / §5.1) ─────────────────────
 // "Cadence de rappels 8 jours / veille / 10 min", in minutes before the
 // appointment: 8 days = 11520, day before = 1440, 10 minutes = 10.
-// ── The Level 1 / Level 2 boundary (§1) ──────────────────────
-// Membership ships with require_membership_to_book and
-// require_profile_to_book defaulting ON, which requires a signed-in member
-// with an active membership before ANY booking. That is the opposite of what
-// this practice needs: §1 puts every Level 1 service — Discovery Call, Bilan
-// Nutrition, Hypnose Sérénité and HSR — in front of "toutes les prospects &
-// clientes avant un programme", people who by definition have no membership
-// yet. Left on, no prospect can ever book, which is the whole front door.
-//
-// The strict boundary the document does insist on ("un Bilan Nutrition
-// ponctuel ne donne JAMAIS accès à l'application") is about APP access, not
-// booking, and coaching enforces it separately: CoachingAPI::hasAccess()
-// delegates to MembershipAPI::isActive(). Turning these off opens Level 1
-// without touching Level 2.
-if (!$DRY) {
-    Database::setSetting('membership.require_membership_to_book', '0');
-    Database::setSetting('membership.require_profile_to_book', '0');
-}
-say("  + settings  booking open to prospects (Level 2 app access still membership-gated)");
-
 if (!$DRY) {
     Database::setSetting('booking.reminder_leads', '11520,1440,10');
     Database::setSetting('booking.self_cancel_enabled', '1');
