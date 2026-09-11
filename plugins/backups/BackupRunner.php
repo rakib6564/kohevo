@@ -112,7 +112,9 @@ class BackupRunner
     }
 
     public static function advance(int $runId): void {
-        $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [$runId]);
+        // Scoped like the queries that produce $runId (runFrequentCron, runNow),
+        // so a run id from one tenant can never be advanced under another.
+        $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [$runId, current_tenant_id()]);
         if (!$run || in_array($run['status'], ['done', 'failed'], true)) return;
 
         try {
@@ -156,7 +158,7 @@ class BackupRunner
             'progress_json' => json_encode(['tables' => $tableNames, 'table_idx' => 0, 'offset' => 0]),
         ], 'id = ?', [(int)$run['id']]);
 
-        $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [(int)$run['id']]);
+        $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [(int)$run['id'], (int)$run['tenant_id']]);
         self::stepDump($run); // give this tick real work instead of just bookkeeping
     }
 
@@ -199,7 +201,7 @@ class BackupRunner
         ], 'id = ?', [(int)$run['id']]);
 
         if ($tableIdx >= count($tables)) {
-            $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [(int)$run['id']]);
+            $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [(int)$run['id'], (int)$run['tenant_id']]);
             self::beginZip($run);
         }
     }
@@ -233,7 +235,7 @@ class BackupRunner
             'progress_json' => json_encode(['remaining' => $entries]),
         ], 'id = ?', [(int)$run['id']]);
 
-        $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [(int)$run['id']]);
+        $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [(int)$run['id'], (int)$run['tenant_id']]);
         self::stepZip($run);
     }
 
@@ -262,7 +264,7 @@ class BackupRunner
         ], 'id = ?', [(int)$run['id']]);
 
         if (!$remaining) {
-            $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [(int)$run['id']]);
+            $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [(int)$run['id'], (int)$run['tenant_id']]);
             self::beginUpload($run, $zipPath);
         }
     }
@@ -286,7 +288,7 @@ class BackupRunner
             'progress_json'   => json_encode(['session_uri' => $sessionUri, 'bytes_sent' => 0, 'total_bytes' => $totalBytes]),
         ], 'id = ?', [(int)$run['id']]);
 
-        $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [(int)$run['id']]);
+        $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [(int)$run['id'], (int)$run['tenant_id']]);
         self::stepUpload($run);
     }
 
@@ -314,7 +316,7 @@ class BackupRunner
                 'size_bytes'    => $totalBytes,
             ], 'id = ?', [(int)$run['id']]);
             self::rrmdir((string)$run['local_path']); // upload confirmed — stop holding a PII copy on disk
-            $run = Database::row("SELECT * FROM backups_runs WHERE id = ?", [(int)$run['id']]);
+            $run = Database::row("SELECT * FROM backups_runs WHERE id = ? AND tenant_id = ?", [(int)$run['id'], (int)$run['tenant_id']]);
             self::stepPrune($run);
             return;
         }
