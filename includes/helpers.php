@@ -22,8 +22,12 @@ if (!function_exists('current_tenant_id')) {
         if (!empty($GLOBALS['SLATE_TENANT_OVERRIDE'])) {
             return (int)$GLOBALS['SLATE_TENANT_OVERRIDE'];
         }
-        // Super-admin acting as a tenant
-        if (!empty($_SESSION['slate_override_tenant']) && class_exists('Auth') && Auth::check() && Auth::isSuperAdmin()) {
+        // Platform admin acting as a tenant — crossing the tenant boundary
+        // itself is genuinely platform-level, gated by the dedicated concept
+        // rather than the generic isSuperAdmin() bypass. See Phase 0E/0G
+        // RBAC audit. (Nothing currently writes slate_override_tenant — this
+        // branch is a prepared, unwired mechanism.)
+        if (!empty($_SESSION['slate_override_tenant']) && class_exists('Auth') && Auth::check() && Auth::isPlatformSuperAdmin()) {
             return (int)$_SESSION['slate_override_tenant'];
         }
         // Fallback: tenant 1 (default single-tenant install)

@@ -137,7 +137,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         // ─── Upload ────────────────────────────────────────────
         if ($action === 'upload') {
-            if (!Auth::isSuperAdmin()) {
+            // Installing plugin code touches the shared filesystem for every
+            // tenant — genuinely platform-level, not a per-tenant permission.
+            if (!Auth::isPlatformSuperAdmin()) {
                 $flash = ['type' => 'error', 'msg' => __('only_super_admin', 'Only super-admins can upload plugins.')];
             } elseif (empty($_FILES['plugin_zip']) || $_FILES['plugin_zip']['error'] === UPLOAD_ERR_NO_FILE) {
                 $flash = ['type' => 'error', 'msg' => __('no_file', 'No file selected.')];
@@ -222,7 +224,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         // ─── Uninstall ─────────────────────────────────────────
         elseif ($action === 'uninstall') {
-            if (!Auth::isSuperAdmin()) {
+            // Removes code + data for every tenant — genuinely platform-level.
+            if (!Auth::isPlatformSuperAdmin()) {
                 $flash = ['type' => 'error', 'msg' => __('only_super_admin', 'Only super-admins can uninstall plugins.')];
             } else {
                 $slug = trim((string)($_POST['slug'] ?? ''));
@@ -268,8 +271,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 require __DIR__ . '/partials/header.php';
 
 $plugins         = PluginLoader::listAll();
-$canUpload       = Auth::isSuperAdmin();
-$canUninstall    = Auth::isSuperAdmin();
+$canUpload       = Auth::isPlatformSuperAdmin();
+$canUninstall    = Auth::isPlatformSuperAdmin();
 $hasExampleZip   = file_exists(SLATE_ROOT . '/plugins/_dist/hello-world-v1.0.0.zip');
 ?>
 

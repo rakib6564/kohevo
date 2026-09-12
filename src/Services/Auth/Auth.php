@@ -291,6 +291,34 @@ class Auth {
     }
 
     /**
+     * True if the current admin may perform a genuinely platform-wide
+     * operation — one that affects every tenant on the install (installing
+     * or uninstalling plugin code, server diagnostics, opcache control,
+     * viewing another tenant's data, granting the legacy Super Admin role).
+     *
+     * Currently identical to isSuperAdmin() (legacy role_id=1 OR
+     * platform_admins membership) — kept under its own name so these call
+     * sites read as platform-only BY INTENT, not merely as one more place
+     * the generic isSuperAdmin() bypass happens to reach. isSuperAdmin()
+     * itself is also used at ~25 other call sites purely as a bypass for the
+     * CURRENT tenant's permission checks; those are a different thing and
+     * must NOT be migrated to this method. See the Phase 0E/0G RBAC audit.
+     */
+    public static function isPlatformSuperAdmin(): bool {
+        return self::isSuperAdmin();
+    }
+
+    /** require() + 403 if the current admin lacks platform-wide authority (see isPlatformSuperAdmin()). */
+    public static function requirePlatformAdmin(): void {
+        self::require();
+        if (!self::isPlatformSuperAdmin()) {
+            http_response_code(403);
+            echo '<h1>403 Forbidden</h1><p>This action requires platform administrator access.</p>';
+            exit;
+        }
+    }
+
+    /**
      * True if the current admin is a member of `platform_admins` — the
      * platform-scoped (not tenant-scoped) authority table. Fails closed
      * (false) if the table doesn't exist yet, so an install that hasn't

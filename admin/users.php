@@ -45,11 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // this, any user holding the delegable `users.edit` permission could
         // POST role_id=1 and self-escalate to Super Admin (which short-circuits
         // every permission check). Two rules:
-        //   1. Only a Super Admin may assign/keep the Super Admin role (id=1).
+        //   1. Only a platform admin may assign/keep the Super Admin role
+        //      (id=1) — granting platform-equivalent authority is itself a
+        //      genuinely platform-level operation, not a tenant one, so this
+        //      checks the dedicated concept (isPlatformSuperAdmin()) rather
+        //      than the generic isSuperAdmin() bypass. Any future UI that
+        //      lets someone grant `platform_admins` membership directly must
+        //      carry this same guard. See Phase 0E/0G RBAC audit.
         //   2. The role must actually exist for this tenant (also blocks
         //      assigning another tenant's role id).
         if (in_array($action, ['create', 'update'], true)) {
-            if ($roleId === 1 && !Auth::isSuperAdmin()) {
+            if ($roleId === 1 && !Auth::isPlatformSuperAdmin()) {
                 $flash  = ['type' => 'error',
                            'msg' => __('forbidden_super_role', 'Only a Super Admin can assign the Super Admin role.')];
                 $action = '';

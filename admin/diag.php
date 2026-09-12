@@ -20,8 +20,10 @@ if (!defined('SLATE_DIAG_ENABLED') || SLATE_DIAG_ENABLED !== true) {
     exit('Not found.');
 }
 
-Auth::require();
-if (!Auth::isSuperAdmin()) { http_response_code(403); exit('Super Admin only.'); }
+// Genuinely platform-level (reveals live DB/file state for the whole
+// install) — gated by the dedicated platform-admin concept, not the
+// generic isSuperAdmin() bypass. See Phase 0E/0G RBAC audit.
+Auth::requirePlatformAdmin();
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');

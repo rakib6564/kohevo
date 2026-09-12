@@ -11,12 +11,11 @@
  * doesn't auto-revalidate.
  */
 require_once dirname(__DIR__) . '/config.php';
-Auth::require();
-if (!Auth::isSuperAdmin()) {
-    http_response_code(403);
-    echo '<h1>403</h1><p>Super Admin only.</p>';
-    exit;
-}
+// Genuinely platform-level (flushes bytecode cache for the whole PHP
+// process, not just the current tenant) — gated by the dedicated
+// platform-admin concept, not the generic isSuperAdmin() bypass.
+// See Phase 0E/0G RBAC audit.
+Auth::requirePlatformAdmin();
 
 // Aggressive no-cache so this page itself never gets cached.
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
