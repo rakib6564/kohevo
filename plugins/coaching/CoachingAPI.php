@@ -400,7 +400,7 @@ class CoachingAPI {
         ];
 
         if ($id > 0) {
-            Database::update('coaching_diary_entry', $data, 'id = ? AND tenant_id = ?', [$id, $tid]);
+            Database::update('coaching_diary_entry', $data, 'id = ? AND customer_id = ? AND tenant_id = ?', [$id, $customerId, $tid]);
         } else {
             $data['tenant_id']   = $tid;
             $data['customer_id'] = $customerId;
