@@ -27,8 +27,31 @@ if (!function_exists('current_tenant_id')) {
         // rather than the generic isSuperAdmin() bypass. See Phase 0E/0G
         // RBAC audit. (Nothing currently writes slate_override_tenant — this
         // branch is a prepared, unwired mechanism.)
-        if (!empty($_SESSION['slate_override_tenant']) && class_exists('Auth') && Auth::check() && Auth::isPlatformSuperAdmin()) {
-            return (int)$_SESSION['slate_override_tenant'];
+        //
+        // Phase 0H: Auth::check() validates the session via SessionRepository,
+        // whose query is tenant-scoped through a fresh TenantContext — i.e.
+        // through THIS function. Calling it here unguarded recurses forever:
+        // current_tenant_id() -> Auth::check() -> SessionRepository ->
+        // TenantContext::id() -> current_tenant_id() -> ... (this branch is
+        // still true, nothing has changed $_SESSION). Fix: pin the nested
+        // resolution to the session's OWN home tenant — recorded at login in
+        // $_SESSION['slate_user']['tenant_id'], never the tenant being
+        // requested via the override — for the duration of the check, via
+        // TenantContext::runAs(). runAs() sets the CLI-override global that
+        // the very first branch above returns from immediately, so the
+        // nested call never reaches this branch again. If the session has no
+        // usable home tenant, the override is denied (fail closed) rather
+        // than risking the same recursion.
+        if (!empty($_SESSION['slate_override_tenant']) && class_exists('Auth')) {
+            $homeTenant = (int)($_SESSION['slate_user']['tenant_id'] ?? 0);
+            if ($homeTenant > 0) {
+                $authorized = (new \Slate\Tenancy\TenantContext())->runAs($homeTenant, static function (): bool {
+                    return Auth::check() && Auth::isPlatformSuperAdmin();
+                });
+                if ($authorized) {
+                    return (int)$_SESSION['slate_override_tenant'];
+                }
+            }
         }
         // Fallback: tenant 1 (default single-tenant install)
         return defined('TENANT_ID') ? TENANT_ID : 1;
