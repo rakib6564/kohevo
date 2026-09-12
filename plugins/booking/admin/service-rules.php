@@ -14,6 +14,21 @@ require_once dirname(__DIR__) . '/BookingPlusAPI.php';
 
 Auth::require();
 Auth::requirePerm('booking.manage_services');
+
+// The capability toggle in Booking → Settings must actually turn this page
+// off, not just hide its nav link — a staff member with booking.manage_services
+// could otherwise view/edit service rules via direct URL while the practice
+// owner believes the feature is disabled. Same check, same 503, same position
+// as booking/public/message.php's client_messaging guard.
+if (!PluginLoader::isCapabilityEnabled('booking', 'service_rules')) {
+    http_response_code(503);
+    require SLATE_ROOT . '/admin/partials/header.php';
+    echo '<div class="card"><div class="empty"><div class="empty-title">Not available</div>'
+       . '<p class="text-sm">Service rules are currently disabled. Enable them in Booking &rarr; Settings.</p></div></div>';
+    require SLATE_ROOT . '/admin/partials/footer.php';
+    exit;
+}
+
 BookingPlusAPI::ensureSchema();
 
 $pageTitle  = 'Booking · Service rules';

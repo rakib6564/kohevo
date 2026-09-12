@@ -12,6 +12,20 @@ require_once dirname(__DIR__) . '/BookingPlusAPI.php';
 
 Auth::require();
 Auth::requirePerm('booking.manage_services');
+
+// The capability toggle in Booking → Settings must actually turn this page
+// off, not just hide its nav link. Placed before any POST handling below, so
+// a disabled capability also blocks adding/removing reserved slot windows,
+// not just viewing them.
+if (!PluginLoader::isCapabilityEnabled('booking', 'slot_restrictions')) {
+    http_response_code(503);
+    require SLATE_ROOT . '/admin/partials/header.php';
+    echo '<div class="card"><div class="empty"><div class="empty-title">Not available</div>'
+       . '<p class="text-sm">Reserved slot windows are currently disabled. Enable them in Booking &rarr; Settings.</p></div></div>';
+    require SLATE_ROOT . '/admin/partials/footer.php';
+    exit;
+}
+
 BookingPlusAPI::ensureSchema();
 
 $pageTitle  = __('reserved_slots', 'Reserved Slots');

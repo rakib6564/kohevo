@@ -13,6 +13,21 @@ Auth::require();
 if (!Auth::can('booking.view') && !Auth::isSuperAdmin()) {
     Auth::requirePerm('booking.view');
 }
+
+// The capability toggle in Booking → Settings must actually turn this inbox
+// off, not just hide its nav link. Placed before the mark_replied POST
+// handling below, so a disabled capability also blocks that mutation, not
+// just the read view — mirrors the client-facing guard already in
+// booking/public/message.php for the same capability.
+if (!PluginLoader::isCapabilityEnabled('booking', 'client_messaging')) {
+    http_response_code(503);
+    require SLATE_ROOT . '/admin/partials/header.php';
+    echo '<div class="card"><div class="empty"><div class="empty-title">Not available</div>'
+       . '<p class="text-sm">Client messaging is currently disabled. Enable it in Booking &rarr; Settings.</p></div></div>';
+    require SLATE_ROOT . '/admin/partials/footer.php';
+    exit;
+}
+
 BookingPlusAPI::ensureSchema();
 
 $pageTitle  = __('booking_messages', 'Booking Messages');

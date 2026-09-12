@@ -11,6 +11,18 @@ require_once SLATE_ROOT . '/includes/record_editor.php';
 
 Auth::require();
 Auth::requirePerm('booking.manage_services');
+
+// See admin/service-rules.php's identical guard: the capability toggle must
+// actually turn this editor off, not just hide its nav link.
+if (!PluginLoader::isCapabilityEnabled('booking', 'service_rules')) {
+    http_response_code(503);
+    require SLATE_ROOT . '/admin/partials/header.php';
+    echo '<div class="card"><div class="empty"><div class="empty-title">Not available</div>'
+       . '<p class="text-sm">Service rules are currently disabled. Enable them in Booking &rarr; Settings.</p></div></div>';
+    require SLATE_ROOT . '/admin/partials/footer.php';
+    exit;
+}
+
 BookingPlusAPI::ensureSchema();
 
 $tid       = current_tenant_id();
