@@ -98,14 +98,20 @@ final class MigrationRunner
     }
 
     /**
-     * Apply all pending migrations in one new batch. Returns the names applied.
+     * Apply pending migrations in one new batch. Returns the names applied.
      *
+     * @param string[]|null $only Restrict to these migration names (still skipping
+     *        any already applied), in discovery order — for a caller (e.g. the
+     *        installer) that must apply specific core migrations without picking
+     *        up every other pending one. Default null: all pending, as before.
      * @return string[]
      */
-    public function migrate(): array
+    public function migrate(?array $only = null): array
     {
         $this->ensureLedger();
-        $pending = $this->pending();
+        $pending = $only !== null
+            ? array_values(array_intersect($this->pending(), $only))
+            : $this->pending();
         if ($pending === []) {
             return [];
         }

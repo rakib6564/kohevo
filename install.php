@@ -133,12 +133,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
         $error = 'Invalid email address.';
     } else {
         try {
-            $schema = file_get_contents(SLATE_ROOT . '/db/schema.sql');
-            $stmts  = array_filter(array_map('trim', explode(';', preg_replace('/--[^\n]*\n/', "\n", $schema))));
-            $pdo    = Database::get();
-            foreach ($stmts as $stmt) {
-                if ($stmt !== '') $pdo->exec($stmt);
-            }
+            // Core schema + the identity spine (contacts/identities — customer
+            // login depends on these; see db/migrations/0002_identity_core.php)
+            // + login-attempt throttling, applied and ledger-recorded by name.
+            // Deliberately NOT a plain migrate(): that would also pick up
+            // 0003's seed (gated behind its own pre-apply review), and any
+            // product-specific migration (Studio, content-builder) that
+            // happens to be pending — neither belongs in a generic install.
+            $runner = new \Slate\Data\MigrationRunner(Database::get(), SLATE_ROOT . '/db/migrations');
+            $runner->migrate(['0001_core_init', '0002_identity_core', '0011_login_attempts']);
 
             Database::insert('users', [
                 'tenant_id'     => 1,
