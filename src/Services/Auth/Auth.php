@@ -7,7 +7,10 @@
  * the `role_permissions` table, looked up by role_id.
  *
  * Super Admin (role_id = 1) gets everything via short-circuit in
- * Auth::can() — never query role_permissions for them.
+ * Auth::can() — never query role_permissions for them. isSuperAdmin() also
+ * recognizes `platform_admins` membership (Auth::isPlatformAdmin()), the
+ * platform-scoped authority table introduced as a role_id-independent
+ * successor — see the isSuperAdmin() docblock.
  *
  * Patterns:
  *   Auth::require()          ← redirect to /admin/login if not logged in
@@ -42,6 +45,9 @@ use Slate\Tenancy\TenantContext;
 class Auth {
     /** Permission cache for the current request, keyed by role_id. */
     private static array $permCache = [];
+
+    /** platform_admins membership cache for the current request, keyed by user_id. */
+    private static array $platformAdminCache = [];
 
     /** Set true once per request after the customer auth tokens table is ensured. */
     private static bool $customerTokenSchemaChecked = false;
@@ -265,8 +271,62 @@ class Auth {
         return isset($u['role_id']) ? (int)$u['role_id'] : null;
     }
 
+    /**
+     * True if the current admin has platform-wide authority (bypasses every
+     * tenant permission check — see can()'s short-circuit).
+     *
+     * LEGACY COMPATIBILITY: `role_id === 1` identifies the single, schema-
+     * seeded "Super Admin" role row. `roles.id` is a global (not per-tenant)
+     * primary key, so this only ever means "tenant 1's original admin" — it
+     * predates any platform/tenant distinction (Phase 0E RBAC audit) and is
+     * kept here only so every existing install and every existing
+     * isSuperAdmin() call site keeps working unchanged during the
+     * transition. Do NOT treat role_id===1 as the permanent definition of
+     * platform authority, and do not add new checks against it directly —
+     * `platform_admins` membership (isPlatformAdmin()) is the intended
+     * long-term source of truth, decoupled from any specific role id.
+     */
     public static function isSuperAdmin(): bool {
-        return self::roleId() === 1;
+        return self::roleId() === 1 || self::isPlatformAdmin();
+    }
+
+    /**
+     * True if the current admin is a member of `platform_admins` — the
+     * platform-scoped (not tenant-scoped) authority table. Fails closed
+     * (false) if the table doesn't exist yet, so an install that hasn't
+     * applied migration 0013_platform_admins behaves identically to before
+     * this method existed.
+     */
+    public static function isPlatformAdmin(): bool {
+        $uid = self::userId();
+        if ($uid === null) return false;
+        if (!array_key_exists($uid, self::$platformAdminCache)) {
+            try {
+                self::$platformAdminCache[$uid] = (bool) \Database::value(
+                    'SELECT 1 FROM platform_admins WHERE user_id = ? LIMIT 1',
+                    [$uid]
+                );
+            } catch (\Throwable $e) {
+                self::$platformAdminCache[$uid] = false;
+            }
+        }
+        return self::$platformAdminCache[$uid];
+    }
+
+    /** Grant platform-admin status. Idempotent — granting an existing member is a no-op update. */
+    public static function grantPlatformAdmin(int $userId, ?int $grantedBy = null): void {
+        \Database::query(
+            "INSERT INTO platform_admins (user_id, granted_by) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE granted_by = VALUES(granted_by)",
+            [$userId, $grantedBy]
+        );
+        unset(self::$platformAdminCache[$userId]);
+    }
+
+    /** Revoke platform-admin status. A no-op if the user wasn't a member. */
+    public static function revokePlatformAdmin(int $userId): void {
+        \Database::query('DELETE FROM platform_admins WHERE user_id = ?', [$userId]);
+        unset(self::$platformAdminCache[$userId]);
     }
 
     public static function require(): void {
