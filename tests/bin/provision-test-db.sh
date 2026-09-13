@@ -89,9 +89,23 @@ INSERT INTO settings (tenant_id,setting_key,setting_value) VALUES (1,'slate_test
 INSERT INTO plugins (slug,name,version,status,manifest_json)
   VALUES ('content-builder','Content Builder','1.0.0','active','{"slug":"content-builder","name":"Content Builder","version":"1.0.0"}')
   ON DUPLICATE KEY UPDATE status=VALUES(status), manifest_json=VALUES(manifest_json);
+INSERT INTO plugins (slug,name,version,status,manifest_json) VALUES
+  ('booking','Booking Plus','1.0.0','active','{"slug":"booking","name":"Booking Plus"}'),
+  ('forms','Forms','1.0.0','active','{"slug":"forms","name":"Forms"}'),
+  ('membership','Membership','1.0.0','active','{"slug":"membership","name":"Membership"}'),
+  ('stripe-payment','Stripe Payment Gateway','1.0.0','active','{"slug":"stripe-payment","name":"Stripe Payment Gateway"}')
+  ON DUPLICATE KEY UPDATE status=VALUES(status), manifest_json=VALUES(manifest_json);
 SQL
 
-mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB" < plugins/content-builder/install.sql
+CONTENT_BUILDER_SCHEMA="plugins/content-builder/install.sql"
+if [ ! -f "$CONTENT_BUILDER_SCHEMA" ] && [ -f "archive/plugins/content-builder/install.sql" ]; then
+  CONTENT_BUILDER_SCHEMA="archive/plugins/content-builder/install.sql"
+fi
+if [ ! -f "$CONTENT_BUILDER_SCHEMA" ]; then
+  echo "Missing content-builder schema: expected plugins/content-builder/install.sql or archive/plugins/content-builder/install.sql" >&2
+  exit 1
+fi
+mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB" < "$CONTENT_BUILDER_SCHEMA"
 
 # Kept in lockstep with .github/workflows/ci.yml's schema steps — this script had
 # drifted to content-builder only, which fails every Booking/Forms/Membership
@@ -105,8 +119,16 @@ mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB
 php tests/fixtures/booking-schema.php
 
 mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB" < plugins/membership/install.sql
-
+mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB" < plugins/stripe-payment/install.sql
 # Content the page-render golden tests expect to find.
-mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB" < tests/fixtures/render-seed.sql
+RENDER_SEED="tests/fixtures/render-seed.sql"
+if [ ! -f "$RENDER_SEED" ] && [ -f "archive/tests/fixtures/render-seed.sql" ]; then
+  RENDER_SEED="archive/tests/fixtures/render-seed.sql"
+fi
+if [ ! -f "$RENDER_SEED" ]; then
+  echo "Missing render seed fixture: expected tests/fixtures/render-seed.sql or archive/tests/fixtures/render-seed.sql" >&2
+  exit 1
+fi
+mysql -h "${DB_HOST:-127.0.0.1}" -u"$DB_USER" ${DB_PASS:+-p"$DB_PASS"} "$TEST_DB" < "$RENDER_SEED"
 
 echo "Provisioned ${TEST_DB}. This checkout's .env now points at it; the live database is untouched."

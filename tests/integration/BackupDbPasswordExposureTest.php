@@ -73,7 +73,10 @@ for a in "$@"; do
     case "$a" in
         --defaults-extra-file=*)
             f="${a#--defaults-extra-file=}"
-            perms="$(stat -f '%Lp' "$f" 2>/dev/null || stat -c '%a' "$f" 2>/dev/null)"
+            perms="$(stat -f '%Lp' "$f" 2>/dev/null)"
+            case "$perms" in
+                ''|*[!0-9]*) perms="$(stat -c '%a' "$f" 2>/dev/null)" ;;
+            esac
             content="$(tr '\n' '|' < "$f")"
             {
                 printf 'PATH=%s\n' "$f"
