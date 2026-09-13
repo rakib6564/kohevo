@@ -78,12 +78,12 @@ class PluginLoader {
         self::$activeSlugs = [];
         foreach ($rows as $row) {
             $slug = $row['slug'];
-            self::$activeSlugs[$slug] = true;
 
             try {
                 $plugin = self::loadOne($slug, $row);
                 if ($plugin) {
                     self::$active[$slug] = $plugin;
+                    self::$activeSlugs[$slug] = true;
                     $started = microtime(true);
                     $plugin->boot();
                     $elapsed = (microtime(true) - $started) * 1000;
@@ -94,6 +94,7 @@ class PluginLoader {
             } catch (\Throwable $e) {
                 slate_log("Plugin '$slug' boot failed: " . $e->getMessage(), 'error');
                 unset(self::$active[$slug]);
+                unset(self::$activeSlugs[$slug]);
             }
         }
     }
