@@ -47,6 +47,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $depositValue = $depositType === 'fixed'
                     ? max(0, (int)round($depositRaw * 100))    // fixed = cents
                     : max(0, min(100, (int)round($depositRaw))); // percent = whole %
+                // A category/location id must belong to this tenant — without
+                // this, a submitted id from another tenant's catalog would be
+                // stored as-is (both tables are tenant-scoped, but nothing
+                // here checked before this fix).
+                $categoryId = (int)($_POST['category_id'] ?? 0);
+                if ($categoryId > 0 && !Database::row("SELECT id FROM booking_categories WHERE id = ? AND tenant_id = ?", [$categoryId, $tid])) {
+                    $categoryId = 0;
+                }
+                $locationId = (int)($_POST['location_id'] ?? 0);
+                if ($locationId > 0 && !Database::row("SELECT id FROM booking_locations WHERE id = ? AND tenant_id = ?", [$locationId, $tid])) {
+                    $locationId = 0;
+                }
                 $row = [
                     'tenant_id'         => $tid,
                     'name'              => mb_substr($name, 0, 160),
@@ -54,8 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'description'       => trim((string)($_POST['description'] ?? '')) ?: null,
                     'confirm_subject'   => trim((string)($_POST['confirm_subject'] ?? '')) ?: null,
                     'confirm_body'      => trim((string)($_POST['confirm_body'] ?? '')) ?: null,
-                    'category_id'       => ((int)($_POST['category_id'] ?? 0)) ?: null,
-                    'location_id'       => ((int)($_POST['location_id'] ?? 0)) ?: null,
+                    'category_id'       => $categoryId ?: null,
+                    'location_id'       => $locationId ?: null,
                     'duration_min'      => max(5, (int)($_POST['duration_min'] ?? 30)),
                     'slot_interval_min' => max(0, (int)($_POST['slot_interval_min'] ?? 0)),
                     'buffer_before_min' => max(0, (int)($_POST['buffer_before_min'] ?? 0)),

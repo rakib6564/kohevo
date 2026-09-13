@@ -70,10 +70,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Sync linked services + per-staff price/duration overrides.
+                // A service id must belong to this tenant — booking_provider_
+                // services has no tenant_id column of its own, so without this
+                // check a submitted id from another tenant's catalog would be
+                // linked to this provider as-is.
+                $validServiceIds = array_flip(array_map(
+                    'intval',
+                    array_column(Database::rows('SELECT id FROM booking_services WHERE tenant_id = ?', [$tid]), 'id')
+                ));
                 Database::delete('booking_provider_services', 'provider_id = ?', [$id]);
                 foreach ((array)($_POST['services'] ?? []) as $sid) {
                     $sid = (int)$sid;
-                    if ($sid <= 0) continue;
+                    if ($sid <= 0 || !isset($validServiceIds[$sid])) continue;
                     $pRaw = trim((string)($_POST['price_' . $sid] ?? ''));
                     $dRaw = trim((string)($_POST['dur_' . $sid] ?? ''));
                     Database::insert('booking_provider_services', [
