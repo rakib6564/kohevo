@@ -38,9 +38,19 @@ set -a; . "$APP/.env"; set +a
 
 f="$OUT/${LABEL}_$(date +%F_%H%M%S).sql.gz"
 
+# -p"$DB_PASS" on the command line is visible to any local user via `ps` for
+# the life of the mysqldump process. A --defaults-extra-file keeps the
+# password out of argv; mktemp's default 0600 mode (reinforced here) keeps it
+# out of other users' reach on disk, and the trap removes it on every exit
+# path, success or failure alike.
+CNF="$(mktemp)"
+trap 'rm -f "$CNF"' EXIT
+chmod 600 "$CNF"
+printf '[client]\nuser=%s\npassword=%s\n' "$DB_USER" "$DB_PASS" > "$CNF"
+
 # --single-transaction keeps InnoDB consistent without locking the site out;
 # --quick streams rather than buffering the whole table in memory.
-mysqldump -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" --single-transaction --quick | gzip > "$f"
+mysqldump --defaults-extra-file="$CNF" "$DB_NAME" --single-transaction --quick | gzip > "$f"
 
 # A dump that died midway still leaves a structurally valid .gz, so a non-zero
 # file size proves nothing. mysqldump writes a "Dump completed" trailer only on
