@@ -2,15 +2,20 @@
 /**
  * Slate — Roles & permissions editor.
  *
- * Super-admin only. Super Admin role (id=1) is read-only.
+ * Tenant-level: delegable via `roles.manage`, with the usual super-admin
+ * bypass (Phase 0I RBAC audit — role/permission management is already
+ * tenant-scoped, unlike the genuinely platform-only sites from Phase 0G).
+ * The Super Admin role (id=1) stays read-only regardless of who reaches
+ * this page — see the independent id===1 checks in the update/delete
+ * handlers below, which are not gated by this permission at all.
  * Permissions sourced from Auth::knownPermissions() which unions
  * the core list with permissions declared in installed plugins.
  */
 require_once dirname(__DIR__) . '/config.php';
 Auth::require();
-if (!Auth::isSuperAdmin()) {
+if (!Auth::can('roles.manage') && !Auth::isSuperAdmin()) {
     http_response_code(403);
-    echo '<h1>403</h1><p>Only Super Admins can manage roles.</p>';
+    echo '<h1>403</h1><p>You do not have permission to manage roles.</p>';
     exit;
 }
 

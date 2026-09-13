@@ -565,6 +565,7 @@ class Auth {
             'Users & roles' => [
                 ['key' => 'users.view',     'label' => 'View users'],
                 ['key' => 'users.edit',     'label' => 'Create / edit / delete users'],
+                ['key' => 'roles.manage',   'label' => 'Create / edit / delete tenant roles and their permissions'],
             ],
             'Plugins' => [
                 ['key' => 'plugins.manage', 'label' => 'View, install, activate, uninstall plugins'],
@@ -588,6 +589,7 @@ class Auth {
             ],
             'Audit & logs' => [
                 ['key' => 'audit.view',     'label' => 'View the audit log'],
+                ['key' => 'audit.manage',   'label' => 'Clear the audit log'],
             ],
         ];
     }

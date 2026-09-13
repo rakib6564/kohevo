@@ -16,11 +16,13 @@ $currentNav = 'audit';
 
 $tid = current_tenant_id();
 
-// ── Clear the audit log (super-admin only) ───────────────────
+// ── Clear the audit log (audit.manage, or super-admin) ────────
 // POST → delete, then PRG-redirect so a refresh can't re-submit. The clear
 // is itself recorded, so there's always a trace of who purged the log.
+// Delegable separately from the page's own audit.view — viewing and
+// purging are very different risk levels (Phase 0I RBAC audit).
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'clear') {
-    if (csrf_verify() && Auth::isSuperAdmin()) {
+    if (csrf_verify() && (Auth::can('audit.manage') || Auth::isSuperAdmin())) {
         $scope = ($_POST['scope'] ?? 'all') === 'window' ? 'window' : 'all';
         if ($scope === 'window') {
             $d = max(1, min(90, (int)($_POST['days'] ?? 7)));
@@ -43,7 +45,7 @@ if (isset($_GET['cleared'])) {
               'msg'  => sprintf(__('audit_cleared', 'Cleared %s audit entries.'), number_format((int)$_GET['cleared']))];
 } elseif (isset($_GET['clear_denied'])) {
     $flash = ['type' => 'error',
-              'msg'  => __('audit_clear_denied', 'Only super-admins can clear the audit log.')];
+              'msg'  => __('audit_clear_denied', 'You do not have permission to clear the audit log.')];
 }
 
 $actionPrefix = trim((string)($_GET['action'] ?? ''));
@@ -152,7 +154,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             <div class="card">
                 <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                     <h2><?= number_format($total) ?> entries</h2>
-                    <?php if (Auth::isSuperAdmin()): ?>
+                    <?php if (Auth::can('audit.manage') || Auth::isSuperAdmin()): ?>
                         <form method="post" style="margin:0;"
                               onsubmit="return confirm(<?= e(json_encode(__('confirm_clear_audit',
                                   "Permanently delete ALL audit entries for this site? This cannot be undone."))) ?>);">

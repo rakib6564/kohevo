@@ -12,16 +12,18 @@
  *   2. Lets you reset each suspect row to a safe default (or blank).
  *   3. Audit-logs every change.
  *
- * Locked to Super Admin (role_id=1) — there's no separate permission
- * because this is a recovery tool. After running it once and saving
- * fresh values on /admin/settings.php, you can delete this file from
- * the server if you want.
+ * Delegable via the existing `settings.edit` permission (Phase 0I RBAC
+ * audit) — every key this tool can touch is already settable to ANY
+ * value via /admin/settings.php under settings.edit; this tool can only
+ * reset a flagged key to one fixed, hardcoded safe default, never an
+ * arbitrary value, so it grants no capability beyond what settings.edit
+ * already permits. No new permission key was introduced for it.
  */
 require_once dirname(__DIR__) . '/config.php';
 Auth::require();
-if (!Auth::isSuperAdmin()) {
+if (!Auth::can('settings.edit') && !Auth::isSuperAdmin()) {
     http_response_code(403);
-    echo '<h1>403 Forbidden</h1><p>Super Admin only.</p>';
+    echo '<h1>403 Forbidden</h1><p>You do not have permission to access this tool.</p>';
     exit;
 }
 
