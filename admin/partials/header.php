@@ -248,6 +248,24 @@ if (Auth::isPlatformSuperAdmin()) {
         'group' => 'platform',
     ];
     $coreNav[] = [
+        'slug'  => 'licenses',
+        'label' => __('licenses', 'Licenses'),
+        'href'  => SLATE_URL . '/admin/licenses.php',
+        'icon'  => 'key',
+        'perm'  => null,
+        'order' => 20,
+        'group' => 'platform',
+    ];
+    $coreNav[] = [
+        'slug'  => 'plans',
+        'label' => __('plans', 'Plans'),
+        'href'  => SLATE_URL . '/admin/plans.php',
+        'icon'  => 'tag',
+        'perm'  => null,
+        'order' => 30,
+        'group' => 'platform',
+    ];
+    $coreNav[] = [
         'slug'  => 'platform-admins',
         'label' => __('platform_admins', 'Platform Administrators'),
         'href'  => SLATE_URL . '/admin/platform-admins.php',

@@ -61,7 +61,20 @@ class PluginLoader {
      * request continues without them.
      */
     public static function boot(): void {
-        if (self::$booted) return;
+        // Phase 1E C1 — activate()/deactivate()/uninstall() each null out
+        // $activeSlugs with a "// Invalidate caches" comment, intending to
+        // force isActive() to rebuild it on the next call (isActive():
+        // `if (self::$activeSlugs === null) self::boot();`). But this guard
+        // — $booted alone — made that a no-op forever after the request's
+        // first boot(): once true, boot() always returned immediately
+        // without rebuilding $activeSlugs, so isActive() kept evaluating
+        // isset(null[$slug]) (always false) for every plugin, for the rest
+        // of the process, after ANY single activate/deactivate/uninstall
+        // call. Found via EntitlementService's tests, which — as the first
+        // security-relevant caller chaining through isActive() — are the
+        // first code in this app to actually depend on it staying correct
+        // after another test in the same process toggles a plugin.
+        if (self::$booted && self::$activeSlugs !== null) return;
         self::$booted = true;
 
         try {

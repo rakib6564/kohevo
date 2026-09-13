@@ -135,7 +135,7 @@ final class TenantService
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
-        $sql .= ' ORDER BY t.created_at DESC';
+        $sql .= ' ORDER BY t.created_at DESC, t.id DESC';
 
         // anti-drift-ignore: TENANT — this IS the cross-tenant listing platform admins need; there is no single current_tenant_id() to scope a "list every tenant" query to
         return \Database::rows($sql, $params);

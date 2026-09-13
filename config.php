@@ -157,3 +157,18 @@ Hook::addAction('stripe_webhook_event', function (array $event): void {
         ]);
     } catch (\Throwable $e) { /* never break the webhook */ }
 });
+
+// ── License expiry sweep (Phase 1E C2) ───────────────────────
+// Persists the trial/active -> expired transition once a day. Not the only
+// place expiry is detected — LicenseService::effectiveStatus() (used by
+// EntitlementService on every access check) already reports it lazily in
+// the meantime, so entitlement decisions are never stale between cron
+// runs; this just keeps the stored `licenses.status` column itself
+// truthful without waiting on the next entitlement check to trigger it.
+Hook::addAction('daily_cron', function (): void {
+    try {
+        \Slate\Services\Licensing\LicenseService::sweepExpired();
+    } catch (\Throwable $e) {
+        slate_log('License expiry sweep failed: ' . $e->getMessage(), 'error');
+    }
+});
