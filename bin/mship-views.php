@@ -1,4 +1,9 @@
 <?php
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "Run from the CLI: php bin/mship-views.php\n");
+    exit(1);
+}
+
 define('SLATE_CLI', true);
 require dirname(__DIR__) . '/config.php';
 
