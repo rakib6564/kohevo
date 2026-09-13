@@ -245,7 +245,28 @@ class Auth {
         $user = $_SESSION['slate_user'] ?? null;
         if (!is_array($user) || empty($user['id'])) return false;
         try {
-            if (!(new SessionRepository(new TenantContext()))->validateAndTouch((int)$user['id'], session_id())) {
+            // Phase 1E B2 — pin session-row lookup to the SESSION'S OWN
+            // recorded home tenant (set at login, never client-controlled),
+            // not to whatever current_tenant_id() would otherwise resolve
+            // to. Without this, activating the platform-admin tenant-switch
+            // override ($_SESSION['slate_override_tenant']) breaks session
+            // validation on the very next request: SessionRepository's
+            // admin_sessions lookup is tenant-scoped via Repository::query(),
+            // which reads current_tenant_id() — and once the override is
+            // active that resolves to the TARGET tenant, not the tenant the
+            // admin_sessions row was actually registered under (the admin's
+            // own home tenant), so validateAndTouch() would find no row and
+            // silently log the platform admin out mid-switch. A session's
+            // identity is tied to where it was created, independent of
+            // whatever tenant context it's currently viewing — runAs() (the
+            // same primitive current_tenant_id()'s own override-authorization
+            // branch already uses) makes that explicit rather than implicit.
+            $homeTenant = (int)($user['tenant_id'] ?? 0);
+            $tenants    = new TenantContext();
+            $valid = $homeTenant > 0
+                ? $tenants->runAs($homeTenant, fn() => (new SessionRepository($tenants))->validateAndTouch((int)$user['id'], session_id()))
+                : (new SessionRepository($tenants))->validateAndTouch((int)$user['id'], session_id());
+            if (!$valid) {
                 unset($_SESSION['slate_user']);
                 return false;
             }

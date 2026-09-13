@@ -239,6 +239,15 @@ $coreNav = [
 // platform_admins members, never see this group at all.
 if (Auth::isPlatformSuperAdmin()) {
     $coreNav[] = [
+        'slug'  => 'tenants',
+        'label' => __('tenants', 'Tenants'),
+        'href'  => SLATE_URL . '/admin/tenants.php',
+        'icon'  => 'building-2',
+        'perm'  => null,
+        'order' => 10,
+        'group' => 'platform',
+    ];
+    $coreNav[] = [
         'slug'  => 'platform-admins',
         'label' => __('platform_admins', 'Platform Administrators'),
         'href'  => SLATE_URL . '/admin/platform-admins.php',
@@ -1925,3 +1934,23 @@ if (!function_exists('slate_admin_nav_icon')) {
 
         <!-- ─── Main content ─────────────────────────────── -->
         <main class="content" id="content">
+        <?php if (isset($_SESSION['slate_override_tenant'])):
+            // Phase 1E B2 — visible for the whole duration of a platform
+            // admin's tenant-switch. Deliberately reads the SESSION KEY
+            // directly (not current_tenant_id()) so this can never render
+            // for anyone who didn't go through admin/tenants.php's "Enter
+            // Tenant" action, regardless of what current_tenant_id() itself
+            // resolves to for other reasons (CLI override, etc).
+            $_platformModeTenant = Database::row("SELECT name FROM tenants WHERE id = ?", [(int) $_SESSION['slate_override_tenant']]);
+        ?>
+            <div class="alert alert-warning" role="status" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;">
+                <span>
+                    <strong><?= __('platform_mode', 'PLATFORM MODE') ?></strong>
+                    — <?= __('viewing', 'Viewing') ?>: <?= e($_platformModeTenant['name'] ?? ('#' . (int) $_SESSION['slate_override_tenant'])) ?>
+                </span>
+                <form method="post" action="<?= e(SLATE_URL) ?>/admin/exit-tenant.php" style="margin:0;">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm"><?= __('exit_tenant', 'Exit Tenant') ?></button>
+                </form>
+            </div>
+        <?php unset($_platformModeTenant); endif; ?>
