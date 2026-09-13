@@ -18,10 +18,23 @@
  *   - back to /shop/checkout with an error (failure / cancelled)
  *
  * The webhook (payment_intent.succeeded) is the source of truth for
- * order creation. If it fired before this return-URL hit, the order
- * is already in the DB and we just redirect to confirmation. If it
- * hasn't fired yet, we wait a moment and check again, then either
- * create the order ourselves or bounce to checkout.
+ * order creation and can genuinely race with this file on the same row
+ * (both look up by payment_intent_id). That race is closed by an atomic
+ * conditional claim — see the "Atomically claim" comment below — using
+ * the same status='claimed' mechanism webhook.php's completePayment()
+ * and success.php use. If the webhook (or another return.php hit) wins
+ * the claim first, we wait a moment and check again for its order_id,
+ * then either use it or bounce to checkout — this is what this docblock
+ * always claimed to do, now actually implemented.
+ *
+ * KNOWN RESIDUAL GAP (tracked separately, not closed by this fix):
+ * StripePayment::handleEmbeddedCheckout() looks up this same row by
+ * payment_intent_id but never reads status — it is blind to this claim,
+ * exactly as this file was blind to webhook.php's claim before this fix.
+ * A concurrent handleEmbeddedCheckout() call can still independently
+ * reach ShopAPI::checkoutCart() regardless of what this file does. Closing
+ * that requires also fixing handleEmbeddedCheckout() (tracked as its own
+ * finding) with the same claim semantics.
  */
 
 $root = realpath(__DIR__ . '/../../..');
@@ -116,9 +129,55 @@ if (empty($billing['email'])) {
     exit;
 }
 
-$res = ShopAPI::checkoutCart($row['shop_sid'], $billing);
+// Atomically claim this row before doing any work — closes the TOCTOU
+// between the order_id check above and the mapping write below. Without
+// this, a concurrent webhook.php delivery (or another return.php hit on
+// the same session, e.g. a slow bank redirect retried) can pass the same
+// order_id check and independently reach ShopAPI::checkoutCart(), creating
+// a second real order; it has no de-duplication of its own. Same atomic
+// conditional UPDATE and state name ('claimed') as webhook.php's
+// completePayment() and success.php — see webhook.php for the full
+// mechanics writeup. Does NOT protect against handleEmbeddedCheckout(),
+// which never reads status — see the docblock's KNOWN RESIDUAL GAP note.
+$claimed = Database::update(
+    'stripepayment_sessions',
+    ['status' => 'claimed'],
+    'id = ? AND order_id IS NULL AND status != ?',
+    [(int)$row['id'], 'claimed']
+);
+
+if ($claimed === 0) {
+    // Someone else — webhook.php, or another return.php hit on the same
+    // session — is either actively processing this row or has already
+    // finished. Give the in-flight case a short, tightly bounded window to
+    // land rather than immediately reporting failure for what may actually
+    // be a success in progress.
+    $winner = returnWaitForCompletion((int)$row['id']);
+    if ($winner !== null) {
+        $order = ShopAPI::order((int)$winner['order_id']);
+        if ($order) {
+            $key = !empty($order['view_token']) ? $order['view_token'] : $order['order_number'];
+            header('Location: ' . SLATE_URL . '/shop/order?key=' . urlencode($key));
+            exit;
+        }
+    }
+    slate_log("Stripe return.php: claim unavailable for payment_intent $piId (row {$row['id']})", 'warning');
+    header('Location: ' . SLATE_URL . '/shop/checkout?error=order_failed');
+    exit;
+}
+
+try {
+    $res = ShopAPI::checkoutCart($row['shop_sid'], $billing);
+} catch (\Throwable $e) {
+    slate_log('Stripe return.php checkoutCart threw: ' . $e->getMessage(), 'error');
+    returnReleaseClaim((int)$row['id']);
+    header('Location: ' . SLATE_URL . '/shop/checkout?error=order_failed');
+    exit;
+}
+
 if (empty($res['ok']) || empty($res['order_id'])) {
     slate_log('Stripe return.php order creation failed: ' . ($res['error'] ?? '?'), 'error');
+    returnReleaseClaim((int)$row['id']);
     header('Location: ' . SLATE_URL . '/shop/checkout?error=order_failed');
     exit;
 }
@@ -152,3 +211,52 @@ if (!$order) {
 $key = !empty($order['view_token']) ? $order['view_token'] : $order['order_number'];
 header('Location: ' . SLATE_URL . '/shop/order?key=' . urlencode($key));
 exit;
+
+// ──────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────
+
+/**
+ * Best-effort release of the 'claimed' state back to 'pending' so a later
+ * retry (a page reload, or the webhook) can attempt this row again. Called
+ * only on a checkout failure path that already redirects to
+ * ?error=order_failed — never on success, where the row moves straight to
+ * 'completed' instead. Named distinctly from webhook.php's releaseClaim()
+ * and success.php's successReleaseClaim(), since all three files are
+ * separate top-level entry scripts; not shared, per the current scope (no
+ * shared helper yet).
+ */
+function returnReleaseClaim(int $rowId): void {
+    try {
+        Database::update('stripepayment_sessions', ['status' => 'pending'], 'id = ?', [$rowId]);
+    } catch (\Throwable $e) {
+        slate_log("Stripe return.php: failed to release claim on row $rowId: " . $e->getMessage(), 'warning');
+    }
+}
+
+/**
+ * Short, tightly bounded wait for a concurrent completion (webhook.php, or
+ * another return.php hit on the same session) to finish claiming this row,
+ * used only when our own claim attempt was rejected. Not a polling loop or
+ * a long-lived wait — a fixed handful of very short re-reads (5 x 100ms =
+ * 500ms worst case, only on the rare collision path). Returns the row once
+ * order_id is populated, or null if it never lands within the window.
+ *
+ * Does not, and cannot, observe a competing handleEmbeddedCheckout() call:
+ * that function never claims the row (see the file docblock's KNOWN
+ * RESIDUAL GAP note) — this wait only ever finds an order_id here if
+ * webhook.php or another return.php hit wrote it via the claim protocol.
+ */
+function returnWaitForCompletion(int $rowId): ?array {
+    for ($i = 0; $i < 5; $i++) {
+        usleep(100000);
+        $fresh = Database::row(
+            "SELECT order_id FROM stripepayment_sessions WHERE id = ?",
+            [$rowId]
+        );
+        if ($fresh && !empty($fresh['order_id'])) {
+            return $fresh;
+        }
+    }
+    return null;
+}
