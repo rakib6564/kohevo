@@ -5,6 +5,8 @@ use Slate\Presentation\BlockRegistryProjection;
 use Slate\Presentation\CompilationMetadata;
 use Slate\Presentation\DocumentOperations;
 use Slate\Presentation\EditorStateSerializer;
+use Slate\Presentation\GlobalReferenceResolver;
+use Slate\Presentation\Theme\ThemeSlotBinding;
 use Slate\Presentation\FieldSchema;
 use Slate\Services\Content\PreviewService;
 use Slate\Presentation\Rendering\CallbackBlock;
@@ -79,3 +81,14 @@ $preview = (new PreviewService($previewCompiler, []))->render($previewDocument, 
 assert_eq('<main data-preview="1"></main>', $preview['html'], 'preview uses the shared compiler capability');
 assert_eq('noindex, nofollow', $preview['headers']['X-Robots-Tag'], 'preview is non-indexable');
 assert_eq('no-store', $preview['headers']['Cache-Control'], 'preview bypasses cache');
+
+$slots = ThemeSlotBinding::fromArray(['header_block_id' => '12', 'footer_block_id' => 13]);
+assert_eq(12, $slots->headerBlockId, 'theme slot IDs normalize numeric strings');
+assert_eq(['header_block_id' => 12, 'footer_block_id' => 13], $slots->jsonSerialize(), 'theme slots serialize canonically');
+
+$global = GlobalReferenceResolver::resolve(['$ref' => 'global-header'], [
+    'global-header' => ['type' => 'hero', 'props' => ['heading' => 'Header']],
+]);
+assert_eq('hero', $global['type'], 'global references resolve to stored block definitions');
+assert_throws(\InvalidArgumentException::class, fn () => GlobalReferenceResolver::resolve(['$ref' => 'missing'], []));
+assert_throws(\InvalidArgumentException::class, fn () => GlobalReferenceResolver::resolve(['$ref' => 'a'], ['a' => ['$ref' => 'a']]));
