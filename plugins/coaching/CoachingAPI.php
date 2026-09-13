@@ -296,14 +296,27 @@ class CoachingAPI {
             $status = 'not_achieved';
         }
         $tid = current_tenant_id();
+
+        // goal_id is caller-supplied and otherwise unchecked — verify the
+        // goal itself belongs to this customer/tenant before touching any
+        // check-in row for it. Without this, the lookup below matched on
+        // goal_id+day alone, so submitting someone else's goal_id let a
+        // customer overwrite that goal's existing check-in (status/note)
+        // for that day, no matter who it actually belonged to.
+        $goal = Database::row(
+            'SELECT id FROM coaching_goal WHERE id = ? AND customer_id = ? AND tenant_id = ?',
+            [$goalId, $customerId, $tid]
+        );
+        if (!$goal) return 0;
+
         $existing = Database::row(
-            "SELECT id FROM coaching_goal_checkin WHERE goal_id = ? AND day = ?",
-            [$goalId, $day]
+            'SELECT id FROM coaching_goal_checkin WHERE goal_id = ? AND customer_id = ? AND tenant_id = ? AND day = ?',
+            [$goalId, $customerId, $tid, $day]
         );
         if ($existing) {
             Database::update('coaching_goal_checkin',
                 ['status' => $status, 'note' => $note ?: null],
-                'id = ?', [(int)$existing['id']]
+                'id = ? AND customer_id = ? AND tenant_id = ?', [(int)$existing['id'], $customerId, $tid]
             );
             return (int)$existing['id'];
         }
