@@ -80,9 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         Database::setSetting('booking.twilio_sid',           trim((string)($_POST['twilio_sid'] ?? '')));
         Database::setSetting('booking.twilio_sms_from',      trim((string)($_POST['twilio_sms_from'] ?? '')));
         Database::setSetting('booking.twilio_whatsapp_from', trim((string)($_POST['twilio_whatsapp_from'] ?? '')));
-        // Token is write-only: only overwrite when a new value is supplied.
+        // Token is write-only (like the Google client secret above) and
+        // stored encrypted at rest via slate_encrypt_secret(); only
+        // overwrite when a new value is supplied.
         $token = trim((string)($_POST['twilio_token'] ?? ''));
-        if ($token !== '') Database::setSetting('booking.twilio_token', $token);
+        if ($token !== '') Database::setSetting('booking.twilio_token', slate_encrypt_secret($token));
 
         // The seam. Booking owns this screen, this form and this POST; a
         // plugin that needs a booking setting contributes a card via

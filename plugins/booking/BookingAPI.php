@@ -2160,7 +2160,7 @@ class BookingAPI {
     /** Low-level Twilio Messages API call. Credentials from settings. */
     private static function twilioSend(string $from, string $to, string $body): bool {
         $sid   = (string) Database::setting('booking.twilio_sid');
-        $token = (string) Database::setting('booking.twilio_token');
+        $token = (string) slate_decrypt_secret((string) Database::setting('booking.twilio_token'));
         if ($sid === '' || $token === '' || !function_exists('curl_init')) return false;
 
         $ch = curl_init('https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode($sid) . '/Messages.json');
