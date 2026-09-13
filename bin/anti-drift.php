@@ -68,6 +68,11 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "Run from the CLI: php bin/anti-drift.php\n");
+    exit(1);
+}
+
 $root = dirname(__DIR__);
 $args = array_slice($argv, 1);
 $mode = in_array('--update-baseline', $args, true) ? 'update'
