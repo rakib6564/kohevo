@@ -21,7 +21,7 @@
  *   smtp_oauth_client_secret  (encrypted)
  *   smtp_oauth_refresh_token  (encrypted)
  *   smtp_oauth_email          mailbox / SMTP "user="
- *   smtp_oauth_access_token   cached short-lived token
+ *   smtp_oauth_access_token   cached short-lived token (encrypted)
  *   smtp_oauth_expires        unix ts the cached token expires
  */
 
@@ -76,8 +76,9 @@ if (interface_exists('PHPMailer\\PHPMailer\\OAuthTokenProvider')) {
          * rotated refresh token, which Microsoft returns on every refresh).
          */
         private function accessToken(): string {
-            $cached  = (string)Database::setting('smtp_oauth_access_token');
-            $expires = (int)Database::setting('smtp_oauth_expires');
+            $cachedRaw = (string)Database::setting('smtp_oauth_access_token');
+            $cached    = function_exists('slate_decrypt_secret') ? (string)(slate_decrypt_secret($cachedRaw) ?? $cachedRaw) : $cachedRaw;
+            $expires   = (int)Database::setting('smtp_oauth_expires');
             if ($cached !== '' && $expires > time() + 60) {
                 return $cached;
             }
@@ -89,7 +90,7 @@ if (interface_exists('PHPMailer\\PHPMailer\\OAuthTokenProvider')) {
             }
             $access = (string)($data['access_token'] ?? '');
             $ttl    = (int)($data['expires_in'] ?? 3600);
-            Database::setSetting('smtp_oauth_access_token', $access);
+            Database::setSetting('smtp_oauth_access_token', function_exists('slate_encrypt_secret') ? slate_encrypt_secret($access) : $access);
             Database::setSetting('smtp_oauth_expires', (string)(time() + $ttl));
             // Microsoft rotates refresh tokens; persist the new one if returned.
             if (!empty($data['refresh_token']) && function_exists('slate_encrypt_secret')) {

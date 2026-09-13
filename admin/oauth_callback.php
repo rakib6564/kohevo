@@ -75,7 +75,8 @@ Database::setSetting('smtp_oauth_client_secret', $enc ? slate_encrypt_secret($cl
 Database::setSetting('smtp_oauth_refresh_token', $enc ? slate_encrypt_secret($refresh) : $refresh);
 
 // Cache the access token we just received so the first send doesn't re-refresh.
-Database::setSetting('smtp_oauth_access_token', (string)($data['access_token'] ?? ''));
+$accessToken = (string)($data['access_token'] ?? '');
+Database::setSetting('smtp_oauth_access_token', $enc ? slate_encrypt_secret($accessToken) : $accessToken);
 Database::setSetting('smtp_oauth_expires', (string)(time() + (int)($data['expires_in'] ?? 3600)));
 
 // Point SMTP transport at the provider and use the mailbox as the From/user.
