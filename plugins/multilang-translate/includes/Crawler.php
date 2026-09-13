@@ -179,8 +179,8 @@ class MLT_Crawler {
             CURLOPT_CONNECTTIMEOUT => 2,
             CURLOPT_TIMEOUT => 7,
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
         $body = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -208,9 +208,16 @@ class MLT_Crawler {
         return strlen($out) <= 2048 ? $out : null;
     }
 
+    /** Port to compare with, defaulting per scheme when the URL has none explicit. */
+    private static function effectivePort(string $url): int {
+        $port = parse_url($url, PHP_URL_PORT);
+        if (is_int($port)) return $port;
+        return strtolower((string)parse_url($url, PHP_URL_SCHEME)) === 'https' ? 443 : 80;
+    }
+
     private static function sameHost(string $url, string $base): bool {
         $host = strtolower((string)parse_url($url, PHP_URL_HOST));
         $baseHost = strtolower((string)parse_url($base, PHP_URL_HOST));
-        return $host !== '' && $host === $baseHost;
+        return $host !== '' && $host === $baseHost && self::effectivePort($url) === self::effectivePort($base);
     }
 }
