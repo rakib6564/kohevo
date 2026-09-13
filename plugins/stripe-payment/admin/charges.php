@@ -14,7 +14,7 @@ require_once dirname(__DIR__, 3) . '/config.php';
 require_once dirname(__DIR__) . '/StripePaymentAPI.php';
 
 Auth::require();
-Auth::requirePerm('stripe.manage_settings');
+Auth::requirePerm('stripe.manage_charges');
 
 StripePaymentAPI::ensureChargesSchema();
 

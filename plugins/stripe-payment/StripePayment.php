@@ -68,7 +68,11 @@ class StripePayment extends Plugin {
     // ── Admin nav ─────────────────────────────────────────────
 
     public function addAdminNav(array $items): array {
-        if (!Auth::can('stripe.manage_settings') && !Auth::isSuperAdmin()) return $items;
+        // Either permission earns a look at this block — the per-item
+        // 'perm' below then shows only the one item each caller actually
+        // holds. A settings-only or charges-only role must still see its
+        // one nav entry; only holding neither hides both.
+        if (!Auth::can('stripe.manage_settings') && !Auth::can('stripe.manage_charges') && !Auth::isSuperAdmin()) return $items;
 
         // Stripe settings live under SHOP if Shop is active (where most
         // users find them), otherwise under SYSTEM. Charges are always
@@ -89,7 +93,7 @@ class StripePayment extends Plugin {
             'label'  => __('stripe_charges', 'Transaction history'),
             'href'   => $this->url('admin/charges.php'),
             'icon'   => 'bar-chart-3',
-            'perm'   => 'stripe.manage_settings',
+            'perm'   => 'stripe.manage_charges',
             'order'  => $shopActive ? 521 : 721,
             'group'  => $shopActive ? 'shop' : 'system',
         ];
@@ -100,7 +104,7 @@ class StripePayment extends Plugin {
 
     /** Recent charge activity. Only registered while the plugin is active. */
     public function addDashboardWidget(array $widgets): array {
-        if (!Auth::can('stripe.manage_settings') && !Auth::isSuperAdmin()) return $widgets;
+        if (!Auth::can('stripe.manage_charges') && !Auth::isSuperAdmin()) return $widgets;
         $tid = current_tenant_id();
         try {
             $todayCount = (int) Database::value(
