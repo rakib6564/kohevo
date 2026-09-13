@@ -135,6 +135,12 @@ class Auth {
     public static function attemptLogin(string $email, string $password): bool {
         self::$lastLoginThrottled = false;
         self::$lastLoginNeedsMfa = false;
+        // Same normalization attemptCustomerLogin() already applies — the
+        // `users.email` column is case-insensitive collation so this never
+        // changes which row the lookup below matches; it only makes the
+        // identifier used for login_attempts consistent regardless of the
+        // casing/whitespace this particular request happened to submit.
+        $email = strtolower(trim($email));
         if (self::loginBlockedSeconds('admin') > 0) {
             self::$lastLoginThrottled = true;
             return false;
@@ -185,7 +191,7 @@ class Auth {
         ];
         self::recordAdminSession((int)$user['id'], $previousSessionId);
 
-        self::clearLoginFailures('admin');
+        self::clearLoginFailures('admin', $user['email']);
         \Hook::doAction('user_logged_in', (int)$user['id']);
         return true;
     }
@@ -451,7 +457,11 @@ class Auth {
         self::recordAdminSession($userId, $previousSessionId);
         unset($_SESSION['slate_mfa_pending']);
         \Database::update('users', ['last_login_at' => slate_db_now()], 'id = ?', [$userId]);
-        self::clearLoginFailures('admin');
+        // Same reset-scoping as attemptLogin() — this is the MFA-gated
+        // completion of the same login, not a separate mechanism; leaving
+        // this call unscoped would keep the reset-bypass open for every
+        // MFA-enrolled (typically higher-privilege) admin account.
+        self::clearLoginFailures('admin', $user['email']);
         \Hook::doAction('user_logged_in', $userId);
         return true;
     }
@@ -509,6 +519,17 @@ class Auth {
         return $remaining > 0 ? $remaining : 0;
     }
 
+    /**
+     * Same trim()+lowercase normalization attemptCustomerLogin() already
+     * applies to its own $email before using it — reused here so every
+     * identifier written to or matched against login_attempts is
+     * consistent, regardless of which scope or which caller's original
+     * casing/whitespace produced it.
+     */
+    private static function normalizeIdentifier(string $identifier): string {
+        return mb_strtolower(trim($identifier), 'UTF-8');
+    }
+
     public static function recordLoginFailure(string $scope, string $identifier): void {
         [$max] = self::throttleConfig();
         if ($max <= 0) return;
@@ -518,20 +539,58 @@ class Auth {
                 'tenant_id'  => current_tenant_id(),
                 'scope'      => $scope,
                 'ip'         => self::clientIp(),
-                'identifier' => mb_substr($identifier, 0, 190),
+                'identifier' => mb_substr(self::normalizeIdentifier($identifier), 0, 190),
             ]);
         } catch (\Throwable $e) {
             // Throttling must never block a login on infra error.
         }
     }
 
-    public static function clearLoginFailures(string $scope): void {
+    /**
+     * Clears recorded failures for this scope+IP after a successful login.
+     *
+     * $identifier, when given, narrows the clear to the account that just
+     * authenticated: `scope + ip + identifier`, never just `scope + ip`.
+     * Without it, a successful login anywhere on a shared IP (including an
+     * attacker's own throwaway account) wiped out every OTHER account's
+     * accumulated failures on that IP too — the account dimension was
+     * recorded (see recordLoginFailure()) but never used to scope the
+     * reset, so the shared bucket could be cleared by anyone who could log
+     * into anything from that IP, letting a brute-force attempt against one
+     * victim be repeated indefinitely between the attacker's own successful
+     * logins. The failure COUNT/lockout-check query (loginBlockedSeconds())
+     * is deliberately left keyed by scope+ip only — narrowing counting to
+     * scope+ip+account as well would let an attacker spray many distinct
+     * target identifiers from one IP without ever tripping the existing
+     * IP-wide lock, which is the opposite of what this fix is for.
+     *
+     * $identifier defaults to '' (clear everything for this scope+ip, the
+     * historical behavior) only to keep existing test/utility call sites
+     * that intentionally want a full reset working unchanged; every
+     * production login-success call site now always passes its own
+     * account's identifier.
+     */
+    public static function clearLoginFailures(string $scope, string $identifier = ''): void {
         if (!self::$loginAttemptsSchemaChecked) self::ensureLoginAttemptsSchema();
         try {
-            \Database::query(
-                "DELETE FROM login_attempts WHERE scope = ? AND ip = ?",
-                [$scope, self::clientIp()]
-            );
+            if ($identifier === '') {
+                \Database::query(
+                    "DELETE FROM login_attempts WHERE scope = ? AND ip = ?",
+                    [$scope, self::clientIp()]
+                );
+            } else {
+                // anti-drift-ignore: TENANT — login_attempts is intentionally
+                // not tenant-scoped on read (see tests/isolation.php and the
+                // sibling scope+ip-only DELETE just above, already baselined):
+                // brute-force throttling is meant to apply per IP across the
+                // whole install, not reset itself at a tenant boundary. This
+                // query adds identifier-scoping for the reset-bypass fix; it
+                // does not change that pre-existing, documented characteristic.
+                \Database::query(
+                    "DELETE FROM login_attempts WHERE scope = ? AND ip = ? AND identifier = ?",
+                    [$scope, self::clientIp(), self::normalizeIdentifier($identifier)]
+                );
+            }
         } catch (\Throwable $e) {
             // best-effort
         }
@@ -681,7 +740,7 @@ class Auth {
             'tenant_id' => $contact->tenantId,
         ];
 
-        self::clearLoginFailures('customer');
+        self::clearLoginFailures('customer', $email);
         \Hook::doAction('customer_logged_in', $contact->id);
         return true;
     }
