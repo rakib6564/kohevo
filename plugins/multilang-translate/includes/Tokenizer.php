@@ -116,7 +116,15 @@ class MLT_Tokenizer {
         if ($normalized === '' || mb_strlen($normalized) > 2000) return $raw;
 
         $replacement = $onText($normalized, $core, 'text');
-        return $lead . ($replacement !== null ? $replacement : $core) . $trail;
+        // $replacement is a stored translation (untrusted: writable by anyone
+        // holding mlt.manage) being spliced into a TEXT NODE position in live
+        // page HTML — it must be HTML-escaped exactly like any other value
+        // rendered into that context (the project's own e() helper, used
+        // everywhere else text reaches markup, e.g. the translation grid's
+        // own <textarea> at admin/index.php:166). $core is NOT re-escaped
+        // here: it is already-live markup carried over unchanged from the
+        // page that was passed in, not new output being constructed.
+        return $lead . ($replacement !== null ? e($replacement) : $core) . $trail;
     }
 
     private static function translateAttrs(string $tagHtml, string $tag, callable $onText): string {
