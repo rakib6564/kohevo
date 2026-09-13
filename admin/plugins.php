@@ -188,36 +188,50 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         // ─── Activate ──────────────────────────────────────────
         elseif ($action === 'activate') {
-            $slug = trim((string)($_POST['slug'] ?? ''));
-            if ($slug === '') {
-                $flash = ['type' => 'error', 'msg' => __('missing_slug', 'Missing plugin slug.')];
+            // The `plugins` table is global, with no tenant_id column (Phase 1
+            // audit H4) — activating a plugin turns on its hooks/routes for
+            // every tenant on this install. Genuinely platform-level, same as
+            // upload/uninstall, not something the tenant-scoped plugins.manage
+            // permission alone should authorize.
+            if (!Auth::isPlatformSuperAdmin()) {
+                $flash = ['type' => 'error', 'msg' => __('only_super_admin', 'Only super-admins can activate plugins.')];
             } else {
-                $res = PluginLoader::activate($slug);
-                if ($res['ok']) {
-                    AuditLog::record('plugin.activated', $slug);
-                    $flash = ['type' => 'success',
-                              'msg' => sprintf(__('plugin_activated', 'Plugin "%s" activated.'), $slug)];
+                $slug = trim((string)($_POST['slug'] ?? ''));
+                if ($slug === '') {
+                    $flash = ['type' => 'error', 'msg' => __('missing_slug', 'Missing plugin slug.')];
                 } else {
-                    $flash = ['type' => 'error', 'msg' => $res['error']];
+                    $res = PluginLoader::activate($slug);
+                    if ($res['ok']) {
+                        AuditLog::record('plugin.activated', $slug);
+                        $flash = ['type' => 'success',
+                                  'msg' => sprintf(__('plugin_activated', 'Plugin "%s" activated.'), $slug)];
+                    } else {
+                        $flash = ['type' => 'error', 'msg' => $res['error']];
+                    }
                 }
             }
         }
 
         // ─── Deactivate ────────────────────────────────────────
         elseif ($action === 'deactivate') {
-            $slug = trim((string)($_POST['slug'] ?? ''));
-            if ($slug === '') {
-                $flash = ['type' => 'error', 'msg' => __('missing_slug', 'Missing plugin slug.')];
-            } elseif (slate_is_system_plugin($slug)) {
-                $flash = ['type' => 'error', 'msg' => __('system_plugin_locked', 'This is a system plugin and can\'t be deactivated.')];
+            // Same platform-level reasoning as activate() above.
+            if (!Auth::isPlatformSuperAdmin()) {
+                $flash = ['type' => 'error', 'msg' => __('only_super_admin', 'Only super-admins can deactivate plugins.')];
             } else {
-                $res = PluginLoader::deactivate($slug);
-                if ($res['ok']) {
-                    AuditLog::record('plugin.deactivated', $slug);
-                    $flash = ['type' => 'success',
-                              'msg' => sprintf(__('plugin_deactivated', 'Plugin "%s" deactivated.'), $slug)];
+                $slug = trim((string)($_POST['slug'] ?? ''));
+                if ($slug === '') {
+                    $flash = ['type' => 'error', 'msg' => __('missing_slug', 'Missing plugin slug.')];
+                } elseif (slate_is_system_plugin($slug)) {
+                    $flash = ['type' => 'error', 'msg' => __('system_plugin_locked', 'This is a system plugin and can\'t be deactivated.')];
                 } else {
-                    $flash = ['type' => 'error', 'msg' => $res['error']];
+                    $res = PluginLoader::deactivate($slug);
+                    if ($res['ok']) {
+                        AuditLog::record('plugin.deactivated', $slug);
+                        $flash = ['type' => 'success',
+                                  'msg' => sprintf(__('plugin_deactivated', 'Plugin "%s" deactivated.'), $slug)];
+                    } else {
+                        $flash = ['type' => 'error', 'msg' => $res['error']];
+                    }
                 }
             }
         }
