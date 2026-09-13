@@ -17,6 +17,14 @@
  * Idempotency: all three paths (hosted success.php / embedded handler /
  * webhook) look up the same mapping row in stripepayment_sessions.
  * Whichever runs first stamps order_id; the others see it and exit.
+ * This webhook's OWN internal race — two overlapping deliveries of the
+ * same event (a Stripe retry, or genuinely concurrent delivery) both
+ * reaching completePayment() for the same row before either one stamps
+ * order_id — is closed by an atomic claim (see completePayment()). A race
+ * between THIS webhook and one of the other two paths (success.php /
+ * embedded handler) is not addressed here — each still uses the older,
+ * unguarded check-then-act pattern this file used before this fix, and is
+ * tracked as a separate concern.
  *
  * Security: every request is signature-verified with HMAC-SHA256
  * against the configured webhook_secret. Unsigned and stale (>5min)
@@ -185,8 +193,11 @@ function lookupMappingRow(string $column, string $value): ?array {
  * - Row not found → log + HTTP 200 (so Stripe stops retrying; there's
  *   no way to recover a payment we have no cart mapping for).
  * - Row already has order_id → idempotent skip + HTTP 200.
- * - Otherwise: build billing, create order, stamp row, set order
- *   status to 'processing' (paid).
+ * - Otherwise: atomically claim the row (status: pending/abandoned →
+ *   'claimed'), build billing, create order, stamp row, set the shop
+ *   order's own status to 'processing' (paid). A checkout failure
+ *   releases the claim back to 'pending' before the existing 500
+ *   (Stripe-will-retry) response.
  */
 function completePayment(?array $row, string $stripeId, array $customerDetails, int $paidCents = 0, string $paidCurrency = ''): void {
     if (!$row) {
@@ -241,10 +252,53 @@ function completePayment(?array $row, string $stripeId, array $customerDetails, 
         return;
     }
 
+    // Atomic claim — closes the TOCTOU between the order_id check above and
+    // the order_id write below. Two overlapping deliveries of the same
+    // webhook event (Stripe's own retry, or a genuinely concurrent second
+    // delivery) both pass the `!empty($row['order_id'])` check above before
+    // either one writes back; without this, both go on to call
+    // ShopAPI::checkoutCart() and create two real, independent orders — it
+    // has no de-duplication of its own (verified by reading its archived
+    // source: cartItems()/createOrder() carry no uniqueness tied to
+    // shop_sid or this mapping row).
+    //
+    // A single conditional UPDATE is atomic per-statement under InnoDB row
+    // locking: a second concurrent caller's UPDATE blocks until the first
+    // commits, then re-evaluates the WHERE clause against the now-committed
+    // row and affects zero rows. No explicit transaction or locking read is
+    // needed — reproduced live with two real concurrent processes racing
+    // this exact statement before this fix was written.
+    //
+    // Known trade-off, accepted rather than adding a staleness/expiry
+    // mechanism (which would need a new timestamp column): if the process
+    // dies between claiming and either releasing or completing — a fatal
+    // no \Throwable catch below can see, e.g. an OOM kill — the row is
+    // stuck at status='claimed' until manually reset. This mirrors an
+    // existing gap in this same function (the mapping-write failure caught
+    // at the bottom of this function today is already log-only, no
+    // auto-recovery) rather than introducing a materially new risk class.
+    //
+    // Named 'claimed', not 'processing', to stay unambiguous next to
+    // ShopAPI::updateStatus($orderId, 'processing') a few lines down below
+    // — that sets the unrelated shop_orders row's own status; this is the
+    // stripepayment_sessions mapping row's claim state.
+    $claimed = Database::update(
+        'stripepayment_sessions',
+        ['status' => 'claimed'],
+        'id = ? AND order_id IS NULL AND status != ?',
+        [(int)$row['id'], 'claimed']
+    );
+    if ($claimed === 0) {
+        http_response_code(200);
+        echo 'already claimed or processed';
+        return;
+    }
+
     try {
         $res = ShopAPI::checkoutCart($row['shop_sid'], $billing);
     } catch (\Throwable $e) {
         slate_log('Stripe webhook checkoutCart threw: ' . $e->getMessage(), 'error');
+        releaseClaim((int)$row['id']);
         http_response_code(500);
         echo 'order creation failed';
         return;
@@ -254,6 +308,7 @@ function completePayment(?array $row, string $stripeId, array $customerDetails, 
         slate_log('Stripe webhook order creation failed: ' . ($res['error'] ?? '?'), 'error');
         // Return 500 — Stripe will retry the webhook later. If the
         // failure is transient (DB down), eventually we'll succeed.
+        releaseClaim((int)$row['id']);
         http_response_code(500);
         echo 'order creation failed';
         return;
@@ -281,4 +336,19 @@ function completePayment(?array $row, string $stripeId, array $customerDetails, 
 
     http_response_code(200);
     echo 'ok';
+}
+
+/**
+ * Best-effort release of the 'claimed' state back to 'pending' so a later
+ * retry (Stripe's own, or a subsequent concurrent delivery) can attempt
+ * this row again. Called only on a checkout failure that the existing code
+ * already catches and responds to with a 500 (transient-failure retry) —
+ * never on success, where the row moves straight to 'completed' instead.
+ */
+function releaseClaim(int $rowId): void {
+    try {
+        Database::update('stripepayment_sessions', ['status' => 'pending'], 'id = ?', [$rowId]);
+    } catch (\Throwable $e) {
+        slate_log("Stripe webhook: failed to release claim on row $rowId: " . $e->getMessage(), 'warning');
+    }
 }
