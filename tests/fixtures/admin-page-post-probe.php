@@ -16,7 +16,14 @@
  * `platform_admins` member, or a real tenant-scoped role id to test ordinary
  * permission-based access.
  *
- * Usage: php tests/fixtures/admin-page-post-probe.php <page> <postFieldsJson> [roleId=1] [platformAdmin=0]
+ * tenantOverride, if given, sets $GLOBALS['SLATE_TENANT_OVERRIDE'] before
+ * config.php boots, so current_tenant_id() resolves to it for the whole
+ * request — the same global TenantContext::runAs() uses. This simulates a
+ * request being served for a tenant other than this checkout's ambient
+ * TENANT_ID, for probing whether a page's own queries actually scope by
+ * tenant_id rather than trusting it.
+ *
+ * Usage: php tests/fixtures/admin-page-post-probe.php <page> <postFieldsJson> [roleId=1] [platformAdmin=0] [tenantOverride='']
  *
  * Prints:
  *     STATUS <code>
@@ -31,11 +38,16 @@ $page     = $argv[1] ?? '';
 $postJson = $argv[2] ?? '{}';
 $roleId   = isset($argv[3]) && $argv[3] !== '' ? (int) $argv[3] : 1;
 $grantPlatformAdmin = ($argv[4] ?? '0') === '1';
-if ($page === '') { fwrite(STDERR, "usage: admin-page-post-probe.php <page> <postFieldsJson> [roleId] [platformAdmin]\n"); exit(2); }
+$tenantOverride = isset($argv[5]) && $argv[5] !== '' ? (int) $argv[5] : null;
+if ($page === '') { fwrite(STDERR, "usage: admin-page-post-probe.php <page> <postFieldsJson> [roleId] [platformAdmin] [tenantOverride]\n"); exit(2); }
 
 $root = dirname(__DIR__, 2);
 $file = $root . '/' . ltrim($page, '/');
 if (!is_file($file)) { fwrite(STDERR, "no such page: {$file}\n"); exit(2); }
+
+if ($tenantOverride !== null) {
+    $GLOBALS['SLATE_TENANT_OVERRIDE'] = $tenantOverride;
+}
 
 require $root . '/config.php';
 

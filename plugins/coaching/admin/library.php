@@ -117,10 +117,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $flash = ['type' => 'success', 'msg' => 'Copied to client.'];
         }
         elseif ($action === 'save_customer_recipe_note') {
+            // Every sibling action in this file (saveRecipe/deleteRecipe, and
+            // their meal-structure/shopping-list equivalents) scopes by
+            // `tenant_id = ?`; this one didn't, so a staff member in ANY
+            // tenant with coaching.manage_library could overwrite another
+            // tenant's customer-submitted recipe note by id alone.
             $rid = (int)($_POST['id'] ?? 0);
-            $r = Database::row("SELECT * FROM coaching_recipe WHERE id = ?", [$rid]);
+            $tid = current_tenant_id();
+            $r = Database::row("SELECT * FROM coaching_recipe WHERE id = ? AND tenant_id = ?", [$rid, $tid]);
             if ($r) {
-                Database::update('coaching_recipe', ['notes' => trim((string)($_POST['notes'] ?? ''))], 'id = ?', [$rid]);
+                Database::update('coaching_recipe', ['notes' => trim((string)($_POST['notes'] ?? ''))], 'id = ? AND tenant_id = ?', [$rid, $tid]);
                 $flash = ['type' => 'success', 'msg' => 'Note saved.'];
             }
         }
