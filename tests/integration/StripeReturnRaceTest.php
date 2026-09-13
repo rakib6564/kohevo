@@ -387,18 +387,19 @@ unit('C4 fix: plugins/stripe-payment/public/return.php ships the atomic claim be
     assert_true(!preg_match('/(->|::)\s*handleEmbeddedCheckout\s*\(\s*\$/', $src), 'return.php must not call handleEmbeddedCheckout() — that stays out of scope for C4 (mentioning it by name in a comment, e.g. to document the residual gap, is fine)');
 });
 
-unit('C4 scope: StripePayment.php is unmodified by this finding (handleEmbeddedCheckout() untouched)', function (): void {
-    // A lightweight scope guard, not a behavioral test: confirms the C4
-    // commit did not touch the file containing handleEmbeddedCheckout(),
-    // consistent with the approved "do not modify handleEmbeddedCheckout()
-    // in C4" constraint. This only checks the function is still present
-    // and still uses its own (unfixed) pattern — it does not assert
-    // anything new about its internals, which are out of scope.
+unit('C4 scope: handleEmbeddedCheckout() still exists with its original signature (superseded check — see note)', function (): void {
+    // At C4-commit-time this test additionally asserted that
+    // handleEmbeddedCheckout() must NOT yet contain a claim mechanism —
+    // a valid scope guard confirming the C4 commit hadn't accidentally
+    // done C5's work. Phase 1D C5 has since deliberately and separately
+    // added that exact mechanism to handleEmbeddedCheckout() (see
+    // StripeEmbeddedCheckoutRaceTest.php), so that assertion is now
+    // obsolete rather than a regression to guard against — removed here
+    // rather than left to permanently fail. The signature check remains
+    // meaningful: this file's own claim/wait logic (return.php) still
+    // must not have been refactored into calling or wrapping
+    // handleEmbeddedCheckout() directly.
     $src = file_get_contents(dirname(__DIR__, 2) . '/plugins/stripe-payment/StripePayment.php');
     $fnPos = strpos($src, 'public function handleEmbeddedCheckout(string $sid, array $billing): array {');
-    assert_true($fnPos !== false, 'handleEmbeddedCheckout() must still exist, unchanged in signature');
-
-    $fnEnd = strpos($src, "\n    }\n", $fnPos);
-    $fnBody = substr($src, $fnPos, ($fnEnd !== false ? $fnEnd - $fnPos : 3000));
-    assert_true(!str_contains($fnBody, "'status' => 'claimed'"), 'handleEmbeddedCheckout() must NOT contain a claim mechanism yet — confirming it is genuinely untouched by C4, not accidentally already fixed');
+    assert_true($fnPos !== false, 'handleEmbeddedCheckout() must still exist, with its original signature');
 });

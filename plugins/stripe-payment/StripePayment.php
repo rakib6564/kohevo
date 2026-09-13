@@ -667,6 +667,21 @@ class StripePayment extends Plugin {
      * which intent to verify. We re-verify the status against Stripe
      * (never trust the client), create the order, and return synchronously
      * — no redirect needed since payment is already complete.
+     *
+     * This looks up the same stripepayment_sessions row (by
+     * payment_intent_id) as webhook.php's payment_intent.succeeded handler
+     * and return.php's 3DS-redirect handler, and can genuinely race with
+     * either of them, or with a second concurrent call to this same method
+     * (e.g. a double place-order submit). That race is closed by the same
+     * atomic status='claimed' conditional-UPDATE mechanism webhook.php's
+     * completePayment(), success.php, and return.php use — see the
+     * "Atomically claim" comment below. Unlike those three top-level entry
+     * scripts, this is a class method with no header()/exit() anywhere in
+     * it — every path returns an array — so the claim/release/wait logic
+     * here is implemented as private methods (embeddedReleaseClaim(),
+     * embeddedWaitForCompletion()) rather than copied as bare functions,
+     * and the wait-on-rejection outcome is translated into this function's
+     * own existing return shapes rather than any redirect.
      */
     public function handleEmbeddedCheckout(string $sid, array $billing): array {
         if (!class_exists('StripeAPI')) {
@@ -729,11 +744,53 @@ class StripePayment extends Plugin {
             slate_log('Stripe embedded billing update failed: ' . $e->getMessage(), 'warning');
         }
 
+        // Atomically claim this row before doing any work — closes the
+        // TOCTOU between the order_id check above and the mapping write
+        // below. Without this, a concurrent webhook.php delivery, a
+        // concurrent return.php hit, or a second concurrent call to this
+        // same method (e.g. a double place-order submit) can pass the same
+        // order_id check and independently reach ShopAPI::checkoutCart(),
+        // creating a second real order; it has no de-duplication of its
+        // own. Same atomic conditional UPDATE and state name ('claimed')
+        // as webhook.php's completePayment(), success.php, and return.php
+        // — see webhook.php for the full mechanics writeup.
+        $claimed = Database::update(
+            'stripepayment_sessions',
+            ['status' => 'claimed'],
+            'id = ? AND order_id IS NULL AND status != ?',
+            [(int)$row['id'], 'claimed']
+        );
+
+        if ($claimed === 0) {
+            // Someone else — webhook.php, return.php, or another call to
+            // this same method — is either actively processing this row or
+            // has already finished. Give the in-flight case a short,
+            // tightly bounded window to land rather than immediately
+            // reporting failure for what may actually be a success in
+            // progress. Translate the outcome into this function's own
+            // existing return shapes (never a redirect).
+            $winner = $this->embeddedWaitForCompletion((int)$row['id']);
+            if ($winner !== null) {
+                return ['ok' => true, 'order_id' => (int)$winner['order_id']];
+            }
+            slate_log("Stripe embedded checkout: claim unavailable for $piId (row {$row['id']})", 'warning');
+            return ['ok' => false, 'error' =>
+                'Payment succeeded but order could not be recorded. Please contact us.'];
+        }
+
         // Create the order. Same path as success.php / webhook.php.
-        $res = ShopAPI::checkoutCart($sid, $billing);
+        try {
+            $res = ShopAPI::checkoutCart($sid, $billing);
+        } catch (\Throwable $e) {
+            slate_log('Stripe embedded checkoutCart threw: ' . $e->getMessage(), 'error');
+            $this->embeddedReleaseClaim((int)$row['id']);
+            return ['ok' => false, 'error' =>
+                'Payment succeeded but order could not be recorded. Please contact us.'];
+        }
         if (empty($res['ok']) || empty($res['order_id'])) {
             slate_log('Stripe embedded order creation failed: ' .
                 ($res['error'] ?? '?'), 'error');
+            $this->embeddedReleaseClaim((int)$row['id']);
             return ['ok' => false, 'error' => $res['error']
                 ?? 'Payment succeeded but order could not be recorded. Please contact us.'];
         }
@@ -763,6 +820,48 @@ class StripePayment extends Plugin {
         }
 
         return ['ok' => true, 'order_id' => $orderId];
+    }
+
+    /**
+     * Best-effort release of the 'claimed' state back to 'pending' so a
+     * later retry (a resubmitted place-order, or the webhook) can attempt
+     * this row again. Called only from handleEmbeddedCheckout()'s checkout
+     * failure paths — never on success, where the row moves straight to
+     * 'completed' instead. Named distinctly from webhook.php's
+     * releaseClaim(), success.php's successReleaseClaim(), and
+     * return.php's returnReleaseClaim(): all four call sites implement the
+     * same claim protocol independently (no shared helper yet), matching
+     * the approved scope for this fix.
+     */
+    private function embeddedReleaseClaim(int $rowId): void {
+        try {
+            Database::update('stripepayment_sessions', ['status' => 'pending'], 'id = ?', [$rowId]);
+        } catch (\Throwable $e) {
+            slate_log("Stripe embedded checkout: failed to release claim on row $rowId: " . $e->getMessage(), 'warning');
+        }
+    }
+
+    /**
+     * Short, tightly bounded wait for a concurrent completion (webhook.php,
+     * return.php, or another call to handleEmbeddedCheckout()) to finish
+     * claiming this row, used only when our own claim attempt was
+     * rejected. Not a polling loop or a long-lived wait — a fixed handful
+     * of very short re-reads (5 x 100ms = 500ms worst case, only on the
+     * rare collision path). Returns the row once order_id is populated, or
+     * null if it never lands within the window.
+     */
+    private function embeddedWaitForCompletion(int $rowId): ?array {
+        for ($i = 0; $i < 5; $i++) {
+            usleep(100000);
+            $fresh = Database::row(
+                "SELECT order_id FROM stripepayment_sessions WHERE id = ?",
+                [$rowId]
+            );
+            if ($fresh && !empty($fresh['order_id'])) {
+                return $fresh;
+            }
+        }
+        return null;
     }
 
     // ── Schema ────────────────────────────────────────────────
