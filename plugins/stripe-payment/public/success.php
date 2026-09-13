@@ -15,9 +15,15 @@
  *   5. Otherwise we verify payment status with Stripe, create the order,
  *      mark the mapping completed, clear the cart, redirect.
  *
- * The webhook (webhook.php) does the same thing server-to-server. Either
- * path can win — whichever fires first creates the order; the other one
- * sees the existing order_id in the mapping table and skips.
+ * The webhook (webhook.php) does the same thing server-to-server, and can
+ * genuinely race with this file on the same row (both look up by
+ * stripe_session_id for the hosted flow). That race is closed by an atomic
+ * conditional claim — see the "Atomically claim" comment below — using the
+ * same status='claimed' mechanism webhook.php's completePayment() uses.
+ * (The embedded flow's return.php / handleEmbeddedCheckout() cannot reach
+ * this same row: hosted rows always have payment_intent_id NULL and
+ * embedded rows always have stripe_session_id NULL, so they never overlap
+ * with this lookup.)
  */
 
 $root = realpath(__DIR__ . '/../../..');
@@ -137,12 +143,59 @@ foreach ($fallback as $k => $v) {
     if (empty($billing[$k])) $billing[$k] = $v;
 }
 
+// Atomically claim this row before doing any work — closes the TOCTOU
+// between the order_id check above and the mapping write below. Without
+// this, a concurrent webhook.php delivery (or another success.php hit on
+// the same session, e.g. a reload or double-click) can pass the same
+// order_id check and independently reach ShopAPI::checkoutCart(), creating
+// a second real order; it has no de-duplication of its own. Same atomic
+// conditional UPDATE and state name ('claimed') as webhook.php's
+// completePayment() — see that file for the full mechanics writeup. A
+// single conditional UPDATE is atomic per-statement under InnoDB row
+// locking, reproduced live against this exact row/query shape.
+$claimed = Database::update(
+    'stripepayment_sessions',
+    ['status' => 'claimed'],
+    'id = ? AND order_id IS NULL AND status != ?',
+    [(int)$row['id'], 'claimed']
+);
+
+if ($claimed === 0) {
+    // Someone else — webhook.php, or another success.php hit on the same
+    // session — is either actively processing this row or has already
+    // finished. Give the in-flight case a short, tightly bounded window to
+    // land (webhook delivery is normally near-instant server-to-server)
+    // rather than immediately reporting failure for what may actually be a
+    // success in progress. If order_id lands during the window we send the
+    // customer to that order instead of duplicating the work ourselves.
+    $winner = successWaitForCompletion((int)$row['id']);
+    if ($winner !== null) {
+        $order = ShopAPI::order((int)$winner['order_id']);
+        if ($order) {
+            $key = !empty($order['view_token']) ? $order['view_token'] : $order['order_number'];
+            header('Location: ' . SLATE_URL . '/shop/order?key=' . urlencode($key));
+            exit;
+        }
+    }
+    slate_log("Stripe success.php: claim unavailable for session $sessionId (row {$row['id']})", 'warning');
+    header('Location: ' . SLATE_URL . '/shop/checkout?error=order_failed');
+    exit;
+}
+
 // Create the order via Shop. checkoutCart clears the cart on success.
-$res = ShopAPI::checkoutCart($row['shop_sid'], $billing);
+try {
+    $res = ShopAPI::checkoutCart($row['shop_sid'], $billing);
+} catch (\Throwable $e) {
+    slate_log('Stripe success.php checkoutCart threw: ' . $e->getMessage(), 'error');
+    successReleaseClaim((int)$row['id']);
+    header('Location: ' . SLATE_URL . '/shop/checkout?error=order_failed');
+    exit;
+}
 
 if (empty($res['ok']) || empty($res['order_id'])) {
     slate_log('Stripe success.php order creation failed: ' .
         ($res['error'] ?? '?'), 'error');
+    successReleaseClaim((int)$row['id']);
     header('Location: ' . SLATE_URL . '/shop/checkout?error=order_failed');
     exit;
 }
@@ -157,8 +210,10 @@ $paidCurrency = strtoupper((string)($stripeSession['currency'] ?? ''));
 $recon        = ShopAPI::reconcilePaidAmount($orderId, $paidCents, $paidCurrency);
 
 // Stamp the order_id back onto the mapping row + mark the order as paid.
-// Use a transaction so a concurrent webhook can't also create a second
-// order between our check and this update.
+// The atomic claim above already prevents a concurrent webhook.php (or
+// another success.php hit) from reaching this point for the same row —
+// no transaction is needed here, and none was actually in effect before
+// this fix despite what an earlier version of this comment claimed.
 try {
     Database::update('stripepayment_sessions', [
         'order_id'     => $orderId,
@@ -186,3 +241,46 @@ if (!$order) {
 $key = !empty($order['view_token']) ? $order['view_token'] : $order['order_number'];
 header('Location: ' . SLATE_URL . '/shop/order?key=' . urlencode($key));
 exit;
+
+// ──────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────
+
+/**
+ * Best-effort release of the 'claimed' state back to 'pending' so a later
+ * retry (a page reload, or the webhook) can attempt this row again. Called
+ * only on a checkout failure path that already redirects to
+ * ?error=order_failed — never on success, where the row moves straight to
+ * 'completed' instead. Named distinctly from webhook.php's own
+ * releaseClaim() since both files are separate top-level entry scripts;
+ * not shared, per the current scope (no shared helper yet).
+ */
+function successReleaseClaim(int $rowId): void {
+    try {
+        Database::update('stripepayment_sessions', ['status' => 'pending'], 'id = ?', [$rowId]);
+    } catch (\Throwable $e) {
+        slate_log("Stripe success.php: failed to release claim on row $rowId: " . $e->getMessage(), 'warning');
+    }
+}
+
+/**
+ * Short, tightly bounded wait for a concurrent completion (webhook.php, or
+ * another success.php hit on the same session) to finish claiming this row,
+ * used only when our own claim attempt was rejected. Not a polling loop or
+ * a long-lived wait — a fixed handful of very short re-reads (5 x 100ms =
+ * 500ms worst case, only on the rare collision path). Returns the row once
+ * order_id is populated, or null if it never lands within the window.
+ */
+function successWaitForCompletion(int $rowId): ?array {
+    for ($i = 0; $i < 5; $i++) {
+        usleep(100000);
+        $fresh = Database::row(
+            "SELECT order_id FROM stripepayment_sessions WHERE id = ?",
+            [$rowId]
+        );
+        if ($fresh && !empty($fresh['order_id'])) {
+            return $fresh;
+        }
+    }
+    return null;
+}
