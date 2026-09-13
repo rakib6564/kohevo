@@ -229,15 +229,32 @@ class BookingApiHandler {
             return;
         }
 
-        $appt = null;
-        if (is_numeric($refOrId)) {
-            $appt = BookingAPI::getAppointment((int)$refOrId);
+        $isStaff = !empty($auth['authenticated']) && ($auth['type'] ?? '') === 'mcp_token';
+
+        if ($isStaff) {
+            // An authenticated bearer token stands for a staff/integration
+            // caller (an MCP tool acting for the tenant), not a customer — it
+            // may look up any of ITS OWN tenant's appointments by id/ref.
+            // Scope explicitly to the token's own tenant via with_tenant(),
+            // the same convention McpGatewayAPI::handleApiRoute() already uses
+            // for every authenticated call, rather than trusting whatever the
+            // process's ambient current_tenant_id() happens to be.
+            $appt = with_tenant((int)$auth['tenant_id'], static function () use ($refOrId): ?array {
+                if (is_numeric($refOrId)) {
+                    return BookingAPI::getAppointment((int)$refOrId);
+                }
+                return BookingAPI::getAppointmentByRef($refOrId) ?? BookingAPI::findByManageToken($refOrId);
+            });
         } else {
-            $appt = BookingAPI::getAppointmentByRef($refOrId);
-            if (!$appt) {
-                // If not found by ref, check by manage_token via sanctioned helper
-                $appt = BookingAPI::findByManageToken($refOrId);
-            }
+            // No credential presented: the only thing that may authorize
+            // returning this appointment's PII to an anonymous caller is
+            // possession of its manage_token — the same 128-bit secret the
+            // confirmation email and the /book/manage page already require
+            // (BookingAPI::findByManageToken(), tenant-scoped internally). A
+            // raw numeric id or the public "BK-XXXXXXXX" reference is printed
+            // on receipts/confirmations and is not a secret, so neither may
+            // substitute for it here — that substitution was the bug.
+            $appt = BookingAPI::findByManageToken($refOrId);
         }
 
         if (!$appt) {
@@ -259,7 +276,18 @@ class BookingApiHandler {
     }
 
     private static function syncChanges(array $auth): void {
-        $tid = current_tenant_id();
+        // A bulk, all-appointments delta sync has no per-customer credential
+        // that could authorize it (unlike getAppointment(), a manage_token is
+        // scoped to exactly one appointment) — it is inherently a staff/
+        // integration operation, so it requires the same authenticated bearer
+        // token every other privileged /api/v1 caller needs, and is scoped to
+        // that token's own tenant rather than the process's ambient tenant.
+        if (empty($auth['authenticated']) || ($auth['type'] ?? '') !== 'mcp_token') {
+            ApiRouter::respondError('Unauthorized or expired API token.', 'UNAUTHORIZED', 401);
+            return;
+        }
+
+        $tid = (int)$auth['tenant_id'];
         $since = trim((string)($_GET['since'] ?? ''));
         $now = slate_db_now();
 
