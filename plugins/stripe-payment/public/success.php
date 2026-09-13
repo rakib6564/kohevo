@@ -55,6 +55,24 @@ if (!$row) {
     exit;
 }
 
+// Bind to the browser that actually ran this checkout — same invariant
+// return.php and handleEmbeddedCheckout() already enforce for their own
+// redirect-back paths. The `sid` query parameter is NOT sufficient on its
+// own here: Stripe echoes it straight back from the success_url we gave it
+// at session-creation time, so a full success.php URL leaked via Referer,
+// browser history, or a shared screenshot already carries a "matching" sid
+// alongside the session_id — checking $_GET['sid'] against itself would
+// prove nothing. The shop_sid COOKIE, set on this browser when its cart was
+// created (SameSite=Lax, so it does ride along on Stripe's top-level
+// redirect back here), is not part of that leaked artifact; only the
+// browser that actually owns this checkout still has it.
+$browserSid = (string)($_COOKIE['shop_sid'] ?? '');
+if ($browserSid === '' || !hash_equals((string)$row['shop_sid'], $browserSid)) {
+    slate_log("Stripe success.php: shop_sid mismatch on $sessionId", 'warning');
+    header('Location: ' . SLATE_URL . '/shop/checkout?error=missing');
+    exit;
+}
+
 // Already converted to an order? Just redirect to its confirmation page.
 if (!empty($row['order_id'])) {
     $order = ShopAPI::order((int)$row['order_id']);
