@@ -406,11 +406,11 @@ function forms_public_render_thanks(array $form, bool $embed): void {
         $last = $_SESSION['forms_last_pdf'] ?? null;
         if (is_array($last) && (int)($last['form'] ?? 0) === (int)$form['id'] && !empty($last['ref'])) {
             $ref = (string)$last['ref'];
-            $tok = forms_public_pdf_token($ref);
+            $tok = (string) forms_public_pdf_token($ref);
         }
     }
     $set = FormsAPI::formSettings($form['settings_json'] ?? null);
-    $showPdf = $ref !== '' && hash_equals(forms_public_pdf_token($ref), $tok) && $set['pdf_save_btn'] !== 'never';
+    $showPdf = $ref !== '' && slate_sign_equals('forms-pdf', $ref, $tok, 24) && $set['pdf_save_btn'] !== 'never';
     if ($showPdf && $set['pdf_save_btn'] === 'signed') {
         $sub  = Database::row("SELECT data_json FROM forms_submissions WHERE tenant_id = ? AND form_id = ? AND ref = ?",
                               [current_tenant_id(), (int)$form['id'], $ref]);
@@ -423,7 +423,7 @@ function forms_public_render_thanks(array $form, bool $embed): void {
     // Gated by the same valid ref+token check so a guessed ref can't reveal
     // someone else's submission.
     $summary  = [];
-    $validRef = $ref !== '' && hash_equals(forms_public_pdf_token($ref), $tok);
+    $validRef = $ref !== '' && slate_sign_equals('forms-pdf', $ref, $tok, 24);
     if ($validRef) {
         $subRow = Database::row("SELECT data_json FROM forms_submissions WHERE tenant_id = ? AND form_id = ? AND ref = ?",
                                 [current_tenant_id(), (int)$form['id'], $ref]);
