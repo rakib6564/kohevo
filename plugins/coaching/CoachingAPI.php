@@ -400,6 +400,18 @@ class CoachingAPI {
         ];
 
         if ($id > 0) {
+            // Verify ownership BEFORE touching anything, rather than relying on
+            // the UPDATE's own WHERE clause: Database::update()'s rowCount()
+            // reflects rows CHANGED, not rows matched (a PDO/MySQL quirk), so a
+            // no-op re-save of unchanged fields against an owned row would read
+            // as "0 affected" and be indistinguishable from a foreign id. A
+            // foreign $id must stop here — the foods replace below used to run
+            // unconditionally on $id regardless of whether this matched.
+            $owned = Database::row(
+                'SELECT id FROM coaching_diary_entry WHERE id = ? AND customer_id = ? AND tenant_id = ?',
+                [$id, $customerId, $tid]
+            );
+            if (!$owned) return 0;
             Database::update('coaching_diary_entry', $data, 'id = ? AND customer_id = ? AND tenant_id = ?', [$id, $customerId, $tid]);
         } else {
             $data['tenant_id']   = $tid;
@@ -441,8 +453,19 @@ class CoachingAPI {
         Database::update('coaching_diary_entry', ['summary' => $summary], 'id = ?', [$entryId]);
     }
 
-    public static function getDiaryEntry(int $entryId): ?array {
-        $row = Database::row("SELECT * FROM coaching_diary_entry WHERE id = ?", [$entryId]);
+    /**
+     * $customerId is required, not optional: every caller is customer-facing
+     * (plugins/coaching/customer/router.php) and already has the current
+     * customer's own id in scope. An unscoped lookup here previously let the
+     * AJAX save-entry response return ANY entry_id's full detail (notes,
+     * foods, photos) regardless of who submitted the request.
+     */
+    public static function getDiaryEntry(int $entryId, int $customerId): ?array {
+        $tid = current_tenant_id();
+        $row = Database::row(
+            'SELECT * FROM coaching_diary_entry WHERE id = ? AND customer_id = ? AND tenant_id = ?',
+            [$entryId, $customerId, $tid]
+        );
         if (!$row) return null;
         $row['foods']  = Database::rows("SELECT * FROM coaching_diary_food WHERE entry_id = ? ORDER BY sort_order", [$entryId]);
         $row['photos'] = Database::rows("SELECT * FROM coaching_diary_photo WHERE entry_id = ? ORDER BY sort_order", [$entryId]);

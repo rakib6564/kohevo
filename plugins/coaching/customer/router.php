@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $enrolled) {
                 CoachingAPI::saveDiaryPhoto($entryId, $_FILES['photo'], (string)($_POST['photo_caption'] ?? ''));
             }
             if ($isAjax) {
-                $savedEntry = CoachingAPI::getDiaryEntry($entryId);
+                $savedEntry = CoachingAPI::getDiaryEntry($entryId, $cid);
                 header('Content-Type: application/json');
                 echo json_encode([
                     'ok'         => true,
@@ -302,7 +302,7 @@ if (!isset($pageMeta[$view])) $view = 'home';
 if ($view === 'entry') {
     $peekId = (int)($_GET['id'] ?? 0);
     if ($peekId > 0) {
-        $peek = CoachingAPI::getDiaryEntry($peekId);
+        $peek = CoachingAPI::getDiaryEntry($peekId, $cid);
         if ($peek && (int)$peek['customer_id'] === $cid) {
             $eyebrow = 'Editing entry';
             $title   = date('l, j F', strtotime((string)$peek['day']));
@@ -1380,7 +1380,7 @@ function coaching_render_diary_photos_html(array $photos): string {
 
 function coaching_render_entry(int $cid, ?array $flash): void {
     $entryId = (int)($_GET['id'] ?? 0);
-    $entry   = $entryId > 0 ? CoachingAPI::getDiaryEntry($entryId) : null;
+    $entry   = $entryId > 0 ? CoachingAPI::getDiaryEntry($entryId, $cid) : null;
     if ($entry && (int)$entry['customer_id'] !== $cid) $entry = null;
 
     // Emotion preselected from ?emotion=key on the home mood picker.
