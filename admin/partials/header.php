@@ -232,6 +232,23 @@ $coreNav = [
     ],
 ];
 
+// Platform-level nav — gated directly on Auth::isPlatformSuperAdmin() rather
+// than a 'perm' key, since platform authority is not a per-tenant permission
+// (platform_admins carries no tenant_id — see migration 0013). Ordinary
+// tenant admins, including tenant Super Admins (role_id=1) who are NOT also
+// platform_admins members, never see this group at all.
+if (Auth::isPlatformSuperAdmin()) {
+    $coreNav[] = [
+        'slug'  => 'platform-admins',
+        'label' => __('platform_admins', 'Platform Administrators'),
+        'href'  => SLATE_URL . '/admin/platform-admins.php',
+        'icon'  => 'shield',
+        'perm'  => null,
+        'order' => 50,
+        'group' => 'platform',
+    ];
+}
+
 // 'editor', 'content-page', 'content-post', 'content-templates' and
 // 'content-menus' ship in core but only do anything once the optional
 // Content Builder plugin is installed — without it they're dead ends (the
@@ -319,6 +336,7 @@ unset($_navGroupKey, $item);
 // Navigation stay hidden while the optional Content Builder plugin isn't
 // installed (see the PluginLoader::isActive('content-builder') filter above).
 static $groupPriorities = [
+    'platform'      => 5,
     'overview'      => 10,
     'editor'        => 20,
     'shop'          => 40,
@@ -348,6 +366,7 @@ if (!function_exists('slate_admin_group_label')) {
         // checking __($key) first would pull in that unrelated string
         // instead of the label this sidebar section actually wants.
         static $defaults = [
+            'platform'      => 'Platform',
             'overview'      => 'Overview',
             'editor'        => 'Editor',
             'content'       => 'Content',

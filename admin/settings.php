@@ -629,6 +629,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::setSetting('brand_login_tagline',
                     mb_substr(trim((string)($_POST['login_tagline'] ?? '')), 0, 200));
 
+                // ── White-label identity / support info ────────────
+                // Read by admin/help.php and admin/login.php, which fall
+                // back to a hardcoded default until one of these is set.
+                if (!$flash) {
+                    $brandOwner    = mb_substr(trim((string)($_POST['brand_owner'] ?? '')), 0, 120);
+                    $brandOwnerUrl = trim((string)($_POST['brand_owner_url'] ?? ''));
+                    $supportEmail  = trim((string)($_POST['support_email'] ?? ''));
+                    $supportPhone  = mb_substr(trim((string)($_POST['support_phone'] ?? '')), 0, 40);
+                    $supportUrl    = trim((string)($_POST['support_url'] ?? ''));
+                    $docsUrl       = trim((string)($_POST['docs_url'] ?? ''));
+                    $privacyUrl    = trim((string)($_POST['privacy_url'] ?? ''));
+                    $termsUrl      = trim((string)($_POST['terms_url'] ?? ''));
+
+                    $urlFields = [
+                        'brand_owner_url' => ['value' => $brandOwnerUrl, 'label' => __('owner_website', 'Owner website')],
+                        'support_url'     => ['value' => $supportUrl,    'label' => __('support_url', 'Support URL')],
+                        'docs_url'        => ['value' => $docsUrl,       'label' => __('docs_url', 'Documentation URL')],
+                        'privacy_url'     => ['value' => $privacyUrl,    'label' => __('privacy_url', 'Privacy policy URL')],
+                        'terms_url'       => ['value' => $termsUrl,      'label' => __('terms_url', 'Terms of service URL')],
+                    ];
+                    foreach ($urlFields as $key => $f) {
+                        if ($f['value'] !== '' && !filter_var($f['value'], FILTER_VALIDATE_URL)) {
+                            $flash = ['type' => 'error', 'msg' => sprintf(__('url_invalid', '%s must be a valid URL.'), $f['label'])];
+                            break;
+                        }
+                    }
+
+                    if (!$flash && $supportEmail !== '' && !filter_var($supportEmail, FILTER_VALIDATE_EMAIL)) {
+                        $flash = ['type' => 'error', 'msg' => __('support_email_invalid', 'Support email must be a valid email address.')];
+                    }
+
+                    if (!$flash) {
+                        Database::setSetting('brand_owner', $brandOwner);
+                        Database::setSetting('brand_owner_url', $brandOwnerUrl);
+                        Database::setSetting('support_email', $supportEmail);
+                        Database::setSetting('support_phone', $supportPhone);
+                        Database::setSetting('support_url', $supportUrl);
+                        Database::setSetting('docs_url', $docsUrl);
+                        Database::setSetting('privacy_url', $privacyUrl);
+                        Database::setSetting('terms_url', $termsUrl);
+                    }
+                }
+
                 if (!$flash) {
                     AuditLog::record('settings.updated', 'branding');
                     $redirectWithFlash(['type' => 'success', 'msg' => __('settings_saved', 'Settings saved.')], $activeTab);
@@ -799,6 +842,16 @@ $brandSet = [
     'border_radius' => in_array((string)Database::setting('brand_border_radius'),
                           ['none', 'small', 'medium', 'large', 'pill'], true)
                         ? (string)Database::setting('brand_border_radius') : 'medium',
+    // White-label identity / support info. help.php and login.php fall back
+    // to a hardcoded default until one of these is actually set.
+    'owner'         => $_safeText(Database::setting('brand_owner'), 120),
+    'owner_url'     => $_safeText(Database::setting('brand_owner_url'), 300),
+    'support_email' => $_safeText(Database::setting('support_email'), 190),
+    'support_phone' => $_safeText(Database::setting('support_phone'), 40),
+    'support_url'   => $_safeText(Database::setting('support_url'), 300),
+    'docs_url'      => $_safeText(Database::setting('docs_url'), 300),
+    'privacy_url'   => $_safeText(Database::setting('privacy_url'), 300),
+    'terms_url'     => $_safeText(Database::setting('terms_url'), 300),
 ];
 $sys = [
     'maintenance_mode' => Database::setting('maintenance_mode') === '1',
@@ -3720,6 +3773,76 @@ slate_render_settings_tabs($activeTab);
                        maxlength="200" placeholder="<?= e(__('login_tagline_ph', 'Capturing moments, creating memories')) ?>"
                        <?= $canEdit ? '' : 'disabled' ?>>
                 <div class="field-hint"><?= __('login_tagline_hint', 'Optional. Displayed over the login image. Leave blank to hide.') ?></div>
+            </div>
+
+            <h3 style="margin-top:28px;"><?= __('white_label_heading', 'White label & support') ?></h3>
+            <p class="field-hint" style="margin-top:-4px;">
+                <?= __('white_label_intro', 'Shown on the Help page and login screen instead of the built-in defaults.') ?>
+            </p>
+
+            <div class="field">
+                <label class="field-label" for="brand_owner"><?= __('owner_name', 'Owner / company name') ?></label>
+                <input type="text" id="brand_owner" name="brand_owner"
+                       value="<?= e($brandSet['owner']) ?>" maxlength="120"
+                       placeholder="<?= e(__('owner_name_ph', 'Your company name')) ?>"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="brand_owner_url"><?= __('owner_website', 'Owner website') ?></label>
+                <input type="url" id="brand_owner_url" name="brand_owner_url"
+                       value="<?= e($brandSet['owner_url']) ?>" maxlength="300"
+                       placeholder="https://example.com"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="support_email"><?= __('support_email', 'Support email') ?></label>
+                <input type="email" id="support_email" name="support_email"
+                       value="<?= e($brandSet['support_email']) ?>" maxlength="190"
+                       placeholder="support@example.com"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+                <div class="field-hint"><?= __('support_email_hint', 'Support tickets from the Help page are sent here.') ?></div>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="support_phone"><?= __('support_phone', 'Support phone') ?></label>
+                <input type="text" id="support_phone" name="support_phone"
+                       value="<?= e($brandSet['support_phone']) ?>" maxlength="40"
+                       placeholder="+1 555 0100"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="support_url"><?= __('support_url', 'Support URL') ?></label>
+                <input type="url" id="support_url" name="support_url"
+                       value="<?= e($brandSet['support_url']) ?>" maxlength="300"
+                       placeholder="https://example.com/support"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="docs_url"><?= __('docs_url', 'Documentation URL') ?></label>
+                <input type="url" id="docs_url" name="docs_url"
+                       value="<?= e($brandSet['docs_url']) ?>" maxlength="300"
+                       placeholder="https://example.com/docs"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="privacy_url"><?= __('privacy_url', 'Privacy policy URL') ?></label>
+                <input type="url" id="privacy_url" name="privacy_url"
+                       value="<?= e($brandSet['privacy_url']) ?>" maxlength="300"
+                       placeholder="https://example.com/privacy"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="terms_url"><?= __('terms_url', 'Terms of service URL') ?></label>
+                <input type="url" id="terms_url" name="terms_url"
+                       value="<?= e($brandSet['terms_url']) ?>" maxlength="300"
+                       placeholder="https://example.com/terms"
+                       <?= $canEdit ? '' : 'disabled' ?>>
             </div>
 
             <?php if ($canEdit): ?>
