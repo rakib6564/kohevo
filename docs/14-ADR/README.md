@@ -49,6 +49,7 @@ reversed.
 | [0011](0011-money-value-object.md) | `Money` value object (integer minor units) platform-wide |
 | [0012](0012-swappable-driver-interfaces.md) | Swappable driver interfaces for shared-hosting↔enterprise |
 | [0013](0013-namespace-strategy-and-src-layout.md) | Namespace strategy & `src/` layout (`Slate\…` → `src/`, 10 layer namespaces) |
+| [0014](0014-structured-builder-contracts-and-derived-html.md) | Structured builder contracts and derived `content_html` |
 
 ADRs 0001–0012 correspond to [01-Architecture §8](../01-Architecture/README.md);
 0013+ are added as new structural decisions are ratified (per the amend-first
