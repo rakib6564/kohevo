@@ -197,10 +197,20 @@ final class LegacyBlockBridge
         ], ['quote' => 'A thoughtful experience from start to finish.', 'author' => 'Happy customer', 'role' => 'Client']), static fn (array $p, RenderContext $c): string => '<section class="cb-testimonial"><figure class="cb-testimonial-inner"><blockquote class="cb-testimonial-quote">&ldquo;' . \e((string)($p['quote'] ?? '')) . '&rdquo;</blockquote><figcaption class="cb-testimonial-cite"><span><b class="cb-testimonial-author">' . \e((string)($p['author'] ?? '')) . '</b><span class="cb-testimonial-role">' . \e((string)($p['role'] ?? '')) . '</span></span></figcaption></figure></section>'));
         $registry->register(new CallbackBlock('columns', FieldSchema::of([
             ['key' => 'columns', 'type' => 'number', 'label' => 'Columns'], ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
-        ], ['columns' => 2, 'gap' => 24]), static function (array $p, RenderContext $c): string { $n = max(1, min(4, (int)($p['columns'] ?? 2))); $items = ''; for ($i = 1; $i <= $n; $i++) $items .= '<div class="cb-card"><h3 class="cb-card-title">Column ' . $i . '</h3><p class="cb-card-text">Drop blocks here</p></div>'; return '<div class="cb-columns cb-cols-' . $n . '" style="gap:' . max(0, min(80, (int)($p['gap'] ?? 24))) . 'px">' . $items . '</div>'; }));
+        ], ['columns' => 2, 'gap' => 24, 'cols' => [['blocks' => []], ['blocks' => []]]]), static function (array $p, RenderContext $c): string {
+            $n = max(1, min(4, (int)($p['columns'] ?? count((array)($p['cols'] ?? [])) ?: 2)));
+            $cols = is_array($p['cols'] ?? null) ? $p['cols'] : [];
+            $items = '';
+            for ($i = 0; $i < $n; $i++) {
+                $blocks = is_array($cols[$i]['blocks'] ?? null) ? $cols[$i]['blocks'] : [];
+                $inner = self::renderNestedBlocks($blocks);
+                $items .= '<div class="cb-col" data-col-index="' . $i . '">' . ($inner !== '' ? $inner : '<div class="cb-card"><h3 class="cb-card-title">Column ' . ($i + 1) . '</h3><p class="cb-card-text">Drop widgets here</p></div>') . '</div>';
+            }
+            return '<div class="cb-columns cb-cols-' . $n . '" style="gap:' . max(0, min(80, (int)($p['gap'] ?? 24))) . 'px">' . $items . '</div>';
+        }));
         $registry->register(new CallbackBlock('container', FieldSchema::of([
             ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
-        ], ['heading' => 'Container', 'content' => 'Add content inside this container']), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner" style="padding:24px;border:1px dashed #94a3b8;border-radius:10px"><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>'));
+        ], ['heading' => 'Container', 'content' => 'Add content inside this container', 'children' => []]), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner cb-container" style="padding:24px;border:1px dashed #94a3b8;border-radius:10px"><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p>' . self::renderNestedBlocks(is_array($p['children'] ?? null) ? $p['children'] : []) . '</div>'));
         $registry->register(new CallbackBlock('icon-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-icon-grid')));
         $registry->register(new CallbackBlock('image-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-image-grid')));
 
@@ -231,6 +241,37 @@ final class LegacyBlockBridge
         $cards = '';
         foreach (['Simple and clear', 'Built for you', 'Made to last'] as $title) $cards .= '<div class="cb-card"><span class="cb-card-icon">✦</span><h3 class="cb-card-title">' . \e($title) . '</h3><p class="cb-card-text">A concise description that makes this section useful immediately.</p></div>';
         return '<section class="cb-section ' . $class . '"><div class="cb-section-inner"><span class="cb-eyebrow">' . \e((string)($p['eyebrow'] ?? '')) . '</span><h2 class="cb-section-title">' . \e((string)($p['heading'] ?? '')) . '</h2><div class="cb-grid cb-grid-' . $cols . '">' . $cards . '</div></div></section>';
+    }
+
+    private static function renderNestedBlocks(array $blocks): string
+    {
+        $out = '';
+        foreach ($blocks as $block) {
+            if (!is_array($block)) continue;
+            $type = (string)($block['type'] ?? '');
+            $p = is_array($block['props'] ?? null) ? $block['props'] : [];
+            if ($type === 'heading') {
+                $level = max(1, min(6, (int)($p['level'] ?? 2)));
+                $out .= '<h' . $level . ' class="cb-heading">' . \e((string)($p['text'] ?? 'Heading')) . '</h' . $level . '>';
+            } elseif ($type === 'paragraph') {
+                $out .= '<p class="cb-paragraph">' . nl2br(\e((string)($p['text'] ?? 'Paragraph text'))) . '</p>';
+            } elseif ($type === 'button') {
+                $out .= '<a class="cb-btn cb-btn-primary" href="' . \e(\slate_safe_url((string)($p['href'] ?? '#'))) . '">' . \e((string)($p['text'] ?? 'Button')) . '</a>';
+            } elseif ($type === 'container' || $type === 'columns') {
+                $out .= '<div class="cb-nested-widget">' . self::renderNestedBlocks($type === 'container' ? (array)($p['children'] ?? []) : self::flattenColumns($p)) . '</div>';
+            } else {
+                $label = ucfirst(str_replace('-', ' ', $type ?: 'Widget'));
+                $out .= '<div class="cb-nested-widget"><strong>' . \e($label) . '</strong></div>';
+            }
+        }
+        return $out;
+    }
+
+    private static function flattenColumns(array $props): array
+    {
+        $out = [];
+        foreach ((array)($props['cols'] ?? []) as $col) foreach ((array)($col['blocks'] ?? []) as $block) $out[] = $block;
+        return $out;
     }
 
     /** @param array<string,mixed>|null $media */

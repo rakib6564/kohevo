@@ -1419,6 +1419,23 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             }
         }
 
+        // Elementor behavior: when a container or section structure is selected,
+        // a palette widget is inserted into that structure rather than beside it.
+        if (!pendingInsertTarget && selectedBlockIndex >= 0 && !selectedNestedPath?.length) {
+            const selected = layout[selectedBlockIndex];
+            if (selected?.type === 'container') {
+                selected.props = selected.props || {};
+                selected.props.children = selected.props.children || [];
+                pendingInsertTarget = { topIdx: selectedBlockIndex, path: [{ slot: 'children', index: selected.props.children.length }] };
+            } else if (selected?.type === 'columns') {
+                selected.props = selected.props || {};
+                selected.props.cols = selected.props.cols || [{ blocks: [] }, { blocks: [] }];
+                selected.props.cols[0] = selected.props.cols[0] || { blocks: [] };
+                selected.props.cols[0].blocks = selected.props.cols[0].blocks || [];
+                pendingInsertTarget = { topIdx: selectedBlockIndex, path: [{ slot: 'col', col: 0, index: selected.props.cols[0].blocks.length }] };
+            }
+        }
+
         // Inserting into a Columns/Flex Container slot rather than the top-level layout?
         if (pendingInsertTarget) {
             const { topIdx, path } = pendingInsertTarget;
