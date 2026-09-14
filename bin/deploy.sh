@@ -129,6 +129,9 @@ RSYNC_ARGS=(
     --exclude 'node_modules/'  --exclude '.DS_Store'
     --exclude '*.bak'          --exclude '*.bak-*'
     --exclude '.slate-deploy-target'
+    --exclude '*.zip'            # local backups/exports, never app code
+    --exclude 'auth.php'         # server-side devops agent, not part of this app
+    --exclude '.slate_agent_config.json'  # that agent's paired cPanel credentials
 )
 
 if [ "$DRY" -eq 1 ]; then
