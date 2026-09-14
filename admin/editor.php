@@ -1013,6 +1013,18 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         }
         return getSlotArray(block, path[path.length - 1]);
     }
+    function moveNestedBlock(topIdx, sourcePath, targetPath) {
+        const top = layout[topIdx];
+        const sourceArr = resolveSlotArrayForPath(top, sourcePath);
+        const targetArr = resolveSlotArrayForPath(top, targetPath);
+        if (!sourceArr || !targetArr) return false;
+        const sourceIndex = sourcePath[sourcePath.length - 1].index;
+        let targetIndex = targetPath[targetPath.length - 1].index;
+        if (sourceArr === targetArr && sourceIndex < targetIndex) targetIndex--;
+        const moved = sourceArr.splice(sourceIndex, 1)[0];
+        targetArr.splice(Math.max(0, targetIndex), 0, moved);
+        return true;
+    }
     function getSelectedParentInfo() {
         if (selectedBlockIndex < 0) return null;
         if (!selectedNestedPath || !selectedNestedPath.length) return { arr: layout, idx: selectedBlockIndex };
@@ -1089,21 +1101,32 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     // Accept a block dragged in from the sidebar palette and insert it into a slot.
     function wireSlotDropTarget(el, getTarget) {
         el.addEventListener('dragover', (e) => {
-            if (!Array.from(e.dataTransfer.types).includes('application/x-slate-block-type')) return;
+            const types = Array.from(e.dataTransfer.types);
+            if (!types.includes('application/x-slate-block-type') && !types.includes('application/x-slate-nested-block')) return;
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
+            e.dataTransfer.dropEffect = types.includes('application/x-slate-nested-block') ? 'move' : 'copy';
             el.classList.add('ve-slot-target');
         });
         el.addEventListener('dragleave', () => el.classList.remove('ve-slot-target'));
         el.addEventListener('drop', (e) => {
-            if (!Array.from(e.dataTransfer.types).includes('application/x-slate-block-type')) return;
+            const types = Array.from(e.dataTransfer.types);
+            if (!types.includes('application/x-slate-block-type') && !types.includes('application/x-slate-nested-block')) return;
             e.preventDefault();
             e.stopPropagation();
             el.classList.remove('ve-slot-target');
+            const target = getTarget();
+            const nested = e.dataTransfer.getData('application/x-slate-nested-block');
+            if (nested) {
+                const source = JSON.parse(nested);
+                if (source.topIdx === target.topIdx && moveNestedBlock(target.topIdx, source.path, target.path)) {
+                    pushUndo();
+                    markDirty();
+                    refreshTopLevelBlock(target.topIdx).then(() => { renderLayers(); renderInspector(); });
+                }
+                return;
+            }
             const type = e.dataTransfer.getData('application/x-slate-block-type');
-            if (!type) return;
-            pendingInsertTarget = getTarget();
-            insertBlock(type);
+            if (type) { pendingInsertTarget = target; insertBlock(type); }
         });
     }
     // One column / flex-container "slot": zips its rendered DOM children 1:1 against the
@@ -1158,6 +1181,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         el.dataset.nestedHydrated = '1';
         el.classList.add('ve-nested-block');
         el.dataset.nestedPath = nestedPathKey(path);
+        el.draggable = true;
+        el.addEventListener('dragstart', (e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('application/x-slate-nested-block', JSON.stringify({ topIdx, path }));
+            el.classList.add('dragging');
+        });
+        el.addEventListener('dragend', () => el.classList.remove('dragging'));
 
         // Recurse FIRST, while el's only children are still its server-rendered content —
         // this block may itself be a Columns / Flex Container. If we appended our own
@@ -1603,6 +1634,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             '<div class="ve-block-controls">' +
             '<button type="button" data-action="add-above" title="Add block above">+</button>' +
             '<div class="ve-handle-title" title="Drag to reorder">⠿ ' + escHtml(typeName) + '</div>' +
+            '<button type="button" data-action="settings" title="Edit settings">⚙</button>' +
             '<button type="button" data-action="up" title="Move up">↑</button>' +
             '<button type="button" data-action="down" title="Move down">↓</button>' +
             '<button type="button" data-action="dup" title="Duplicate">⧉</button>' +
@@ -1769,6 +1801,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     }
 
     async function handleBlockAction(idx, action) {
+        if (action === 'settings') {
+            selectedBlockIndex = idx;
+            selectedNestedPath = null;
+            const settingsTab = document.querySelector('[data-tab="inspector"]');
+            if (settingsTab) settingsTab.click();
+            renderInspector();
+            return;
+        }
         if (action === 'add-above') {
             insertAtIndex = idx;
             const blocksTab = document.querySelector('[data-tab="blocks"]');
