@@ -96,3 +96,26 @@ unit('hero block renders the banner branch with no image and the split branch wi
     assert_true(str_contains($split, 'cb-hero-split'));
     assert_true(str_contains($split, '/uploads/hero.jpg'));
 });
+
+unit('a columns block with a cols prop (the editor structure chooser\'s shape) passes validation', function () {
+    // Regression: the editor's "choose your structure" modal saves a columns
+    // block as {columns, gap, cols: [{blocks: []}, ...]} — the same nested
+    // path DocumentOperations::insertBlockAtPath() addresses via
+    // ['sectionId', idx, 'props', 'cols', N, 'blocks']. The columns block's
+    // FieldSchema originally declared only 'columns' and 'gap', so
+    // DocumentValidator rejected any document containing 'cols' with
+    // unknown_property, and the structure chooser could never actually save.
+    $document = [
+        'schema' => 1, 'type' => 'page', 'template' => '',
+        'sections' => [[
+            'id' => 's1', 'layout' => ['cols' => 1],
+            'blocks' => [[
+                'type' => 'columns',
+                'props' => ['columns' => 3, 'gap' => 24, 'cols' => [['blocks' => []], ['blocks' => []], ['blocks' => []]]],
+            ]],
+        ]],
+        'seo' => [],
+    ];
+    $result = \Slate\Presentation\DocumentValidator::validate($document, ContentServiceFactory::validatorRegistry());
+    assert_true($result['valid'], 'a columns block with a cols prop must validate: ' . json_encode($result['errors']));
+});

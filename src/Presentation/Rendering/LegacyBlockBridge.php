@@ -197,7 +197,17 @@ final class LegacyBlockBridge
         ], ['quote' => 'A thoughtful experience from start to finish.', 'author' => 'Happy customer', 'role' => 'Client']), static fn (array $p, RenderContext $c): string => '<section class="cb-testimonial"><figure class="cb-testimonial-inner"><blockquote class="cb-testimonial-quote">&ldquo;' . \e((string)($p['quote'] ?? '')) . '&rdquo;</blockquote><figcaption class="cb-testimonial-cite"><span><b class="cb-testimonial-author">' . \e((string)($p['author'] ?? '')) . '</b><span class="cb-testimonial-role">' . \e((string)($p['role'] ?? '')) . '</span></span></figcaption></figure></section>'));
         $registry->register(new CallbackBlock('columns', FieldSchema::of([
             ['key' => 'columns', 'type' => 'number', 'label' => 'Columns'], ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
-        ], ['columns' => 2, 'gap' => 24]), static function (array $p, RenderContext $c): string { $n = max(1, min(4, (int)($p['columns'] ?? 2))); $items = ''; for ($i = 1; $i <= $n; $i++) $items .= '<div class="cb-card"><h3 class="cb-card-title">Column ' . $i . '</h3><p class="cb-card-text">Drop blocks here</p></div>'; return '<div class="cb-columns cb-cols-' . $n . '" style="gap:' . max(0, min(80, (int)($p['gap'] ?? 24))) . 'px">' . $items . '</div>'; }));
+            // The editor's structure chooser (admin/editor.php) stores each column's
+            // nested block list here as props.cols[N].blocks — the same shape
+            // DocumentOperations::insertBlockAtPath()/etc. address via a path like
+            // ['s1', 0, 'props', 'cols', 0, 'blocks']. Declared as 'blocks' so
+            // DocumentValidator accepts the list rather than rejecting it as an
+            // undeclared property; capabilities.nested stays false (see
+            // ContentServiceFactory::validatorRegistry()), so the nested blocks
+            // inside each column are not yet structurally validated or rendered —
+            // the renderer below still shows static placeholder content per column.
+            ['key' => 'cols', 'type' => 'blocks', 'label' => 'Columns content'],
+        ], ['columns' => 2, 'gap' => 24, 'cols' => []]), static function (array $p, RenderContext $c): string { $n = max(1, min(4, (int)($p['columns'] ?? 2))); $items = ''; for ($i = 1; $i <= $n; $i++) $items .= '<div class="cb-card"><h3 class="cb-card-title">Column ' . $i . '</h3><p class="cb-card-text">Drop blocks here</p></div>'; return '<div class="cb-columns cb-cols-' . $n . '" style="gap:' . max(0, min(80, (int)($p['gap'] ?? 24))) . 'px">' . $items . '</div>'; }));
         $registry->register(new CallbackBlock('container', FieldSchema::of([
             ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
         ], ['heading' => 'Container', 'content' => 'Add content inside this container']), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner" style="padding:24px;border:1px dashed #94a3b8;border-radius:10px"><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>'));
