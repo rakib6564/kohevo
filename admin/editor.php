@@ -617,6 +617,32 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-vis-btn.hidden-on { border-color: var(--ve-danger); color: var(--ve-danger); background: #ef444410; }
     .ve-vis-btn.hidden-on svg { opacity: .5; }
 
+    /* ── Style panel: grouped sub-sections, reset, sliders ──── */
+    .ve-style-head-row { display: flex; align-items: center; justify-content: space-between; flex: 1; }
+    .ve-style-reset { background: none; border: 1px solid transparent; color: var(--ve-text-dim); font-size: 10px;
+                       font-weight: 600; text-transform: uppercase; letter-spacing: .03em; cursor: pointer;
+                       padding: 2px 7px; border-radius: 4px; transition: all .15s; }
+    .ve-style-reset:hover { color: var(--ve-danger); border-color: var(--ve-danger); background: #ef444410; }
+    .ve-substyle { border: 1px solid var(--ve-border); border-radius: 6px; margin-bottom: 8px; overflow: hidden; background: #ffffff03; }
+    .ve-substyle-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; cursor: pointer;
+                         font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ve-text-dim); }
+    .ve-substyle-head:hover { color: var(--ve-text); }
+    .ve-substyle-head .ve-acc-arrow { font-size: 9px; color: var(--ve-text-dim); transition: transform .2s; }
+    .ve-substyle-head.open .ve-acc-arrow { transform: rotate(180deg); }
+    .ve-substyle-body { padding: 4px 10px 10px; display: none; border-top: 1px solid var(--ve-border); }
+    .ve-substyle-body.open { display: block; padding-top: 10px; }
+    .ve-range-row { display: flex; align-items: center; gap: 8px; }
+    .ve-range-row input[type="range"] { flex: 1; accent-color: var(--ve-accent); min-width: 0; }
+    .ve-range-badge { font-size: 11px; font-family: var(--font-mono, monospace); color: var(--ve-text); background: var(--ve-bg);
+                       border: 1px solid var(--ve-border); border-radius: 4px; padding: 2px 6px; min-width: 42px;
+                       text-align: center; flex-shrink: 0; }
+    .ve-swatch-preview { width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--ve-border); flex-shrink: 0;
+                          background-image: linear-gradient(45deg,#0002 25%,transparent 25%),linear-gradient(-45deg,#0002 25%,transparent 25%),
+                          linear-gradient(45deg,transparent 75%,#0002 75%),linear-gradient(-45deg,transparent 75%,#0002 75%);
+                          background-size: 8px 8px; background-position: 0 0,0 4px,4px -4px,-4px 0; }
+    .ve-swatch-preview-fill { width: 100%; height: 100%; border-radius: 4px; }
+    .ve-field-hint { font-size: 10px; color: var(--ve-text-dim); margin-top: 4px; line-height: 1.4; }
+
     /* ── Canvas block wrappers (Elementor style) ──────────── */
     .ve-block { position: relative; cursor: pointer; transition: outline .15s ease, box-shadow .15s ease; outline: 1.5px solid transparent; outline-offset: -1px; margin: 0; }
     .ve-block:hover { outline-color: #0073e6; }
@@ -910,6 +936,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     let selectedNestedPath = null; // null = top-level selection; else array of {slot:'col'|'children', col?:N, index:N} steps relative to layout[selectedBlockIndex].props
     let activeDevice = 'desktop';
     const collapsedNavigatorNodes = new Set();
+    const collapsedStyleSections = new Set(); // sub-accordion keys within the Style panel, persisted across renderInspector() re-renders
     let pendingInsertTarget = null; // {topIdx, path} — when set, the next insertBlock() splices into that nested slot instead of the top-level layout
     let isDirty = POST.hasDraft;
     let isSaving = false;
@@ -1928,6 +1955,24 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     }
     function stripTags(s) { return s.replace(/<[^>]*>/g, ''); }
     function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    // Reads back a stored bgOverlay string (rgba(...) or hex) into a {hex, opacity%} pair
+    // so the color+opacity picker can show the current value; falls back to a sane default.
+    function parseOverlayColor(value) {
+        const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/i.exec(value || '');
+        if (m) {
+            const hex = '#' + [m[1], m[2], m[3]].map(n => Math.max(0, Math.min(255, parseInt(n, 10))).toString(16).padStart(2, '0')).join('');
+            const opacity = m[4] !== undefined ? Math.round(parseFloat(m[4]) * 100) : 100;
+            return { hex, opacity: Math.max(0, Math.min(100, opacity)) };
+        }
+        if (/^#[0-9a-f]{3,8}$/i.test(value || '')) return { hex: value.length <= 7 ? value : value.slice(0, 7), opacity: 100 };
+        return { hex: '#000000', opacity: 50 };
+    }
+    function overlayToRgba(hex, opacityPct) {
+        let h = String(hex || '#000000').replace('#', '');
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        const r = parseInt(h.slice(0, 2), 16) || 0, g = parseInt(h.slice(2, 4), 16) || 0, b = parseInt(h.slice(4, 6), 16) || 0;
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + (Math.max(0, Math.min(100, opacityPct)) / 100) + ')';
+    }
 
     // ── Block selection ───────────────────────────────────────
     function selectBlock(idx) {
@@ -2010,34 +2055,30 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         const bgOpacity = st.bgOpacity !== undefined ? st.bgOpacity : 100;
         const bgImage = st.bgImage || '';
         const bgOverlay = st.bgOverlay || '';
+        const overlayParsed = parseOverlayColor(bgOverlay);
         const textColor = st.textColor || '';
-        const paddingTop = st.paddingTop !== undefined ? st.paddingTop : '';
-        const paddingBottom = st.paddingBottom !== undefined ? st.paddingBottom : '';
-        const paddingLeft = st.paddingLeft !== undefined ? st.paddingLeft : '';
-        const paddingRight = st.paddingRight !== undefined ? st.paddingRight : '';
-        const marginTop = st.marginTop !== undefined ? st.marginTop : '';
-        const marginBottom = st.marginBottom !== undefined ? st.marginBottom : '';
-        const borderRadius = st.borderRadius !== undefined ? st.borderRadius : '';
+        const paddingTop = st.paddingTop !== undefined ? st.paddingTop : 0;
+        const paddingBottom = st.paddingBottom !== undefined ? st.paddingBottom : 0;
+        const paddingLeft = st.paddingLeft !== undefined ? st.paddingLeft : 0;
+        const paddingRight = st.paddingRight !== undefined ? st.paddingRight : 0;
+        const marginTop = st.marginTop !== undefined ? st.marginTop : 0;
+        const marginBottom = st.marginBottom !== undefined ? st.marginBottom : 0;
+        const borderRadius = st.borderRadius !== undefined ? st.borderRadius : 0;
         const maxWidth = st.maxWidth || '';
         const customClass = st.customClass || '';
         const hideDesktop = st.hideDesktop || false;
         const hideTablet = st.hideTablet || false;
         const hideMobile = st.hideMobile || false;
 
-        const styleAccordion = `
-<div class="ve-accordion">
-  <div class="ve-accordion-head open" id="styleHead"><span>⚙ Style</span><span class="ve-acc-arrow">▾</span></div>
-  <div class="ve-accordion-body open" id="styleBody">
+        function styleSection(key, title, bodyHtml) {
+            const isOpen = !collapsedStyleSections.has(key);
+            return '<div class="ve-substyle" data-style-section="' + key + '">'
+                + '<div class="ve-substyle-head' + (isOpen ? ' open' : '') + '" data-style-section-head="' + key + '"><span>' + title + '</span><span class="ve-acc-arrow">▾</span></div>'
+                + '<div class="ve-substyle-body' + (isOpen ? ' open' : '') + '">' + bodyHtml + '</div>'
+                + '</div>';
+        }
 
-    <div class="ve-field">
-      <label>Responsive device</label>
-      <div class="ve-btn-group" id="styleDeviceGroup">
-        <button data-style-device="desktop" class="${activeDevice==='desktop'?'active':''}">Desktop</button>
-        <button data-style-device="tablet" class="${activeDevice==='tablet'?'active':''}">Tablet</button>
-        <button data-style-device="mobile" class="${activeDevice==='mobile'?'active':''}">Mobile</button>
-      </div>
-    </div>
-
+        const layoutSection = styleSection('layout', 'Layout & Alignment', `
     <div class="ve-field">
       <label>Text Align</label>
       <div class="ve-btn-group" id="alignGroup">
@@ -2047,66 +2088,84 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         <button data-align="justify" title="Justify" class="${align==='justify'?'active':''}">&#9643;</button>
       </div>
     </div>
+    <div class="ve-field" style="margin-bottom:0">
+      <label>Max-width</label>
+      <input type="text" id="stMW" value="${escHtml(maxWidth)}" placeholder="e.g. 600px, 100%, 80vw">
+      <div class="ve-field-hint">Any CSS length — leave blank to inherit.</div>
+    </div>`);
 
+        const backgroundSection = styleSection('background', 'Background', `
     <div class="ve-field">
       <label>Background Color</label>
       <div class="ve-color-row">
         <input type="color" id="stBgColor" value="${bgColor || '#ffffff'}">
-        <input type="text" id="stBgColorHex" value="${bgColor}" placeholder="#rrggbb" maxlength="9">
-        <input type="number" id="stBgOpacity" value="${bgOpacity}" min="0" max="100" style="width:56px;flex-shrink:0" title="Opacity %"> <span style="font-size:11px;color:var(--ve-text-dim)">%</span>
+        <input type="text" id="stBgColorHex" value="${escHtml(bgColor)}" placeholder="#rrggbb" maxlength="9">
       </div>
     </div>
-
     <div class="ve-field">
-      <label>Background Image URL</label>
+      <label>Background Opacity</label>
+      <div class="ve-range-row">
+        <input type="range" id="stBgOpacity" value="${bgOpacity}" min="0" max="100" step="1">
+        <span class="ve-range-badge" id="stBgOpacityBadge">${bgOpacity}%</span>
+      </div>
+    </div>
+    <div class="ve-field">
+      <label>Background Image</label>
       <div style="display:flex; gap:8px;">
         <input type="text" id="stBgImage" value="${escHtml(bgImage)}" placeholder="https://..." style="flex:1;">
         <button type="button" class="cb-btn cb-btn-secondary" onclick="openMediaPicker(this, 'image', 'stBgImage')" style="padding:0 8px; font-size:12px; line-height:28px;">Select Media</button>
       </div>
     </div>
-    
-    <div class="ve-field">
-      <label>Image Overlay (rgba or hex)</label>
-      <input type="text" id="stBgOverlay" value="${escHtml(bgOverlay)}" placeholder="rgba(0,0,0,0.5)">
-    </div>
+    <div class="ve-field" style="margin-bottom:0">
+      <label>Image Overlay</label>
+      <div class="ve-color-row">
+        <input type="color" id="stOverlayColor" value="${overlayParsed.hex}">
+        <div class="ve-swatch-preview"><div class="ve-swatch-preview-fill" id="stOverlaySwatch" style="background:${escHtml(bgOverlay) || 'transparent'}"></div></div>
+        <div class="ve-range-row" style="flex:1">
+          <input type="range" id="stOverlayOpacity" value="${overlayParsed.opacity}" min="0" max="100" step="1">
+          <span class="ve-range-badge" id="stOverlayOpacityBadge">${overlayParsed.opacity}%</span>
+        </div>
+      </div>
+      <div class="ve-field-hint">Darkens or tints the background image — useful for text readability.</div>
+    </div>`);
 
-    <div class="ve-field">
+        const typographySection = styleSection('typography', 'Typography', `
+    <div class="ve-field" style="margin-bottom:0">
       <label>Text Color</label>
       <div class="ve-color-row">
         <input type="color" id="stTextColor" value="${textColor || '#000000'}">
-        <input type="text" id="stTextColorHex" value="${textColor}" placeholder="inherit" maxlength="9">
+        <input type="text" id="stTextColorHex" value="${escHtml(textColor)}" placeholder="inherit" maxlength="9">
       </div>
-    </div>
+    </div>`);
 
+        function rangeField(id, label, value, min, max, unit) {
+            return '<div class="ve-field"><label>' + label + '</label><div class="ve-range-row">'
+                + '<input type="range" id="' + id + '" value="' + value + '" min="' + min + '" max="' + max + '" step="1">'
+                + '<span class="ve-range-badge" id="' + id + 'Badge">' + value + unit + '</span></div></div>';
+        }
+        const spacingSection = styleSection('spacing', 'Spacing', `
     <div class="ve-field">
       <label>Padding (px)</label>
       <div class="ve-spacing-grid">
-        <div class="ve-field"><label>Top</label><input type="number" id="stPT" value="${paddingTop}" placeholder="0" min="0"></div>
-        <div class="ve-field"><label>Bottom</label><input type="number" id="stPB" value="${paddingBottom}" placeholder="0" min="0"></div>
-        <div class="ve-field"><label>Left</label><input type="number" id="stPL" value="${paddingLeft}" placeholder="0" min="0"></div>
-        <div class="ve-field"><label>Right</label><input type="number" id="stPR" value="${paddingRight}" placeholder="0" min="0"></div>
+        <div>${rangeField('stPT', 'Top', paddingTop, 0, 200, 'px')}</div>
+        <div>${rangeField('stPB', 'Bottom', paddingBottom, 0, 200, 'px')}</div>
+        <div>${rangeField('stPL', 'Left', paddingLeft, 0, 200, 'px')}</div>
+        <div>${rangeField('stPR', 'Right', paddingRight, 0, 200, 'px')}</div>
       </div>
     </div>
-
     <div class="ve-field">
       <label>Margin (px)</label>
       <div class="ve-spacing-grid">
-        <div class="ve-field"><label>Top</label><input type="number" id="stMT" value="${marginTop}" placeholder="0"></div>
-        <div class="ve-field"><label>Bottom</label><input type="number" id="stMB" value="${marginBottom}" placeholder="0"></div>
+        <div>${rangeField('stMT', 'Top', marginTop, -100, 200, 'px')}</div>
+        <div>${rangeField('stMB', 'Bottom', marginBottom, -100, 200, 'px')}</div>
       </div>
     </div>
+    <div class="ve-field" style="margin-bottom:0">
+      ${rangeField('stBR', 'Border Radius', borderRadius, 0, 100, 'px')}
+    </div>`);
 
-    <div class="ve-spacing-grid" style="margin-bottom:14px">
-      <div class="ve-field"><label>Border Radius</label><input type="number" id="stBR" value="${borderRadius}" placeholder="0" min="0"></div>
-      <div class="ve-field"><label>Max-width</label><input type="text" id="stMW" value="${maxWidth}" placeholder="100%"></div>
-    </div>
-
-    <div class="ve-field">
-      <label>Custom CSS Class</label>
-      <input type="text" id="stClass" value="${escHtml(customClass)}" placeholder="my-class another-class">
-    </div>
-
-    <div class="ve-field">
+        const visibilitySection = styleSection('visibility', 'Visibility', `
+    <div class="ve-field" style="margin-bottom:0">
       <label>Hide On</label>
       <div class="ve-visibility-grid">
         <button class="ve-vis-btn ${hideDesktop?'hidden-on':''}" id="visDesktop" title="Hide on Desktop">
@@ -2119,7 +2178,38 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>Mobile
         </button>
       </div>
+      <div class="ve-field-hint">Hides this block at the chosen breakpoint on the published page.</div>
+    </div>`);
+
+        const advancedSection = styleSection('advanced', 'Advanced', `
+    <div class="ve-field" style="margin-bottom:0">
+      <label>Custom CSS Class</label>
+      <input type="text" id="stClass" value="${escHtml(customClass)}" placeholder="my-class another-class">
+    </div>`);
+
+        const styleAccordion = `
+<div class="ve-accordion">
+  <div class="ve-accordion-head open" id="styleHead">
+    <div class="ve-style-head-row"><span>⚙ Style</span><button type="button" class="ve-style-reset" id="styleReset" title="Clear all style overrides for the current device">Reset</button></div>
+    <span class="ve-acc-arrow">▾</span>
+  </div>
+  <div class="ve-accordion-body open" id="styleBody">
+
+    <div class="ve-field">
+      <label>Editing styles for</label>
+      <div class="ve-btn-group" id="styleDeviceGroup">
+        <button data-style-device="desktop" class="${activeDevice==='desktop'?'active':''}">Desktop</button>
+        <button data-style-device="tablet" class="${activeDevice==='tablet'?'active':''}">Tablet</button>
+        <button data-style-device="mobile" class="${activeDevice==='mobile'?'active':''}">Mobile</button>
+      </div>
     </div>
+
+    ${layoutSection}
+    ${backgroundSection}
+    ${typographySection}
+    ${spacingSection}
+    ${visibilitySection}
+    ${advancedSection}
   </div>
 </div>`;
 
@@ -2177,12 +2267,23 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             });
         });
 
-        // ── Accordion toggle ───────────────────────────────────
-        document.getElementById('styleHead').addEventListener('click', () => {
+        // ── Accordion toggle (top-level Style panel + grouped sub-sections) ─
+        document.getElementById('styleHead').addEventListener('click', (e) => {
+            if (e.target.closest('#styleReset')) return;
             const head = document.getElementById('styleHead');
             const body = document.getElementById('styleBody');
             head.classList.toggle('open');
             body.classList.toggle('open');
+        });
+        $inspector.querySelectorAll('[data-style-section-head]').forEach(head => {
+            head.addEventListener('click', () => {
+                const key = head.dataset.styleSectionHead;
+                const body = head.nextElementSibling;
+                const nowOpen = !head.classList.contains('open');
+                head.classList.toggle('open', nowOpen);
+                body.classList.toggle('open', nowOpen);
+                if (nowOpen) collapsedStyleSections.delete(key); else collapsedStyleSections.add(key);
+            });
         });
         document.getElementById('styleDeviceGroup').querySelectorAll('[data-style-device]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2212,6 +2313,29 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                 sel.style.responsive[activeDevice][key] = value;
             }
         }
+        function readStyle(key) {
+            const sel = getSelectedBlock();
+            if (!sel) return undefined;
+            return activeDevice === 'desktop' ? sel.style?.[key] : sel.style?.responsive?.[activeDevice]?.[key];
+        }
+
+        // Reset: clears every style override for the device currently being edited
+        document.getElementById('styleReset').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const sel = getSelectedBlock();
+            if (!sel) return;
+            pushUndo();
+            if (activeDevice === 'desktop') {
+                const responsive = sel.style?.responsive;
+                sel.style = responsive ? { responsive } : {};
+            } else if (sel.style?.responsive) {
+                delete sel.style.responsive[activeDevice];
+            }
+            markDirty();
+            renderInspector();
+            const blockEl = getSelectedBlockEl();
+            if (blockEl) applyBlockStyleToEl(blockEl, sel.style || {});
+        });
 
         // Alignment buttons
         document.getElementById('alignGroup').querySelectorAll('button').forEach(btn => {
@@ -2223,7 +2347,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             });
         });
 
-        // BG color
+        // Colors
         function bindColorPair(pickerId, hexId, styleKey) {
             const picker = document.getElementById(pickerId);
             const hexInput = document.getElementById(hexId);
@@ -2242,38 +2366,45 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         bindColorPair('stBgColor', 'stBgColorHex', 'bgColor');
         bindColorPair('stTextColor', 'stTextColorHex', 'textColor');
 
-        // BG Image & Overlay
+        // A slider + live value badge, generically bound to one style key.
+        function bindRange(id, styleKey, unit, parse) {
+            const el = document.getElementById(id);
+            const badge = document.getElementById(id + 'Badge');
+            if (!el) return;
+            el.addEventListener('input', () => {
+                const value = parse ? parse(el.value) : parseInt(el.value, 10) || 0;
+                if (badge) badge.textContent = value + unit;
+                writeStyle(styleKey, value);
+                applyStyle();
+            });
+        }
+        bindRange('stBgOpacity', 'bgOpacity', '%');
+        bindRange('stPT', 'paddingTop', 'px'); bindRange('stPB', 'paddingBottom', 'px');
+        bindRange('stPL', 'paddingLeft', 'px'); bindRange('stPR', 'paddingRight', 'px');
+        bindRange('stMT', 'marginTop', 'px'); bindRange('stMB', 'marginBottom', 'px');
+        bindRange('stBR', 'borderRadius', 'px');
+
+        // BG Image
         const stBgImage = document.getElementById('stBgImage');
         if (stBgImage) stBgImage.addEventListener('input', () => {
             writeStyle('bgImage', stBgImage.value);
             applyStyle();
         });
-        const stBgOverlay = document.getElementById('stBgOverlay');
-        if (stBgOverlay) stBgOverlay.addEventListener('input', () => {
-            writeStyle('bgOverlay', stBgOverlay.value);
-            applyStyle();
-        });
 
-        // BG Opacity
-        const stBgOpacity = document.getElementById('stBgOpacity');
-        if (stBgOpacity) stBgOpacity.addEventListener('input', () => {
-            writeStyle('bgOpacity', parseInt(stBgOpacity.value) || 100);
+        // Overlay: a color + opacity picker, computed into the stored rgba() string.
+        const stOverlayColor = document.getElementById('stOverlayColor');
+        const stOverlayOpacity = document.getElementById('stOverlayOpacity');
+        const stOverlaySwatch = document.getElementById('stOverlaySwatch');
+        const stOverlayOpacityBadge = document.getElementById('stOverlayOpacityBadge');
+        function syncOverlay() {
+            const rgba = overlayToRgba(stOverlayColor.value, parseInt(stOverlayOpacity.value, 10) || 0);
+            if (stOverlaySwatch) stOverlaySwatch.style.background = rgba;
+            if (stOverlayOpacityBadge) stOverlayOpacityBadge.textContent = stOverlayOpacity.value + '%';
+            writeStyle('bgOverlay', rgba);
             applyStyle();
-        });
-
-        // Spacing
-        function bindNum(id, styleKey) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.addEventListener('input', () => {
-                writeStyle(styleKey, el.value === '' ? '' : parseInt(el.value));
-                applyStyle();
-            });
         }
-        bindNum('stPT','paddingTop'); bindNum('stPB','paddingBottom');
-        bindNum('stPL','paddingLeft'); bindNum('stPR','paddingRight');
-        bindNum('stMT','marginTop'); bindNum('stMB','marginBottom');
-        bindNum('stBR','borderRadius');
+        if (stOverlayColor) stOverlayColor.addEventListener('input', syncOverlay);
+        if (stOverlayOpacity) stOverlayOpacity.addEventListener('input', syncOverlay);
 
         // Max width & custom class
         const stMW = document.getElementById('stMW');
@@ -2293,8 +2424,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             if (!btn) return;
             btn.addEventListener('click', () => {
                 const key = 'hide' + dev;
-                const sel = getSelectedBlock();
-                const current = activeDevice === 'desktop' ? !!sel.style?.[key] : !!sel.style?.responsive?.[activeDevice]?.[key];
+                const current = !!readStyle(key);
                 writeStyle(key, !current);
                 btn.classList.toggle('hidden-on', !current);
                 applyStyle();
