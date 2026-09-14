@@ -17,7 +17,7 @@ final class PageContentRecompiler implements ContentRecompiler
 
     public function recompile(string $ownerType, int $ownerId): void
     {
-        if ($ownerType !== 'page') return;
+        if ($ownerType !== ContentPageRepository::OWNER_TYPE) return;
         $revision = $this->revisions->published($ownerType, $ownerId);
         if ($revision === null) return;
         $document = RevisionStore::documentOf($revision);

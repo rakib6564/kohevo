@@ -18,6 +18,9 @@ use Slate\Data\Repository;
 
 final class ContentPageRepository extends Repository
 {
+    /** The owner_type value content_pages rows use in RevisionStore/CompilationStore/DependencyStore. */
+    public const OWNER_TYPE = 'content_pages';
+
     protected string $table = 'content_pages';
 
     /** Create a new page row; returns the new id. */

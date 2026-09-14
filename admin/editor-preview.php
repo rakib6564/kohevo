@@ -16,6 +16,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config.php';
 
 use Slate\Presentation\RenderContext;
+use Slate\Services\Content\ContentPageRepository;
 use Slate\Services\Content\ContentServiceFactory;
 use Slate\Services\Content\RevisionStore;
 
@@ -31,7 +32,7 @@ if (!$post) {
 }
 
 $revisions = ContentServiceFactory::revisionStore();
-$working   = $revisions->working('content_pages', $postId);
+$working   = $revisions->working(ContentPageRepository::OWNER_TYPE, $postId);
 $document  = $working !== null
     ? RevisionStore::documentOf($working)
     : ['schema' => 1, 'type' => $post['type'], 'template' => '', 'sections' => [], 'seo' => []];

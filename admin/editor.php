@@ -49,7 +49,7 @@ if (Database::setting('editor_phase2_enabled') === '0') {
 $GLOBALS['SLATE_EDITOR_MODE'] = true;
 
 if (!defined('CONTENT_PAGE_OWNER_TYPE')) {
-    define('CONTENT_PAGE_OWNER_TYPE', 'content_pages');
+    define('CONTENT_PAGE_OWNER_TYPE', \Slate\Services\Content\ContentPageRepository::OWNER_TYPE);
 }
 
 // ── Resolve post ─────────────────────────────────────────────

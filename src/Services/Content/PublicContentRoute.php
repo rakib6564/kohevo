@@ -13,14 +13,14 @@ final class PublicContentRoute
         if ($slug === '' || str_contains($slug, '?')) return false;
         $page = ContentServiceFactory::pageRepository()->findBySlug($slug);
         if ($page === null) return false;
-        $revision = ContentServiceFactory::revisionStore()->published('page', (int)$page['id']);
+        $revision = ContentServiceFactory::revisionStore()->published(ContentPageRepository::OWNER_TYPE, (int)$page['id']);
         if ($revision === null) return false;
         $result = (new PublicContentService(
             ContentServiceFactory::compilationStore(),
             ContentServiceFactory::pageContentCompiler(),
             ContentServiceFactory::RENDERER_VERSION,
         ))->render(
-            'page',
+            ContentPageRepository::OWNER_TYPE,
             (int)$page['id'],
             (int)$revision['id'],
             RevisionStore::documentOf($revision),
