@@ -196,8 +196,8 @@ final class LegacyBlockBridge
             ['key' => 'quote', 'type' => 'textarea', 'label' => 'Quote'], ['key' => 'author', 'type' => 'text', 'label' => 'Author'], ['key' => 'role', 'type' => 'text', 'label' => 'Role'],
         ], ['quote' => 'A thoughtful experience from start to finish.', 'author' => 'Happy customer', 'role' => 'Client']), static fn (array $p, RenderContext $c): string => '<section class="cb-testimonial"><figure class="cb-testimonial-inner"><blockquote class="cb-testimonial-quote">&ldquo;' . \e((string)($p['quote'] ?? '')) . '&rdquo;</blockquote><figcaption class="cb-testimonial-cite"><span><b class="cb-testimonial-author">' . \e((string)($p['author'] ?? '')) . '</b><span class="cb-testimonial-role">' . \e((string)($p['role'] ?? '')) . '</span></span></figcaption></figure></section>'));
         $registry->register(new CallbackBlock('columns', FieldSchema::of([
-            ['key' => 'columns', 'type' => 'number', 'label' => 'Columns'], ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
-        ], ['columns' => 2, 'gap' => 24, 'cols' => [['blocks' => []], ['blocks' => []]]]), static function (array $p, RenderContext $c): string {
+            ['key' => 'sectionName', 'type' => 'text', 'label' => 'Section name'], ['key' => 'columns', 'type' => 'number', 'label' => 'Columns'], ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
+        ], ['sectionName' => 'Columns section', 'columns' => 2, 'gap' => 24, 'cols' => [['blocks' => []], ['blocks' => []]]]), static function (array $p, RenderContext $c): string {
             $n = max(1, min(4, (int)($p['columns'] ?? count((array)($p['cols'] ?? [])) ?: 2)));
             $cols = is_array($p['cols'] ?? null) ? $p['cols'] : [];
             $items = '';
@@ -209,11 +209,11 @@ final class LegacyBlockBridge
             return '<div class="cb-columns cb-cols-' . $n . '" style="gap:' . max(0, min(80, (int)($p['gap'] ?? 24))) . 'px">' . $items . '</div>';
         }));
         $registry->register(new CallbackBlock('container', FieldSchema::of([
-            ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
+            ['key' => 'sectionName', 'type' => 'text', 'label' => 'Section name'], ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
             ['key' => 'contentWidth', 'type' => 'select', 'label' => 'Content width', 'options' => [['v' => 'boxed', 'l' => 'Boxed'], ['v' => 'full', 'l' => 'Full width']]],
             ['key' => 'direction', 'type' => 'select', 'label' => 'Direction', 'options' => [['v' => 'column', 'l' => 'Column'], ['v' => 'row', 'l' => 'Row']]],
             ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
-        ], ['heading' => 'Container', 'content' => 'Add content inside this container', 'children' => [], 'contentWidth' => 'boxed', 'direction' => 'column', 'gap' => 24]), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner cb-container" style="width:' . (($p['contentWidth'] ?? 'boxed') === 'full' ? '100%' : 'min(100%,1180px)') . ';display:flex;flex-direction:' . self::choice($p['direction'] ?? 'column', ['column', 'row'], 'column') . ';gap:' . max(0, min(120, (int)($p['gap'] ?? 24))) . 'px;padding:24px;border:1px dashed #94a3b8;border-radius:10px"><div><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>' . self::renderNestedBlocks(is_array($p['children'] ?? null) ? $p['children'] : []) . '</div>'));
+        ], ['sectionName' => 'Container', 'heading' => 'Container', 'content' => 'Add content inside this container', 'children' => [], 'contentWidth' => 'boxed', 'direction' => 'column', 'gap' => 24]), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner cb-container" style="width:' . (($p['contentWidth'] ?? 'boxed') === 'full' ? '100%' : 'min(100%,1180px)') . ';display:flex;flex-direction:' . self::choice($p['direction'] ?? 'column', ['column', 'row'], 'column') . ';gap:' . max(0, min(120, (int)($p['gap'] ?? 24))) . 'px;padding:24px;border:1px dashed #94a3b8;border-radius:10px"><div><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>' . self::renderNestedBlocks(is_array($p['children'] ?? null) ? $p['children'] : []) . '</div>'));
         $registry->register(new CallbackBlock('icon-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-icon-grid')));
         $registry->register(new CallbackBlock('image-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-image-grid')));
 

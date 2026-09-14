@@ -1887,9 +1887,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         let html = '';
         const addRow = (block, topIndex, path, depth, labelOverride) => {
             const def = BLOCKS[block.type] || {};
-            const label = block.props?.text
+            const label = block.props?.sectionName || block.props?.heading || (block.props?.text
                 ? stripTags(block.props.text).substring(0, 30)
-                : (labelOverride || def.label || block.type);
+                : (labelOverride || def.label || block.type));
             const selected = topIndex === selectedBlockIndex && nestedPathKey(path) === nestedPathKey(selectedNestedPath || []);
             const nodeKey = topIndex + ':' + nestedPathKey(path);
             const hasChildren = (Array.isArray(block.props?.children) && block.props.children.length) || (Array.isArray(block.props?.cols) && block.props.cols.some(col => (col?.blocks || []).length));
