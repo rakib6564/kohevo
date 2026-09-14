@@ -190,3 +190,32 @@ assert_eq('invalid_json', $badJson['errors'][0]['code'], 'malformed JSON error c
 $normalizedTwice = DocumentSchema::normalize($r['document'] ?? $valid, 'page');
 $normalizedAgain = DocumentSchema::normalize($normalizedTwice, 'page');
 assert_eq($normalizedTwice, $normalizedAgain, 'canonical normalization remains idempotent');
+
+// Regression: the editor's Style panel (admin/editor.php's writeStyle()) writes
+// textAlign/bgColor/bgImage/paddingTop/etc — validateStyle() previously only
+// allowed visible/align/className, so saving any block with a style customization
+// applied through the editor's UI failed outright with unknown_property errors.
+$styled = $valid;
+$styled['sections'][0]['blocks'][0]['style'] = [
+    'textAlign' => 'center', 'bgColor' => '#ff0000', 'textColor' => '#00ff00',
+    'bgImage' => '/uploads/x.jpg', 'bgOverlay' => 'rgba(0,0,0,0.5)', 'bgOpacity' => 80,
+    'paddingTop' => 10, 'paddingBottom' => 10, 'paddingLeft' => 0, 'paddingRight' => 0,
+    'marginTop' => 5, 'marginBottom' => 5, 'borderRadius' => 4, 'maxWidth' => '600px',
+    'customClass' => 'my-class', 'hideDesktop' => false, 'hideTablet' => true, 'hideMobile' => false,
+    'responsive' => ['tablet' => ['textAlign' => 'left'], 'mobile' => ['hideMobile' => true]],
+];
+$r = DocumentValidator::validate($styled, $registry);
+assert_true($r['valid'], 'the editor Style panel\'s full field set must validate: ' . json_encode($r['errors']));
+
+$badStyle = $valid;
+$badStyle['sections'][0]['blocks'][0]['style'] = ['bgImage' => 'javascript:alert(1)', 'customClass' => '<script>', 'bgOpacity' => 500];
+$r = DocumentValidator::validate($badStyle, $registry);
+assert_false($r['valid'], 'unsafe/out-of-range style values are rejected');
+assert_true(in_array('unsafe_url', array_column($r['errors'], 'code'), true), 'a javascript: bgImage is rejected');
+assert_true(in_array('class_name', array_column($r['errors'], 'code'), true), 'an invalid customClass is rejected');
+assert_true(in_array('range', array_column($r['errors'], 'code'), true), 'an out-of-range bgOpacity is rejected');
+
+$badResponsive = $valid;
+$badResponsive['sections'][0]['blocks'][0]['style'] = ['responsive' => ['desktop' => ['textAlign' => 'center']]];
+$r = DocumentValidator::validate($badResponsive, $registry);
+assert_false($r['valid'], 'responsive style overrides only support tablet/mobile, not desktop');

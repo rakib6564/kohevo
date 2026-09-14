@@ -332,13 +332,69 @@ final class DocumentValidator
     }
 
     /** @param mixed $style @param list<array<string,mixed>> $errors */
+    /** @var list<string> style keys the editor's Style panel (admin/editor.php's writeStyle()) actually writes */
+    private const STYLE_KEYS = [
+        'visible', 'align', 'className',
+        'textAlign', 'bgColor', 'textColor', 'bgImage', 'bgOverlay', 'bgOpacity',
+        'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight',
+        'marginTop', 'marginBottom', 'borderRadius', 'maxWidth', 'customClass',
+        'hideDesktop', 'hideTablet', 'hideMobile',
+    ];
+
     private static function validateStyle(mixed $style, string $path, array &$errors): void
     {
         if (!is_array($style) || ($style !== [] && array_is_list($style))) { self::error($errors, $path, 'type', 'Style must be an object.'); return; }
-        foreach (array_keys($style) as $key) if (!in_array((string)$key, ['visible', 'align', 'className'], true)) self::error($errors, "$path.$key", 'unknown_property', 'Unknown style property.');
+        foreach (array_keys($style) as $key) {
+            if ($key !== 'responsive' && !in_array((string)$key, self::STYLE_KEYS, true)) self::error($errors, "$path.$key", 'unknown_property', 'Unknown style property.');
+        }
+        self::validateStyleFields($style, $path, $errors);
+        if (isset($style['responsive'])) {
+            if (!is_array($style['responsive']) || array_is_list($style['responsive'])) {
+                self::error($errors, "$path.responsive", 'type', 'Responsive style overrides must be an object.');
+            } else {
+                foreach ($style['responsive'] as $bp => $override) {
+                    if (!in_array($bp, ['tablet', 'mobile'], true)) { self::error($errors, "$path.responsive.$bp", 'breakpoint', 'Unknown responsive breakpoint.'); continue; }
+                    if (!is_array($override) || array_is_list($override)) { self::error($errors, "$path.responsive.$bp", 'type', 'Responsive style override must be an object.'); continue; }
+                    foreach (array_keys($override) as $key) {
+                        if (!in_array((string)$key, self::STYLE_KEYS, true)) self::error($errors, "$path.responsive.$bp.$key", 'unknown_property', 'Unknown style property.');
+                    }
+                    self::validateStyleFields($override, "$path.responsive.$bp", $errors);
+                }
+            }
+        }
+    }
+
+    /** @param array<string,mixed> $style @param list<array<string,mixed>> $errors */
+    private static function validateStyleFields(array $style, string $path, array &$errors): void
+    {
         if (isset($style['visible'])) self::validateResponsiveEnum($style['visible'], "$path.visible", [true, false], $errors);
         if (isset($style['align'])) self::validateResponsiveEnum($style['align'], "$path.align", ['start', 'center', 'end'], $errors);
         if (isset($style['className']) && (!is_string($style['className']) || !preg_match('/^[A-Za-z0-9_ -]{0,120}$/', $style['className']))) self::error($errors, "$path.className", 'class_name', 'Class name is invalid.');
+        if (isset($style['textAlign']) && !in_array($style['textAlign'], ['left', 'center', 'right', 'justify'], true)) self::error($errors, "$path.textAlign", 'enum', 'Text align must be left, center, right, or justify.');
+        foreach (['bgColor', 'textColor'] as $colorKey) {
+            if (isset($style[$colorKey]) && (!is_string($style[$colorKey]) || $style[$colorKey] === '')) continue;
+            if (isset($style[$colorKey]) && !preg_match('/^#[0-9a-fA-F]{3,8}$/', (string)$style[$colorKey])) self::error($errors, "$path.$colorKey", 'color', 'Color must be a hex value.');
+        }
+        if (isset($style['bgImage']) && $style['bgImage'] !== '') {
+            if (!is_string($style['bgImage'])) self::error($errors, "$path.bgImage", 'type', 'Background image must be a URL string.');
+            elseif (preg_match('/^(javascript|data|file|vbscript):/i', trim($style['bgImage']))) self::error($errors, "$path.bgImage", 'unsafe_url', 'URL scheme is not allowed.');
+            elseif (strlen($style['bgImage']) > 2048) self::error($errors, "$path.bgImage", 'max_length', 'Background image URL is too long.');
+        }
+        if (isset($style['bgOverlay']) && $style['bgOverlay'] !== '') {
+            if (!is_string($style['bgOverlay']) || !preg_match('/^[a-zA-Z0-9#(),.%\s]{0,64}$/', $style['bgOverlay'])) self::error($errors, "$path.bgOverlay", 'color', 'Overlay must be a plain CSS color.');
+        }
+        if (isset($style['bgOpacity']) && (!is_int($style['bgOpacity']) || $style['bgOpacity'] < 0 || $style['bgOpacity'] > 100)) self::error($errors, "$path.bgOpacity", 'range', 'Opacity must be an integer from 0 to 100.');
+        foreach (['paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'marginTop', 'marginBottom', 'borderRadius'] as $spacingKey) {
+            if (!isset($style[$spacingKey]) || $style[$spacingKey] === '') continue;
+            if (!is_int($style[$spacingKey]) || $style[$spacingKey] < -500 || $style[$spacingKey] > 500) self::error($errors, "$path.$spacingKey", 'range', 'Spacing value must be an integer from -500 to 500.');
+        }
+        if (isset($style['maxWidth']) && $style['maxWidth'] !== '') {
+            if (!is_string($style['maxWidth']) || !preg_match('/^[0-9]{1,5}(\.[0-9]{1,2})?(px|%|vw|em|rem)?$/', $style['maxWidth'])) self::error($errors, "$path.maxWidth", 'pattern', 'Max width must be a plain CSS length.');
+        }
+        if (isset($style['customClass']) && (!is_string($style['customClass']) || !preg_match('/^[A-Za-z0-9_ -]{0,120}$/', $style['customClass']))) self::error($errors, "$path.customClass", 'class_name', 'Custom class is invalid.');
+        foreach (['hideDesktop', 'hideTablet', 'hideMobile'] as $visKey) {
+            if (isset($style[$visKey]) && !is_bool($style[$visKey])) self::error($errors, "$path.$visKey", 'type', 'Visibility flag must be a boolean.');
+        }
     }
 
     /** @param mixed $value @param list<mixed> $allowed @param list<array<string,mixed>> $errors */
