@@ -276,17 +276,26 @@ if (Auth::isPlatformSuperAdmin()) {
     ];
 }
 
-// 'editor', 'content-page', 'content-post', 'content-templates' and
-// 'content-menus' ship in core but only do anything once the optional
-// Content Builder plugin is installed — without it they're dead ends (the
-// bridge pages just say "The Content Builder plugin is required..."), and
-// Templates' "Use Template" / "Insert in Editor" buttons all lead into the
-// same broken Editor. Hide them while the plugin is absent rather than
-// leaving dummy links in the sidebar; they reappear automatically if
-// Content Builder is ever installed.
+// 'editor', 'content-page', 'content-post' and 'content-templates' are
+// served by the Phase 2 DocumentSchema pipeline (admin/editor.php,
+// admin/posts.php, admin/templates.php) — no plugin required. They're hidden
+// only if that pipeline itself has been switched off (see admin/editor.php's
+// own editor_phase2_enabled check).
+//
+// 'content-menus' (Navigation) is different: admin/menus.php is still a
+// straight bridge into plugins/content-builder/admin/menus.php, which does
+// not exist — that plugin was archived, not migrated. Keep it gated on the
+// plugin actually being active; it reappears automatically if a real
+// Content Builder plugin is ever installed again.
+$hiddenNavSlugs = [];
+if (Database::setting('editor_phase2_enabled') === '0') {
+    $hiddenNavSlugs = array_merge($hiddenNavSlugs, ['editor', 'content-page', 'content-post', 'content-templates']);
+}
 if (!PluginLoader::isActive('content-builder')) {
-    $contentBuilderOnly = ['editor', 'content-page', 'content-post', 'content-templates', 'content-menus'];
-    $coreNav = array_values(array_filter($coreNav, fn(array $item): bool => !in_array($item['slug'], $contentBuilderOnly, true)));
+    $hiddenNavSlugs[] = 'content-menus';
+}
+if ($hiddenNavSlugs !== []) {
+    $coreNav = array_values(array_filter($coreNav, fn(array $item): bool => !in_array($item['slug'], $hiddenNavSlugs, true)));
 }
 
 // Plugin nav contributions
@@ -357,15 +366,12 @@ foreach ($navItems as $item) {
 }
 unset($_navGroupKey, $item);
 
-// Canonical group ordering: Overview -> Editor -> Business plugins -> Settings -> Tools/System -> other
-// 'content' is deliberately absent — its only surviving items (Global
-// Styles, Media Library) now live under 'settings'; Pages/Posts/Templates/
-// Navigation stay hidden while the optional Content Builder plugin isn't
-// installed (see the PluginLoader::isActive('content-builder') filter above).
+// Canonical group ordering: Overview -> Editor -> Content -> Business plugins -> Settings -> Tools/System -> other
 static $groupPriorities = [
     'platform'      => 5,
     'overview'      => 10,
     'editor'        => 20,
+    'content'       => 25,
     'shop'          => 40,
     'booking'       => 45,
     'nutrition-app' => 50,

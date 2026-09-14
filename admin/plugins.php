@@ -24,7 +24,7 @@ const SLATE_PLUGIN_UPLOAD_MAX = 10 * 1024 * 1024;
 // deactivated or uninstalled from the UI. A plugin opts in with "system": true
 // in its plugin.json; this core list guarantees the bundled essentials stay
 // protected even if a stored manifest predates that flag.
-const SLATE_SYSTEM_PLUGINS = ['media-library', 'content-builder'];
+const SLATE_SYSTEM_PLUGINS = ['media-library'];
 if (!function_exists('slate_is_system_plugin')) {
     function slate_is_system_plugin(string $slug, array $manifest = []): bool {
         return in_array($slug, SLATE_SYSTEM_PLUGINS, true) || !empty($manifest['system']);
