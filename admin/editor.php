@@ -513,6 +513,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-layer svg { width: 16px; height: 16px; flex-shrink: 0; }
     .ve-layer-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ve-layer-type { font-size: 11px; color: var(--ve-text-dim); }
+    .ve-layer-indent-1 { padding-left: 28px; }
+    .ve-layer-indent-2 { padding-left: 44px; }
+    .ve-layer-group { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 10px 12px 4px; }
 
     /* Inspector */
     .ve-field { margin-bottom: 14px; }
@@ -684,6 +687,19 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     }
     .ve-el-add-btn:hover { transform: scale(1.1); background: #d02657; }
     .ve-el-add-label { font-size: 13px; font-weight: 600; color: #64748b; letter-spacing: .02em; }
+    .ve-structure-modal { position: fixed; inset: 0; z-index: 10000; display: none; align-items: center; justify-content: center; background: rgba(4,8,18,.72); backdrop-filter: blur(6px); }
+    .ve-structure-modal.open { display: flex; }
+    .ve-structure-card { width: min(620px, calc(100vw - 32px)); background: #20242d; border: 1px solid #3a4350; border-radius: 12px; box-shadow: 0 30px 80px #0009; padding: 24px; }
+    .ve-structure-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; color: #f8fafc; }
+    .ve-structure-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+    .ve-structure-close { border: 0; background: none; color: #94a3b8; font-size: 24px; cursor: pointer; }
+    .ve-structure-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .ve-structure-option { min-height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 1px solid #3a4350; border-radius: 9px; background: #171a21; color: #cbd5e1; cursor: pointer; transition: .15s; }
+    .ve-structure-option:hover { border-color: #0073e6; color: #fff; background: #0073e615; transform: translateY(-2px); }
+    .ve-structure-columns { display: flex; gap: 4px; width: 72px; height: 34px; }
+    .ve-structure-columns i { flex: 1; border: 2px solid currentColor; border-radius: 3px; }
+    .ve-structure-option span { font-size: 12px; }
+    @media (max-width: 540px) { .ve-structure-grid { grid-template-columns: repeat(2, 1fr); } }
 
     /* Drop indicator */
     .ve-drop-indicator { height: 3px; background: var(--ve-accent); border-radius: 2px; margin: 0 16px; transition: opacity .1s; }
@@ -781,8 +797,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     <!-- Left panel: Block inserter + Layers -->
     <div class="ve-panel">
         <div class="ve-panel-tabs">
-            <button class="ve-panel-tab active" data-tab="blocks">Blocks</button>
-            <button class="ve-panel-tab" data-tab="layers">Layers</button>
+            <button class="ve-panel-tab active" data-tab="blocks">Elements</button>
+            <button class="ve-panel-tab" data-tab="layers">Navigator</button>
         </div>
         <div class="ve-panel-content active" id="tabBlocks">
             <input type="text" class="ve-search" id="blockSearch" placeholder="Search blocks…">
@@ -844,6 +860,17 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         </div>
     </div>
 
+</div>
+<div class="ve-structure-modal" id="structureModal" aria-hidden="true">
+    <div class="ve-structure-card" role="dialog" aria-modal="true" aria-labelledby="structureTitle">
+        <div class="ve-structure-head"><h3 id="structureTitle">Choose your structure</h3><button type="button" class="ve-structure-close" id="closeStructure" aria-label="Close">×</button></div>
+        <div class="ve-structure-grid">
+            <button type="button" class="ve-structure-option" data-columns="1"><span class="ve-structure-columns"><i></i></span><span>Full width</span></button>
+            <button type="button" class="ve-structure-option" data-columns="2"><span class="ve-structure-columns"><i></i><i></i></span><span>Two columns</span></button>
+            <button type="button" class="ve-structure-option" data-columns="3"><span class="ve-structure-columns"><i></i><i></i><i></i></span><span>Three columns</span></button>
+            <button type="button" class="ve-structure-option" data-columns="4"><span class="ve-structure-columns"><i></i><i></i><i></i><i></i></span><span>Four columns</span></button>
+        </div>
+    </div>
 </div>
 
 <!-- Canvas CSS (loaded from site theme + public.css) injected into a scoped style -->
@@ -1228,6 +1255,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     const $unsavedDot   = document.getElementById('unsavedDot');
     const $savingBar    = document.getElementById('savingBar');
     const $searchInput  = document.getElementById('blockSearch');
+    const $structureModal = document.getElementById('structureModal');
+    const $closeStructure = document.getElementById('closeStructure');
 
     // ── Helpers ───────────────────────────────────────────────
     function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -1241,6 +1270,36 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     function showSaving(on) {
         $savingBar.classList.toggle('active', on);
     }
+    function openStructureChooser() {
+        $structureModal.classList.add('open');
+        $structureModal.setAttribute('aria-hidden', 'false');
+    }
+    function closeStructureChooser() {
+        $structureModal.classList.remove('open');
+        $structureModal.setAttribute('aria-hidden', 'true');
+    }
+    $closeStructure.addEventListener('click', closeStructureChooser);
+    $structureModal.addEventListener('click', (e) => { if (e.target === $structureModal) closeStructureChooser(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStructureChooser(); });
+    document.querySelectorAll('.ve-structure-option').forEach((option) => {
+        option.addEventListener('click', async () => {
+            const count = Math.max(1, Math.min(4, parseInt(option.dataset.columns || '1', 10)));
+            closeStructureChooser();
+            const cols = Array.from({ length: count }, () => ({ blocks: [] }));
+            const block = count === 1
+                ? { type: 'container', props: { heading: 'New section', content: 'Drag a widget here' } }
+                : { type: 'columns', props: { columns: count, gap: 24, cols } };
+            pushUndo();
+            const idx = insertAtIndex >= 0 ? insertAtIndex : layout.length;
+            layout.splice(idx, 0, block);
+            insertAtIndex = -1;
+            markDirty();
+            const html = await renderBlockServer(block);
+            RENDERED.splice(idx, 0, html);
+            rebuildCanvas();
+            selectBlock(idx);
+        });
+    });
     function markDirty() {
         isDirty = true;
         $unsavedDot.style.display = 'flex';
@@ -1479,8 +1538,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         elBox.addEventListener('click', (e) => {
             e.stopPropagation();
             insertAtIndex = layout.length;
-            const blocksTab = document.querySelector('[data-tab="blocks"]');
-            if (blocksTab) blocksTab.click();
+            openStructureChooser();
         });
         elBox.addEventListener('dragover', (e) => {
             if (!Array.from(e.dataTransfer.types).includes('application/x-slate-block-type')) return;
@@ -1739,20 +1797,31 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             return;
         }
         let html = '';
-        layout.forEach((block, i) => {
+        const addRow = (block, topIndex, path, depth, labelOverride) => {
             const def = BLOCKS[block.type] || {};
             const label = block.props?.text
                 ? stripTags(block.props.text).substring(0, 30)
-                : (def.label || block.type);
-            html += '<div class="ve-layer' + (i === selectedBlockIndex ? ' selected' : '') + '" data-index="' + i + '">'
+                : (labelOverride || def.label || block.type);
+            const selected = topIndex === selectedBlockIndex && nestedPathKey(path) === nestedPathKey(selectedNestedPath || []);
+            html += '<div class="ve-layer ve-layer-indent-' + Math.min(depth, 2) + (selected ? ' selected' : '') + '" data-index="' + topIndex + '" data-path="' + escHtml(JSON.stringify(path)) + '">'
                 + blockIcon(block.type)
                 + '<span class="ve-layer-label">' + escHtml(label) + '</span>'
                 + '<span class="ve-layer-type">' + (def.label || block.type) + '</span>'
                 + '</div>';
-        });
+            if (Array.isArray(block.props?.cols)) block.props.cols.forEach((col, colIndex) => {
+                html += '<div class="ve-layer-group ve-layer-indent-' + Math.min(depth + 1, 2) + '">Column ' + (colIndex + 1) + '</div>';
+                (col?.blocks || []).forEach((child, childIndex) => addRow(child, topIndex, [...path, { slot: 'col', col: colIndex, index: childIndex }], depth + 1));
+            });
+            if (Array.isArray(block.props?.children)) block.props.children.forEach((child, childIndex) => addRow(child, topIndex, [...path, { slot: 'children', index: childIndex }], depth + 1));
+        };
+        layout.forEach((block, i) => addRow(block, i, [], 0, 'Section ' + (i + 1)));
         $layerTree.innerHTML = html;
         $layerTree.querySelectorAll('.ve-layer').forEach(el => {
-            el.addEventListener('click', () => selectBlock(parseInt(el.dataset.index)));
+            el.addEventListener('click', () => {
+                const path = JSON.parse(el.dataset.path || '[]');
+                if (path.length) selectNestedBlock(parseInt(el.dataset.index), path);
+                else selectBlock(parseInt(el.dataset.index));
+            });
         });
     }
     function stripTags(s) { return s.replace(/<[^>]*>/g, ''); }
