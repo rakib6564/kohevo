@@ -440,7 +440,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         --ve-accent-hover: #16a34a;
         --ve-danger: #ef4444;
         --ve-radius: 8px;
-        --ve-panel-w: 260px;
+        --ve-panel-w: 320px;
         --ve-panel-right-w: 300px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -448,7 +448,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     body { background: var(--ve-bg); color: var(--ve-text); display: flex; flex-direction: column; }
 
     /* ── Topbar ─────────────────────────────────────────────── */
-    .ve-topbar { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 52px;
+    .ve-topbar { display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 58px;
                  background: var(--ve-surface); border-bottom: 1px solid var(--ve-border); flex-shrink: 0; z-index: 100; }
     .ve-topbar-left { display: flex; align-items: center; gap: 12px; }
     .ve-back { color: var(--ve-text-dim); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 4px; }
@@ -482,8 +482,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-panel { width: var(--ve-panel-w); background: var(--ve-surface); border-right: 1px solid var(--ve-border);
                 display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
     .ve-panel-right { width: var(--ve-panel-right-w); border-right: none; border-left: 1px solid var(--ve-border); }
-    .ve-panel-tabs { display: flex; border-bottom: 1px solid var(--ve-border); }
-    .ve-panel-tab { flex: 1; padding: 10px 0; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer;
+    .ve-panel-editor { width: var(--ve-panel-w); box-shadow: 8px 0 28px rgba(0,0,0,.12); z-index: 2; }
+    .ve-panel-tabs { display: flex; border-bottom: 1px solid var(--ve-border); background: #13161d; }
+    .ve-panel-tab { flex: 1; min-width: 0; padding: 12px 3px; text-align: center; font-size: 11px; font-weight: 600; cursor: pointer;
                     color: var(--ve-text-dim); border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; }
     .ve-panel-tab.active { color: var(--ve-accent); border-bottom-color: var(--ve-accent); }
     .ve-panel-content { padding: 12px; flex: 1; overflow-y: auto; display: none; }
@@ -529,14 +530,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-inspector-empty { padding: 40px 20px; text-align: center; color: var(--ve-text-dim); font-size: 13px; }
 
     /* ── Canvas area ────────────────────────────────────────── */
-    .ve-canvas-wrap { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; background: #1a1d24;
-                      display: flex; flex-direction: column; align-items: center; padding: 24px; }
+    .ve-canvas-wrap { flex: 1; min-width: 0; overflow-y: auto; overflow-x: auto; background: #20242b;
+                      display: flex; flex-direction: column; align-items: center; padding: 26px 34px 80px; }
     .ve-device-bar { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; flex-shrink: 0; }
     .ve-device-indicator { font-size: 11px; color: var(--ve-text-dim); font-variant-numeric: tabular-nums; letter-spacing: .02em; min-width: 60px; text-align: center; }
     .ve-custom-width-wrap { display: flex; align-items: center; gap: 4px; }
     .ve-custom-width-input { background: var(--ve-bg); border: 1px solid var(--ve-border); border-radius: 4px; color: var(--ve-text); font-size: 11px; padding: 2px 6px; width: 64px; outline: none; }
     .ve-custom-width-input:focus { border-color: var(--ve-accent); }
-    .ve-canvas-frame { width: 100%; max-width: 100%; transition: max-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-radius .3s ease; }
+    .ve-canvas-frame { width: 100%; max-width: 1180px; min-height: 720px; transition: max-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-radius .3s ease; }
     .ve-canvas-frame.device-tablet {
         max-width: 768px;
         border: 10px solid #23272f;
@@ -549,7 +550,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         border-radius: 36px;
         box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
-    .ve-canvas { background: #fff; min-height: 400px; overflow: hidden; position: relative; }
+    .ve-canvas { background: #fff; min-height: 720px; overflow: hidden; position: relative; box-shadow: 0 10px 35px rgba(0,0,0,.22); }
     .ve-canvas-frame.device-tablet .ve-canvas { border-radius: 14px; }
     .ve-canvas-frame.device-mobile .ve-canvas { border-radius: 24px; }
     @media (max-width: 900px) {
@@ -794,11 +795,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 <!-- ── Layout ────────────────────────────────────────────────── -->
 <div class="ve-layout">
 
-    <!-- Left panel: Block inserter + Layers -->
-    <div class="ve-panel">
+    <!-- Elementor-style left editor panel: elements, navigator, inspector, page, history -->
+    <div class="ve-panel ve-panel-editor">
         <div class="ve-panel-tabs">
             <button class="ve-panel-tab active" data-tab="blocks">Elements</button>
             <button class="ve-panel-tab" data-tab="layers">Navigator</button>
+            <button class="ve-panel-tab" data-tab="inspector">Settings</button>
+            <button class="ve-panel-tab" data-tab="page">Page</button>
+            <button class="ve-panel-tab" data-tab="history">History</button>
         </div>
         <div class="ve-panel-content active" id="tabBlocks">
             <input type="text" class="ve-search" id="blockSearch" placeholder="Search blocks…">
@@ -806,31 +810,6 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         </div>
         <div class="ve-panel-content" id="tabLayers">
             <div id="layerTree"></div>
-        </div>
-    </div>
-
-    <!-- Center canvas -->
-    <div class="ve-canvas-wrap">
-        <div class="ve-device-bar">
-            <span class="ve-device-indicator" id="deviceIndicator">Desktop</span>
-            <div class="ve-custom-width-wrap">
-                <input type="number" class="ve-custom-width-input" id="customWidthInput" placeholder="px" min="320" max="2560" title="Custom canvas width">
-                <span style="font-size:11px;color:var(--ve-text-dim)">px</span>
-            </div>
-        </div>
-        <div class="ve-canvas-frame" id="canvasFrame">
-            <div class="ve-canvas cb-public" id="canvas">
-                <!-- Blocks render here as real HTML -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Right panel: Inspector + Page settings -->
-    <div class="ve-panel ve-panel-right">
-        <div class="ve-panel-tabs">
-            <button class="ve-panel-tab active" data-tab="inspector">Inspector</button>
-            <button class="ve-panel-tab" data-tab="page">Page</button>
-            <button class="ve-panel-tab" data-tab="history">History</button>
         </div>
         <div class="ve-panel-content active" id="tabInspector">
             <div id="inspectorContent">
@@ -856,7 +835,23 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             </div>
         </div>
         <div class="ve-panel-content" id="tabHistory">
-            <div id="historyList"><div class="ve-inspector-empty">Loading…</div></div>
+                <div id="historyList"><div class="ve-inspector-empty">Loading…</div></div>
+        </div>
+    </div>
+
+    <!-- Full-width canvas -->
+    <div class="ve-canvas-wrap">
+        <div class="ve-device-bar">
+            <span class="ve-device-indicator" id="deviceIndicator">Desktop</span>
+            <div class="ve-custom-width-wrap">
+                <input type="number" class="ve-custom-width-input" id="customWidthInput" placeholder="px" min="320" max="2560" title="Custom canvas width">
+                <span style="font-size:11px;color:var(--ve-text-dim)">px</span>
+            </div>
+        </div>
+        <div class="ve-canvas-frame" id="canvasFrame">
+            <div class="ve-canvas cb-public" id="canvas">
+                <!-- Blocks render here as real HTML -->
+            </div>
         </div>
     </div>
 
