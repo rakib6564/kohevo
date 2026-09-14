@@ -440,7 +440,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         --ve-accent-hover: #16a34a;
         --ve-danger: #ef4444;
         --ve-radius: 8px;
-        --ve-panel-w: 260px;
+        --ve-panel-w: 320px;
         --ve-panel-right-w: 300px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -448,7 +448,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     body { background: var(--ve-bg); color: var(--ve-text); display: flex; flex-direction: column; }
 
     /* ── Topbar ─────────────────────────────────────────────── */
-    .ve-topbar { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 52px;
+    .ve-topbar { display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 58px;
                  background: var(--ve-surface); border-bottom: 1px solid var(--ve-border); flex-shrink: 0; z-index: 100; }
     .ve-topbar-left { display: flex; align-items: center; gap: 12px; }
     .ve-back { color: var(--ve-text-dim); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 4px; }
@@ -482,8 +482,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-panel { width: var(--ve-panel-w); background: var(--ve-surface); border-right: 1px solid var(--ve-border);
                 display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
     .ve-panel-right { width: var(--ve-panel-right-w); border-right: none; border-left: 1px solid var(--ve-border); }
-    .ve-panel-tabs { display: flex; border-bottom: 1px solid var(--ve-border); }
-    .ve-panel-tab { flex: 1; padding: 10px 0; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer;
+    .ve-panel-editor { width: var(--ve-panel-w); box-shadow: 8px 0 28px rgba(0,0,0,.12); z-index: 2; }
+    .ve-panel-tabs { display: flex; border-bottom: 1px solid var(--ve-border); background: #13161d; }
+    .ve-panel-tab { flex: 1; min-width: 0; padding: 12px 3px; text-align: center; font-size: 11px; font-weight: 600; cursor: pointer;
                     color: var(--ve-text-dim); border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; }
     .ve-panel-tab.active { color: var(--ve-accent); border-bottom-color: var(--ve-accent); }
     .ve-panel-content { padding: 12px; flex: 1; overflow-y: auto; display: none; }
@@ -513,6 +514,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-layer svg { width: 16px; height: 16px; flex-shrink: 0; }
     .ve-layer-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ve-layer-type { font-size: 11px; color: var(--ve-text-dim); }
+    .ve-layer-toggle, .ve-layer-toggle-spacer { width: 16px; height: 18px; flex: 0 0 16px; display: inline-flex; align-items: center; justify-content: center; }
+    .ve-layer-toggle { border: 0; background: none; color: var(--ve-text-dim); cursor: pointer; font-size: 13px; padding: 0; }
+    .ve-layer-toggle:hover { color: var(--ve-accent); }
     .ve-layer-indent-1 { padding-left: 28px; }
     .ve-layer-indent-2 { padding-left: 44px; }
     .ve-layer-group { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 10px 12px 4px; }
@@ -529,14 +533,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-inspector-empty { padding: 40px 20px; text-align: center; color: var(--ve-text-dim); font-size: 13px; }
 
     /* ── Canvas area ────────────────────────────────────────── */
-    .ve-canvas-wrap { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; background: #1a1d24;
-                      display: flex; flex-direction: column; align-items: center; padding: 24px; }
+    .ve-canvas-wrap { flex: 1; min-width: 0; overflow-y: auto; overflow-x: auto; background: #20242b;
+                      display: flex; flex-direction: column; align-items: center; padding: 26px 34px 80px; }
     .ve-device-bar { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; flex-shrink: 0; }
     .ve-device-indicator { font-size: 11px; color: var(--ve-text-dim); font-variant-numeric: tabular-nums; letter-spacing: .02em; min-width: 60px; text-align: center; }
     .ve-custom-width-wrap { display: flex; align-items: center; gap: 4px; }
     .ve-custom-width-input { background: var(--ve-bg); border: 1px solid var(--ve-border); border-radius: 4px; color: var(--ve-text); font-size: 11px; padding: 2px 6px; width: 64px; outline: none; }
     .ve-custom-width-input:focus { border-color: var(--ve-accent); }
-    .ve-canvas-frame { width: 100%; max-width: 100%; transition: max-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-radius .3s ease; }
+    .ve-canvas-frame { width: 100%; max-width: 1180px; min-height: 720px; transition: max-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-radius .3s ease; }
     .ve-canvas-frame.device-tablet {
         max-width: 768px;
         border: 10px solid #23272f;
@@ -549,7 +553,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         border-radius: 36px;
         box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
-    .ve-canvas { background: #fff; min-height: 400px; overflow: hidden; position: relative; }
+    .ve-canvas { background: #fff; min-height: 720px; overflow: hidden; position: relative; box-shadow: 0 10px 35px rgba(0,0,0,.22); }
     .ve-canvas-frame.device-tablet .ve-canvas { border-radius: 14px; }
     .ve-canvas-frame.device-mobile .ve-canvas { border-radius: 24px; }
     @media (max-width: 900px) {
@@ -794,11 +798,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 <!-- ── Layout ────────────────────────────────────────────────── -->
 <div class="ve-layout">
 
-    <!-- Left panel: Block inserter + Layers -->
-    <div class="ve-panel">
+    <!-- Elementor-style left editor panel: elements, navigator, inspector, page, history -->
+    <div class="ve-panel ve-panel-editor">
         <div class="ve-panel-tabs">
             <button class="ve-panel-tab active" data-tab="blocks">Elements</button>
             <button class="ve-panel-tab" data-tab="layers">Navigator</button>
+            <button class="ve-panel-tab" data-tab="inspector">Settings</button>
+            <button class="ve-panel-tab" data-tab="page">Page</button>
+            <button class="ve-panel-tab" data-tab="history">History</button>
         </div>
         <div class="ve-panel-content active" id="tabBlocks">
             <input type="text" class="ve-search" id="blockSearch" placeholder="Search blocks…">
@@ -807,32 +814,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         <div class="ve-panel-content" id="tabLayers">
             <div id="layerTree"></div>
         </div>
-    </div>
-
-    <!-- Center canvas -->
-    <div class="ve-canvas-wrap">
-        <div class="ve-device-bar">
-            <span class="ve-device-indicator" id="deviceIndicator">Desktop</span>
-            <div class="ve-custom-width-wrap">
-                <input type="number" class="ve-custom-width-input" id="customWidthInput" placeholder="px" min="320" max="2560" title="Custom canvas width">
-                <span style="font-size:11px;color:var(--ve-text-dim)">px</span>
-            </div>
-        </div>
-        <div class="ve-canvas-frame" id="canvasFrame">
-            <div class="ve-canvas cb-public" id="canvas">
-                <!-- Blocks render here as real HTML -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Right panel: Inspector + Page settings -->
-    <div class="ve-panel ve-panel-right">
-        <div class="ve-panel-tabs">
-            <button class="ve-panel-tab active" data-tab="inspector">Inspector</button>
-            <button class="ve-panel-tab" data-tab="page">Page</button>
-            <button class="ve-panel-tab" data-tab="history">History</button>
-        </div>
-        <div class="ve-panel-content active" id="tabInspector">
+        <div class="ve-panel-content" id="tabInspector">
             <div id="inspectorContent">
                 <div class="ve-inspector-empty">Select a block to edit its properties</div>
             </div>
@@ -856,7 +838,23 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             </div>
         </div>
         <div class="ve-panel-content" id="tabHistory">
-            <div id="historyList"><div class="ve-inspector-empty">Loading…</div></div>
+                <div id="historyList"><div class="ve-inspector-empty">Loading…</div></div>
+        </div>
+    </div>
+
+    <!-- Full-width canvas -->
+    <div class="ve-canvas-wrap">
+        <div class="ve-device-bar">
+            <span class="ve-device-indicator" id="deviceIndicator">Desktop</span>
+            <div class="ve-custom-width-wrap">
+                <input type="number" class="ve-custom-width-input" id="customWidthInput" placeholder="px" min="320" max="2560" title="Custom canvas width">
+                <span style="font-size:11px;color:var(--ve-text-dim)">px</span>
+            </div>
+        </div>
+        <div class="ve-canvas-frame" id="canvasFrame">
+            <div class="ve-canvas cb-public" id="canvas">
+                <!-- Blocks render here as real HTML -->
+            </div>
         </div>
     </div>
 
@@ -910,6 +908,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     let layout = JSON.parse(JSON.stringify(POST.layout || []));
     let selectedBlockIndex = -1;
     let selectedNestedPath = null; // null = top-level selection; else array of {slot:'col'|'children', col?:N, index:N} steps relative to layout[selectedBlockIndex].props
+    let activeDevice = 'desktop';
+    const collapsedNavigatorNodes = new Set();
     let pendingInsertTarget = null; // {topIdx, path} — when set, the next insertBlock() splices into that nested slot instead of the top-level layout
     let isDirty = POST.hasDraft;
     let isSaving = false;
@@ -1018,6 +1018,18 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         }
         return getSlotArray(block, path[path.length - 1]);
     }
+    function moveNestedBlock(topIdx, sourcePath, targetPath) {
+        const top = layout[topIdx];
+        const sourceArr = resolveSlotArrayForPath(top, sourcePath);
+        const targetArr = resolveSlotArrayForPath(top, targetPath);
+        if (!sourceArr || !targetArr) return false;
+        const sourceIndex = sourcePath[sourcePath.length - 1].index;
+        let targetIndex = targetPath[targetPath.length - 1].index;
+        if (sourceArr === targetArr && sourceIndex < targetIndex) targetIndex--;
+        const moved = sourceArr.splice(sourceIndex, 1)[0];
+        targetArr.splice(Math.max(0, targetIndex), 0, moved);
+        return true;
+    }
     function getSelectedParentInfo() {
         if (selectedBlockIndex < 0) return null;
         if (!selectedNestedPath || !selectedNestedPath.length) return { arr: layout, idx: selectedBlockIndex };
@@ -1094,21 +1106,32 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     // Accept a block dragged in from the sidebar palette and insert it into a slot.
     function wireSlotDropTarget(el, getTarget) {
         el.addEventListener('dragover', (e) => {
-            if (!Array.from(e.dataTransfer.types).includes('application/x-slate-block-type')) return;
+            const types = Array.from(e.dataTransfer.types);
+            if (!types.includes('application/x-slate-block-type') && !types.includes('application/x-slate-nested-block')) return;
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
+            e.dataTransfer.dropEffect = types.includes('application/x-slate-nested-block') ? 'move' : 'copy';
             el.classList.add('ve-slot-target');
         });
         el.addEventListener('dragleave', () => el.classList.remove('ve-slot-target'));
         el.addEventListener('drop', (e) => {
-            if (!Array.from(e.dataTransfer.types).includes('application/x-slate-block-type')) return;
+            const types = Array.from(e.dataTransfer.types);
+            if (!types.includes('application/x-slate-block-type') && !types.includes('application/x-slate-nested-block')) return;
             e.preventDefault();
             e.stopPropagation();
             el.classList.remove('ve-slot-target');
+            const target = getTarget();
+            const nested = e.dataTransfer.getData('application/x-slate-nested-block');
+            if (nested) {
+                const source = JSON.parse(nested);
+                if (source.topIdx === target.topIdx && moveNestedBlock(target.topIdx, source.path, target.path)) {
+                    pushUndo();
+                    markDirty();
+                    refreshTopLevelBlock(target.topIdx).then(() => { renderLayers(); renderInspector(); });
+                }
+                return;
+            }
             const type = e.dataTransfer.getData('application/x-slate-block-type');
-            if (!type) return;
-            pendingInsertTarget = getTarget();
-            insertBlock(type);
+            if (type) { pendingInsertTarget = target; insertBlock(type); }
         });
     }
     // One column / flex-container "slot": zips its rendered DOM children 1:1 against the
@@ -1163,6 +1186,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         el.dataset.nestedHydrated = '1';
         el.classList.add('ve-nested-block');
         el.dataset.nestedPath = nestedPathKey(path);
+        el.draggable = true;
+        el.addEventListener('dragstart', (e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('application/x-slate-nested-block', JSON.stringify({ topIdx, path }));
+            el.classList.add('dragging');
+        });
+        el.addEventListener('dragend', () => el.classList.remove('dragging'));
 
         // Recurse FIRST, while el's only children are still its server-rendered content —
         // this block may itself be a Columns / Flex Container. If we appended our own
@@ -1413,6 +1444,34 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     }
 
     // ── Insert block ──────────────────────────────────────────
+    let widgetClipboard = null;
+    function copySelectedWidget() {
+        const block = getSelectedBlock();
+        if (!block) return;
+        widgetClipboard = JSON.parse(JSON.stringify(block));
+        toast('Widget copied');
+    }
+    async function pasteSelectedWidget() {
+        if (!widgetClipboard) { toast('Nothing to paste', 'error'); return; }
+        const clone = JSON.parse(JSON.stringify(widgetClipboard));
+        pushUndo();
+        if (selectedNestedPath?.length) {
+            const info = getSelectedParentInfo();
+            if (!info) return;
+            info.arr.splice(info.idx + 1, 0, clone);
+            selectedNestedPath = [...selectedNestedPath.slice(0, -1), { ...selectedNestedPath[selectedNestedPath.length - 1], index: info.idx + 1 }];
+            markDirty();
+            await refreshTopLevelBlock(selectedBlockIndex);
+            renderLayers(); renderInspector();
+            return;
+        }
+        const idx = selectedBlockIndex >= 0 ? selectedBlockIndex + 1 : layout.length;
+        layout.splice(idx, 0, clone);
+        RENDERED.splice(idx, 0, await renderBlockServer(clone));
+        selectedBlockIndex = idx;
+        markDirty();
+        rebuildCanvas();
+    }
     async function insertBlock(type) {
         const def = BLOCKS[type];
         if (!def) return;
@@ -1421,6 +1480,23 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         if (def.defaults) {
             for (const [key, val] of Object.entries(def.defaults)) {
                 block.props[key] = typeof val === 'object' ? JSON.parse(JSON.stringify(val)) : val;
+            }
+        }
+
+        // Elementor behavior: when a container or section structure is selected,
+        // a palette widget is inserted into that structure rather than beside it.
+        if (!pendingInsertTarget && selectedBlockIndex >= 0 && !selectedNestedPath?.length) {
+            const selected = layout[selectedBlockIndex];
+            if (selected?.type === 'container') {
+                selected.props = selected.props || {};
+                selected.props.children = selected.props.children || [];
+                pendingInsertTarget = { topIdx: selectedBlockIndex, path: [{ slot: 'children', index: selected.props.children.length }] };
+            } else if (selected?.type === 'columns') {
+                selected.props = selected.props || {};
+                selected.props.cols = selected.props.cols || [{ blocks: [] }, { blocks: [] }];
+                selected.props.cols[0] = selected.props.cols[0] || { blocks: [] };
+                selected.props.cols[0].blocks = selected.props.cols[0].blocks || [];
+                pendingInsertTarget = { topIdx: selectedBlockIndex, path: [{ slot: 'col', col: 0, index: selected.props.cols[0].blocks.length }] };
             }
         }
 
@@ -1482,6 +1558,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     function applyBlockStyleToEl(blockEl, s) {
         if (!blockEl) return;
         s = s || {};
+        if (activeDevice !== 'desktop' && s.responsive && s.responsive[activeDevice]) {
+            s = { ...s, ...s.responsive[activeDevice] };
+        }
         let styleStr = '';
 
         if (s.bgColor) {
@@ -1591,6 +1670,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             '<div class="ve-block-controls">' +
             '<button type="button" data-action="add-above" title="Add block above">+</button>' +
             '<div class="ve-handle-title" title="Drag to reorder">⠿ ' + escHtml(typeName) + '</div>' +
+            '<button type="button" data-action="settings" title="Edit settings">⚙</button>' +
             '<button type="button" data-action="up" title="Move up">↑</button>' +
             '<button type="button" data-action="down" title="Move down">↓</button>' +
             '<button type="button" data-action="dup" title="Duplicate">⧉</button>' +
@@ -1757,6 +1837,14 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     }
 
     async function handleBlockAction(idx, action) {
+        if (action === 'settings') {
+            selectedBlockIndex = idx;
+            selectedNestedPath = null;
+            const settingsTab = document.querySelector('[data-tab="inspector"]');
+            if (settingsTab) settingsTab.click();
+            renderInspector();
+            return;
+        }
         if (action === 'add-above') {
             insertAtIndex = idx;
             const blocksTab = document.querySelector('[data-tab="blocks"]');
@@ -1799,15 +1887,20 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         let html = '';
         const addRow = (block, topIndex, path, depth, labelOverride) => {
             const def = BLOCKS[block.type] || {};
-            const label = block.props?.text
+            const label = block.props?.sectionName || block.props?.heading || (block.props?.text
                 ? stripTags(block.props.text).substring(0, 30)
-                : (labelOverride || def.label || block.type);
+                : (labelOverride || def.label || block.type));
             const selected = topIndex === selectedBlockIndex && nestedPathKey(path) === nestedPathKey(selectedNestedPath || []);
+            const nodeKey = topIndex + ':' + nestedPathKey(path);
+            const hasChildren = (Array.isArray(block.props?.children) && block.props.children.length) || (Array.isArray(block.props?.cols) && block.props.cols.some(col => (col?.blocks || []).length));
+            const collapsed = collapsedNavigatorNodes.has(nodeKey);
             html += '<div class="ve-layer ve-layer-indent-' + Math.min(depth, 2) + (selected ? ' selected' : '') + '" data-index="' + topIndex + '" data-path="' + escHtml(JSON.stringify(path)) + '">'
+                + (hasChildren ? '<button type="button" class="ve-layer-toggle" data-node-key="' + escHtml(nodeKey) + '">' + (collapsed ? '▸' : '▾') + '</button>' : '<span class="ve-layer-toggle-spacer"></span>')
                 + blockIcon(block.type)
                 + '<span class="ve-layer-label">' + escHtml(label) + '</span>'
                 + '<span class="ve-layer-type">' + (def.label || block.type) + '</span>'
                 + '</div>';
+            if (collapsed) return;
             if (Array.isArray(block.props?.cols)) block.props.cols.forEach((col, colIndex) => {
                 html += '<div class="ve-layer-group ve-layer-indent-' + Math.min(depth + 1, 2) + '">Column ' + (colIndex + 1) + '</div>';
                 (col?.blocks || []).forEach((child, childIndex) => addRow(child, topIndex, [...path, { slot: 'col', col: colIndex, index: childIndex }], depth + 1));
@@ -1821,6 +1914,15 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                 const path = JSON.parse(el.dataset.path || '[]');
                 if (path.length) selectNestedBlock(parseInt(el.dataset.index), path);
                 else selectBlock(parseInt(el.dataset.index));
+            });
+        });
+        $layerTree.querySelectorAll('.ve-layer-toggle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const key = btn.dataset.nodeKey;
+                if (collapsedNavigatorNodes.has(key)) collapsedNavigatorNodes.delete(key);
+                else collapsedNavigatorNodes.add(key);
+                renderLayers();
             });
         });
     }
@@ -1852,7 +1954,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         const block = getSelectedBlock();
         const def = BLOCKS[block.type] || {};
         const defaults = def.defaults || {};
-        const st = block.style || {};
+        const stBase = block.style || {};
+        const st = { ...stBase, ...(stBase.responsive?.[activeDevice] || {}) };
 
         // ── Content fields accordion ───────────────────────────
         let contentFields = '';
@@ -1925,6 +2028,15 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 <div class="ve-accordion">
   <div class="ve-accordion-head open" id="styleHead"><span>⚙ Style</span><span class="ve-acc-arrow">▾</span></div>
   <div class="ve-accordion-body open" id="styleBody">
+
+    <div class="ve-field">
+      <label>Responsive device</label>
+      <div class="ve-btn-group" id="styleDeviceGroup">
+        <button data-style-device="desktop" class="${activeDevice==='desktop'?'active':''}">Desktop</button>
+        <button data-style-device="tablet" class="${activeDevice==='tablet'?'active':''}">Tablet</button>
+        <button data-style-device="mobile" class="${activeDevice==='mobile'?'active':''}">Mobile</button>
+      </div>
+    </div>
 
     <div class="ve-field">
       <label>Text Align</label>
@@ -2072,6 +2184,13 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             head.classList.toggle('open');
             body.classList.toggle('open');
         });
+        document.getElementById('styleDeviceGroup').querySelectorAll('[data-style-device]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeDevice = btn.dataset.styleDevice;
+                setDevice(activeDevice);
+                renderInspector();
+            });
+        });
 
         // ── Style changes → instant canvas apply (no server call) ─
         function applyStyle() {
@@ -2082,14 +2201,24 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             applyBlockStyleToEl(blockEl, sel.style);
             markDirty();
         }
+        function writeStyle(key, value) {
+            const sel = getSelectedBlock();
+            if (!sel) return;
+            sel.style = sel.style || {};
+            if (activeDevice === 'desktop') sel.style[key] = value;
+            else {
+                sel.style.responsive = sel.style.responsive || {};
+                sel.style.responsive[activeDevice] = sel.style.responsive[activeDevice] || {};
+                sel.style.responsive[activeDevice][key] = value;
+            }
+        }
 
         // Alignment buttons
         document.getElementById('alignGroup').querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.getElementById('alignGroup').querySelectorAll('button').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                getSelectedBlock().style = getSelectedBlock().style || {};
-                getSelectedBlock().style.textAlign = btn.dataset.align;
+                writeStyle('textAlign', btn.dataset.align);
                 applyStyle();
             });
         });
@@ -2100,8 +2229,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const hexInput = document.getElementById(hexId);
             if (!picker || !hexInput) return;
             const sync = (val) => {
-                getSelectedBlock().style = getSelectedBlock().style || {};
-                getSelectedBlock().style[styleKey] = val;
+                writeStyle(styleKey, val);
                 if (/^#[0-9a-f]{3,8}$/i.test(val)) {
                     picker.value = val.length <= 7 ? val : val.slice(0,7);
                     hexInput.value = val;
@@ -2117,22 +2245,19 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         // BG Image & Overlay
         const stBgImage = document.getElementById('stBgImage');
         if (stBgImage) stBgImage.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.bgImage = stBgImage.value;
+            writeStyle('bgImage', stBgImage.value);
             applyStyle();
         });
         const stBgOverlay = document.getElementById('stBgOverlay');
         if (stBgOverlay) stBgOverlay.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.bgOverlay = stBgOverlay.value;
+            writeStyle('bgOverlay', stBgOverlay.value);
             applyStyle();
         });
 
         // BG Opacity
         const stBgOpacity = document.getElementById('stBgOpacity');
         if (stBgOpacity) stBgOpacity.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.bgOpacity = parseInt(stBgOpacity.value) || 100;
+            writeStyle('bgOpacity', parseInt(stBgOpacity.value) || 100);
             applyStyle();
         });
 
@@ -2141,8 +2266,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const el = document.getElementById(id);
             if (!el) return;
             el.addEventListener('input', () => {
-                getSelectedBlock().style = getSelectedBlock().style || {};
-                getSelectedBlock().style[styleKey] = el.value === '' ? '' : parseInt(el.value);
+                writeStyle(styleKey, el.value === '' ? '' : parseInt(el.value));
                 applyStyle();
             });
         }
@@ -2154,14 +2278,12 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         // Max width & custom class
         const stMW = document.getElementById('stMW');
         if (stMW) stMW.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.maxWidth = stMW.value;
+            writeStyle('maxWidth', stMW.value);
             applyStyle();
         });
         const stClass = document.getElementById('stClass');
         if (stClass) stClass.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.customClass = stClass.value;
+            writeStyle('customClass', stClass.value);
             applyStyle();
         });
 
@@ -2170,10 +2292,11 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const btn = document.getElementById('vis' + dev);
             if (!btn) return;
             btn.addEventListener('click', () => {
-                getSelectedBlock().style = getSelectedBlock().style || {};
                 const key = 'hide' + dev;
-                getSelectedBlock().style[key] = !getSelectedBlock().style[key];
-                btn.classList.toggle('hidden-on', !!getSelectedBlock().style[key]);
+                const sel = getSelectedBlock();
+                const current = activeDevice === 'desktop' ? !!sel.style?.[key] : !!sel.style?.responsive?.[activeDevice]?.[key];
+                writeStyle(key, !current);
+                btn.classList.toggle('hidden-on', !current);
                 applyStyle();
             });
         });
@@ -2259,6 +2382,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     const DEVICE_LABELS = { desktop: 'Desktop', tablet: 'Tablet · 768px', mobile: 'Mobile · 390px' };
 
     function setDevice(device, customPx) {
+        activeDevice = device;
         $canvasFrame.className = 've-canvas-frame';
         if (device !== 'desktop') $canvasFrame.classList.add('device-' + device);
         if (customPx) {
@@ -2268,6 +2392,10 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             $canvasFrame.style.maxWidth = '';
             $deviceIndicator.textContent = DEVICE_LABELS[device] || device;
         }
+        const selected = getSelectedBlock();
+        const selectedEl = getSelectedBlockEl();
+        if (selected && selectedEl) applyBlockStyleToEl(selectedEl, selected.style || {});
+        if (selected) renderInspector();
     }
 
     document.querySelectorAll('.ve-device-btn').forEach(btn => {
@@ -2360,6 +2488,16 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             doAction('save_draft');
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInput) {
+            e.preventDefault();
+            copySelectedWidget();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInput) {
+            e.preventDefault();
+            pasteSelectedWidget();
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
