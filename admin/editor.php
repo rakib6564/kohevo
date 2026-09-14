@@ -905,6 +905,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     let layout = JSON.parse(JSON.stringify(POST.layout || []));
     let selectedBlockIndex = -1;
     let selectedNestedPath = null; // null = top-level selection; else array of {slot:'col'|'children', col?:N, index:N} steps relative to layout[selectedBlockIndex].props
+    let activeDevice = 'desktop';
     let pendingInsertTarget = null; // {topIdx, path} — when set, the next insertBlock() splices into that nested slot instead of the top-level layout
     let isDirty = POST.hasDraft;
     let isSaving = false;
@@ -1553,6 +1554,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     function applyBlockStyleToEl(blockEl, s) {
         if (!blockEl) return;
         s = s || {};
+        if (activeDevice !== 'desktop' && s.responsive && s.responsive[activeDevice]) {
+            s = { ...s, ...s.responsive[activeDevice] };
+        }
         let styleStr = '';
 
         if (s.bgColor) {
@@ -1932,7 +1936,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         const block = getSelectedBlock();
         const def = BLOCKS[block.type] || {};
         const defaults = def.defaults || {};
-        const st = block.style || {};
+        const stBase = block.style || {};
+        const st = { ...stBase, ...(stBase.responsive?.[activeDevice] || {}) };
 
         // ── Content fields accordion ───────────────────────────
         let contentFields = '';
@@ -2005,6 +2010,15 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 <div class="ve-accordion">
   <div class="ve-accordion-head open" id="styleHead"><span>⚙ Style</span><span class="ve-acc-arrow">▾</span></div>
   <div class="ve-accordion-body open" id="styleBody">
+
+    <div class="ve-field">
+      <label>Responsive device</label>
+      <div class="ve-btn-group" id="styleDeviceGroup">
+        <button data-style-device="desktop" class="${activeDevice==='desktop'?'active':''}">Desktop</button>
+        <button data-style-device="tablet" class="${activeDevice==='tablet'?'active':''}">Tablet</button>
+        <button data-style-device="mobile" class="${activeDevice==='mobile'?'active':''}">Mobile</button>
+      </div>
+    </div>
 
     <div class="ve-field">
       <label>Text Align</label>
@@ -2152,6 +2166,13 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             head.classList.toggle('open');
             body.classList.toggle('open');
         });
+        document.getElementById('styleDeviceGroup').querySelectorAll('[data-style-device]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeDevice = btn.dataset.styleDevice;
+                setDevice(activeDevice);
+                renderInspector();
+            });
+        });
 
         // ── Style changes → instant canvas apply (no server call) ─
         function applyStyle() {
@@ -2162,14 +2183,24 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             applyBlockStyleToEl(blockEl, sel.style);
             markDirty();
         }
+        function writeStyle(key, value) {
+            const sel = getSelectedBlock();
+            if (!sel) return;
+            sel.style = sel.style || {};
+            if (activeDevice === 'desktop') sel.style[key] = value;
+            else {
+                sel.style.responsive = sel.style.responsive || {};
+                sel.style.responsive[activeDevice] = sel.style.responsive[activeDevice] || {};
+                sel.style.responsive[activeDevice][key] = value;
+            }
+        }
 
         // Alignment buttons
         document.getElementById('alignGroup').querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.getElementById('alignGroup').querySelectorAll('button').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                getSelectedBlock().style = getSelectedBlock().style || {};
-                getSelectedBlock().style.textAlign = btn.dataset.align;
+                writeStyle('textAlign', btn.dataset.align);
                 applyStyle();
             });
         });
@@ -2180,8 +2211,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const hexInput = document.getElementById(hexId);
             if (!picker || !hexInput) return;
             const sync = (val) => {
-                getSelectedBlock().style = getSelectedBlock().style || {};
-                getSelectedBlock().style[styleKey] = val;
+                writeStyle(styleKey, val);
                 if (/^#[0-9a-f]{3,8}$/i.test(val)) {
                     picker.value = val.length <= 7 ? val : val.slice(0,7);
                     hexInput.value = val;
@@ -2197,22 +2227,19 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         // BG Image & Overlay
         const stBgImage = document.getElementById('stBgImage');
         if (stBgImage) stBgImage.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.bgImage = stBgImage.value;
+            writeStyle('bgImage', stBgImage.value);
             applyStyle();
         });
         const stBgOverlay = document.getElementById('stBgOverlay');
         if (stBgOverlay) stBgOverlay.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.bgOverlay = stBgOverlay.value;
+            writeStyle('bgOverlay', stBgOverlay.value);
             applyStyle();
         });
 
         // BG Opacity
         const stBgOpacity = document.getElementById('stBgOpacity');
         if (stBgOpacity) stBgOpacity.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.bgOpacity = parseInt(stBgOpacity.value) || 100;
+            writeStyle('bgOpacity', parseInt(stBgOpacity.value) || 100);
             applyStyle();
         });
 
@@ -2221,8 +2248,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const el = document.getElementById(id);
             if (!el) return;
             el.addEventListener('input', () => {
-                getSelectedBlock().style = getSelectedBlock().style || {};
-                getSelectedBlock().style[styleKey] = el.value === '' ? '' : parseInt(el.value);
+                writeStyle(styleKey, el.value === '' ? '' : parseInt(el.value));
                 applyStyle();
             });
         }
@@ -2234,14 +2260,12 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         // Max width & custom class
         const stMW = document.getElementById('stMW');
         if (stMW) stMW.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.maxWidth = stMW.value;
+            writeStyle('maxWidth', stMW.value);
             applyStyle();
         });
         const stClass = document.getElementById('stClass');
         if (stClass) stClass.addEventListener('input', () => {
-            getSelectedBlock().style = getSelectedBlock().style || {};
-            getSelectedBlock().style.customClass = stClass.value;
+            writeStyle('customClass', stClass.value);
             applyStyle();
         });
 
@@ -2250,10 +2274,11 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const btn = document.getElementById('vis' + dev);
             if (!btn) return;
             btn.addEventListener('click', () => {
-                getSelectedBlock().style = getSelectedBlock().style || {};
                 const key = 'hide' + dev;
-                getSelectedBlock().style[key] = !getSelectedBlock().style[key];
-                btn.classList.toggle('hidden-on', !!getSelectedBlock().style[key]);
+                const sel = getSelectedBlock();
+                const current = activeDevice === 'desktop' ? !!sel.style?.[key] : !!sel.style?.responsive?.[activeDevice]?.[key];
+                writeStyle(key, !current);
+                btn.classList.toggle('hidden-on', !current);
                 applyStyle();
             });
         });
@@ -2339,6 +2364,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     const DEVICE_LABELS = { desktop: 'Desktop', tablet: 'Tablet · 768px', mobile: 'Mobile · 390px' };
 
     function setDevice(device, customPx) {
+        activeDevice = device;
         $canvasFrame.className = 've-canvas-frame';
         if (device !== 'desktop') $canvasFrame.classList.add('device-' + device);
         if (customPx) {
@@ -2348,6 +2374,10 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             $canvasFrame.style.maxWidth = '';
             $deviceIndicator.textContent = DEVICE_LABELS[device] || device;
         }
+        const selected = getSelectedBlock();
+        const selectedEl = getSelectedBlockEl();
+        if (selected && selectedEl) applyBlockStyleToEl(selectedEl, selected.style || {});
+        if (selected) renderInspector();
     }
 
     document.querySelectorAll('.ve-device-btn').forEach(btn => {

@@ -210,7 +210,10 @@ final class LegacyBlockBridge
         }));
         $registry->register(new CallbackBlock('container', FieldSchema::of([
             ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
-        ], ['heading' => 'Container', 'content' => 'Add content inside this container', 'children' => []]), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner cb-container" style="padding:24px;border:1px dashed #94a3b8;border-radius:10px"><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p>' . self::renderNestedBlocks(is_array($p['children'] ?? null) ? $p['children'] : []) . '</div>'));
+            ['key' => 'contentWidth', 'type' => 'select', 'label' => 'Content width', 'options' => [['v' => 'boxed', 'l' => 'Boxed'], ['v' => 'full', 'l' => 'Full width']]],
+            ['key' => 'direction', 'type' => 'select', 'label' => 'Direction', 'options' => [['v' => 'column', 'l' => 'Column'], ['v' => 'row', 'l' => 'Row']]],
+            ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
+        ], ['heading' => 'Container', 'content' => 'Add content inside this container', 'children' => [], 'contentWidth' => 'boxed', 'direction' => 'column', 'gap' => 24]), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner cb-container" style="width:' . (($p['contentWidth'] ?? 'boxed') === 'full' ? '100%' : 'min(100%,1180px)') . ';display:flex;flex-direction:' . self::choice($p['direction'] ?? 'column', ['column', 'row'], 'column') . ';gap:' . max(0, min(120, (int)($p['gap'] ?? 24))) . 'px;padding:24px;border:1px dashed #94a3b8;border-radius:10px"><div><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>' . self::renderNestedBlocks(is_array($p['children'] ?? null) ? $p['children'] : []) . '</div>'));
         $registry->register(new CallbackBlock('icon-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-icon-grid')));
         $registry->register(new CallbackBlock('image-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-image-grid')));
 
