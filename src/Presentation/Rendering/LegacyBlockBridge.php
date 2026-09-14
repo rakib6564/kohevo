@@ -163,6 +163,35 @@ final class LegacyBlockBridge
                 return self::renderHero($props);
             },
         ));
+
+        self::registerArchivedFallbacks($registry);
+    }
+
+    /**
+     * Keep archived content portable even when a specialized renderer is not
+     * available in the active application. These contracts deliberately expose
+     * only safe text fields; richer blocks can be upgraded without changing the
+     * stored type or document shape later.
+     */
+    private static function registerArchivedFallbacks(InMemoryBlockRegistry $registry): void
+    {
+        foreach (['columns', 'container', 'cta', 'divider', 'html', 'icon-grid', 'image-grid', 'post-list', 'spacer', 'testimonial', 'react', 'rx-gallery', 'rx-hero', 'rx-marquee', 'rx-menu', 'rx-reviews', 'rx-story', 'rx-visit'] as $type) {
+            $registry->register(new CallbackBlock(
+                $type,
+                FieldSchema::of([
+                    ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'],
+                    ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
+                ], ['heading' => ucfirst(str_replace('-', ' ', $type)), 'content' => '']),
+                static function (array $props, RenderContext $ctx) use ($type): string {
+                    $heading = trim((string) ($props['heading'] ?? ''));
+                    $content = trim((string) ($props['content'] ?? ''));
+                    $html = '<div class="cb-legacy-' . \e($type) . '">';
+                    if ($heading !== '') $html .= '<h2>' . \e($heading) . '</h2>';
+                    if ($content !== '') $html .= '<p>' . nl2br(\e($content)) . '</p>';
+                    return $html . '</div>';
+                },
+            ));
+        }
     }
 
     /** @param array<string,mixed>|null $media */

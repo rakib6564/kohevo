@@ -54,6 +54,16 @@ assert_eq(1, count($moved['sections'][1]['blocks']), 'move transfers block to de
 $updated = DocumentOperations::updateBlockProps($moved, 's1', 0, ['heading' => 'Updated']);
 assert_eq('Two', $moved['sections'][0]['blocks'][0]['props']['heading'], 'update does not mutate original document');
 assert_eq('Updated', $updated['sections'][0]['blocks'][0]['props']['heading'], 'update patches exact block props');
+$nestedDocument = $document;
+$nestedDocument['sections'][0]['blocks'] = [[
+    'type' => 'columns',
+    'props' => ['cols' => [['blocks' => [['type' => 'hero', 'props' => ['heading' => 'Nested']]]]]],
+]];
+$nestedInserted = DocumentOperations::insertBlockAtPath($nestedDocument, ['s1', 0, 'props', 'cols', 0, 'blocks'], 1, ['type' => 'hero', 'props' => ['heading' => 'Second']]);
+assert_eq(2, count($nestedInserted['sections'][0]['blocks'][0]['props']['cols'][0]['blocks']), 'nested insert targets the requested child collection');
+$nestedUpdated = DocumentOperations::updateBlockPropsAtPath($nestedInserted, ['s1', 0, 'props', 'cols', 0, 'blocks'], 0, ['heading' => 'Changed']);
+assert_eq('Nested', $nestedInserted['sections'][0]['blocks'][0]['props']['cols'][0]['blocks'][0]['props']['heading'], 'nested update does not mutate source');
+assert_eq('Changed', $nestedUpdated['sections'][0]['blocks'][0]['props']['cols'][0]['blocks'][0]['props']['heading'], 'nested update patches child props');
 
 $metadataA = CompilationMetadata::for($updated, 'renderer-1', 'theme-1', ['content:1', 'global:2']);
 $metadataB = CompilationMetadata::for($updated, 'renderer-1', 'theme-1', ['global:2', 'content:1']);

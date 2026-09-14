@@ -170,6 +170,25 @@ function slate_editor_update_meta(\Slate\Services\Content\ContentPageRepository 
     }
 }
 
+/** @param mixed $value @return list<string> */
+function slate_editor_dependency_keys(mixed $value): array
+{
+    $found = [];
+    $walk = function (mixed $node) use (&$walk, &$found): void {
+        if (!is_array($node)) return;
+        foreach (['$ref', 'savedAs'] as $key) {
+            if (isset($node[$key]) && is_string($node[$key]) && preg_match('/^[a-z][a-z0-9-]{0,95}$/', $node[$key])) {
+                $found['global:' . $node[$key]] = true;
+            }
+        }
+        foreach ($node as $child) $walk($child);
+    };
+    $walk($value);
+    $keys = array_keys($found);
+    sort($keys, SORT_STRING);
+    return $keys;
+}
+
 // ── AJAX handlers ────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
     header('Content-Type: application/json');
@@ -239,18 +258,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
 
         $publication = ContentServiceFactory::publicationService();
         $themeVersion = '1';
+        $dependencyKeys = slate_editor_dependency_keys($validated['document']);
         try {
             if ($action === 'publish') {
-                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion);
-                $result = $publication->publish(CONTENT_PAGE_OWNER_TYPE, $postId, $renderCtx, $themeVersion);
+                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion, $dependencyKeys);
+                $result = $publication->publish(CONTENT_PAGE_OWNER_TYPE, $postId, $renderCtx, $themeVersion, $dependencyKeys);
                 if ($result === null) {
                     echo json_encode(['ok' => false, 'error' => 'nothing_to_publish']);
                     exit;
                 }
                 $pages->markPublished($postId);
+                foreach ($dependencyKeys as $dependencyKey) {
+                    ContentServiceFactory::invalidationService()->invalidate($dependencyKey);
+                }
                 echo json_encode(['ok' => true, 'action' => 'published']);
             } else {
-                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion);
+                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion, $dependencyKeys);
                 echo json_encode(['ok' => true, 'action' => 'draft_saved']);
             }
         } catch (\Throwable $e) {

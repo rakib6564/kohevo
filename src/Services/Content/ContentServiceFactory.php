@@ -121,4 +121,12 @@ final class ContentServiceFactory
     {
         return new PreviewService(self::pageContentCompiler(), self::validatorRegistry());
     }
+
+    public static function invalidationService(): DependencyInvalidationService
+    {
+        return new DependencyInvalidationService(
+            self::dependencyStore(),
+            new PageContentRecompiler(self::revisionStore(), self::compilationStore(), self::pageContentCompiler(), self::RENDERER_VERSION),
+        );
+    }
 }

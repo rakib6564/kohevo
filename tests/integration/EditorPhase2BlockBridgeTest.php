@@ -14,10 +14,15 @@ declare(strict_types=1);
 use Slate\Presentation\RenderContext;
 use Slate\Services\Content\ContentServiceFactory;
 
-unit('paletteProjection exposes exactly the 5 ported block types, transport-safe', function () {
+unit('paletteProjection exposes all supported block types, transport-safe', function () {
     $types = array_map(fn ($b) => $b['type'], ContentServiceFactory::paletteProjection());
     sort($types);
-    assert_eq(['button', 'heading', 'hero', 'image', 'paragraph'], $types);
+    assert_eq([
+        'button', 'columns', 'container', 'cta', 'divider', 'heading', 'hero', 'html',
+        'icon-grid', 'image', 'image-grid', 'paragraph', 'post-list', 'react', 'rx-gallery',
+        'rx-hero', 'rx-marquee', 'rx-menu', 'rx-reviews', 'rx-story', 'rx-visit', 'spacer',
+        'testimonial',
+    ], $types);
 
     foreach (ContentServiceFactory::paletteProjection() as $def) {
         assert_true(!isset($def['render']), 'the palette must never leak a render closure');

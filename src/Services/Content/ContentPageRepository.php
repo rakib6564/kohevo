@@ -53,6 +53,14 @@ final class ContentPageRepository extends Repository
         $this->update($id, ['status' => 'published', 'updated_at' => \slate_db_now()]);
     }
 
+    /** Return one tenant-scoped page by its public slug. */
+    public function findBySlug(string $slug): ?array
+    {
+        $slug = trim($slug, '/');
+        if ($slug === '' || !preg_match('/^[a-z0-9][a-z0-9\/-]{0,190}$/i', $slug)) return null;
+        return $this->query()->where('slug', $slug)->where('status', 'published')->first();
+    }
+
     /**
      * @param array{type?:string,search?:string} $filters
      * @return array<int,array<string,mixed>>

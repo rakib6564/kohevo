@@ -149,7 +149,9 @@ unit('save_draft rejects a document with a newly-inserted unknown block type', f
 unit('save_draft rejects an oversized prop value', function () {
     $pageId = ep2p_make_page('ep2-oversized-' . bin2hex(random_bytes(4)));
     try {
-        $layout = [['type' => 'heading', 'props' => ['text' => str_repeat('x', 200000), 'level' => '1']]];
+        // Keep the payload above DocumentValidator::MAX_STRING_LENGTH while
+        // remaining below Linux's argv limit used by this child-process probe.
+        $layout = [['type' => 'heading', 'props' => ['text' => str_repeat('x', 110000), 'level' => '1']]];
         $res = ep2p_probe('id=' . $pageId, [
             '_editor_action' => 'save_draft', 'layout' => json_encode($layout), 'title' => '', 'slug' => '',
         ]);
