@@ -8,104 +8,165 @@
  * Three-panel layout with DIRECT canvas rendering (no iframe).
  * Blocks render as real HTML in the canvas, with click-to-select,
  * drag-to-reorder, inline editing, and per-block controls.
+ *
+ * Phase 2 migration: persistence now goes through the DocumentSchema v1
+ * application-service layer (ContentServiceFactory / ContentPublicationService /
+ * PreviewService / RevisionStore) instead of the legacy, archived
+ * ContentBuilderAPI — see docs/PHASE-2-STRUCTURED-REACT-BUILDER-SCHEMA.md and
+ * the plan at .claude/plans (Phase 2 editor migration). The UI/JS below is
+ * unchanged; only the PHP data layer and the AJAX handlers changed.
  */
 
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/config.php';
 
+use Slate\Presentation\DocumentOperations;
+use Slate\Presentation\DocumentValidator;
+use Slate\Presentation\EditorStateSerializer;
+use Slate\Presentation\RenderContext;
+use Slate\Presentation\Rendering\PageRenderer;
+use Slate\Services\Content\ContentServiceFactory;
+use Slate\Services\Content\RevisionStore;
+
 Auth::require();
 Auth::requirePerm('content.edit');
 
-ContentBuilderAPI::ensureSchema();
+// ── Feature flag: a kill switch for the Phase 2 path, not a legacy dual-path —
+// the archived ContentBuilderAPI backend no longer has a live table to read
+// from, so there is nothing working left to fall back to (see the plan).
+if (Database::setting('editor_phase2_enabled') === '0') {
+    $pageTitle  = 'Visual Editor';
+    $currentNav = 'editor';
+    require __DIR__ . '/partials/header.php';
+    echo '<div class="card"><div class="card-body"><p>'
+        . e(__('editor_unavailable', 'The visual editor is temporarily unavailable.'))
+        . '</p></div></div>';
+    require __DIR__ . '/partials/footer.php';
+    exit;
+}
+
 $GLOBALS['SLATE_EDITOR_MODE'] = true;
 
+if (!defined('CONTENT_PAGE_OWNER_TYPE')) {
+    define('CONTENT_PAGE_OWNER_TYPE', 'content_pages');
+}
+
 // ── Resolve post ─────────────────────────────────────────────
+$pages  = ContentServiceFactory::pageRepository();
 $postId = (int)($_GET['id'] ?? 0);
 $type   = $_GET['type'] ?? 'page';
 $post   = null;
 
 if ($postId) {
-    $post = ContentBuilderAPI::getPost($postId);
+    $post = $pages->find($postId);
     if (!$post) {
         http_response_code(404);
         die('Post not found.');
     }
     $type = $post['type'] ?? 'page';
 } else {
-    $postId = ContentBuilderAPI::savePost([
-        'type'   => $type,
-        'title'  => 'Untitled ' . ucfirst($type),
-        'status' => 'draft',
-        'layout' => [],
-    ]);
+    $type = preg_match('/^[a-z][a-z0-9_-]{0,31}$/', (string) $type) ? $type : 'page';
+    $postId = $pages->create($type, 'Untitled ' . ucfirst($type), 'untitled-' . bin2hex(random_bytes(4)));
     header('Location: editor.php?id=' . $postId);
     exit;
 }
 
-// ── Load draft data ──────────────────────────────────────────
-$draft  = ContentBuilderAPI::getDraft($postId);
-$layout = $draft['layout'];
-$hasDraftChanges = ContentBuilderAPI::hasDraftChanges($postId);
+$renderCtx     = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_FRAGMENT);
+$blockRenderer = new PageRenderer(ContentServiceFactory::blockRegistry());
 
-// ── Block registry for inserter ──────────────────────────────
-$blocks = [];
-foreach (BlockRegistry::all() as $btype => $def) {
-    $perm = $def['perm'] ?? '';
-    if ($perm !== '' && !Auth::can($perm)) continue;
-
-    $jsFields = [];
-    $rawFields = $def['fields'] ?? [];
-    if (is_array($rawFields)) {
-        foreach ($rawFields as $f) {
-            if (!is_array($f) || empty($f['key'])) continue;
-            $entry = [
-                'type'  => $f['type'] ?? 'text',
-                'label' => $f['label'] ?? $f['key'],
-            ];
-            if (!empty($f['options']) && is_array($f['options'])) {
-                $opts = [];
-                foreach ($f['options'] as $opt) {
-                    if (is_array($opt) && isset($opt['v'])) {
-                        $opts[(string)$opt['v']] = (string)($opt['l'] ?? $opt['v']);
-                    } elseif (is_string($opt)) {
-                        $opts[$opt] = $opt;
-                    }
-                }
-                $entry['options'] = $opts;
-            }
-            $jsFields[$f['key']] = $entry;
-        }
+// ── Load working draft (RevisionStore only — never a raw query) ──────────
+$revisions = ContentServiceFactory::revisionStore();
+$working   = $revisions->working(CONTENT_PAGE_OWNER_TYPE, $postId);
+$layoutDoc = $working !== null ? RevisionStore::documentOf($working) : ['schema' => 1, 'type' => $type, 'template' => '', 'sections' => [], 'seo' => []];
+// The editor's JS speaks a flat block array (one implicit section) — flatten
+// the canonical document back for the existing UI, matching DocumentSchema's
+// own legacy-upconversion contract in reverse.
+$layout = [];
+foreach (($layoutDoc['sections'] ?? []) as $section) {
+    foreach (($section['blocks'] ?? []) as $b) {
+        $layout[] = $b;
     }
-    $defaults = $def['defaults'] ?? [];
+}
+$hasDraftChanges = $working !== null;
+
+// ── Block registry for inserter (5 ported blocks — see LegacyBlockBridge) ──
+$blocks = [];
+foreach (ContentServiceFactory::paletteProjection() as $def) {
+    $btype = $def['type'];
+    $jsFields = [];
+    foreach (($def['fields'] ?? []) as $f) {
+        if (!is_array($f) || empty($f['key'])) continue;
+        $entry = [
+            'type'  => $f['type'] ?? 'text',
+            'label' => $f['label'] ?? $f['key'],
+        ];
+        if (!empty($f['options']) && is_array($f['options'])) {
+            $opts = [];
+            foreach ($f['options'] as $opt) {
+                if (is_array($opt) && isset($opt['v'])) {
+                    $opts[(string)$opt['v']] = (string)($opt['l'] ?? $opt['v']);
+                } elseif (is_string($opt)) {
+                    $opts[$opt] = $opt;
+                }
+            }
+            $entry['options'] = $opts;
+        }
+        $jsFields[$f['key']] = $entry;
+    }
     $blocks[$btype] = [
         'type'     => $btype,
         'label'    => $def['label'] ?? ucfirst($btype),
-        'icon'     => $def['icon'] ?? 'box',
-        'category' => $def['group'] ?? ($def['category'] ?? 'common'),
+        'icon'     => 'box',
+        'category' => $def['category'] ?? 'Content',
         'fields'   => $jsFields,
-        'defaults' => $defaults,
+        'defaults' => $def['defaults'] ?? [],
     ];
 }
 
-$mediaMap = ContentBuilderAPI::mediaPreviewMap($layout);
+$mediaMap = []; // Phase 2: real media-key resolution is deferred (see plan) — no live resolver exists yet.
 
 // ── Pre-render all blocks for initial canvas ─────────────────
 $renderedBlocks = [];
 foreach ($layout as $block) {
     if (!is_array($block)) continue;
-    $renderedBlocks[] = ContentBuilderAPI::renderLayout([$block]);
+    $renderedBlocks[] = $blockRenderer->renderBlock($block, $renderCtx);
 }
 
-// ── Theme tokens for canvas CSS ──────────────────────────────
-$themeData = ContentBuilderAPI::themeTokens();
+// ── Theme tokens for canvas CSS ────────────────────────────── (no theme layer wired yet; empty is a safe no-op)
 $themeTokens = [];
-if (is_array($themeData)) {
-    if (isset($themeData['tokens']) && is_array($themeData['tokens'])) {
-        $themeTokens = $themeData['tokens'];
-    } else {
-        $themeTokens = $themeData;
-        unset($themeTokens['slug']);
+
+/**
+ * Flatten a canonical schema-1 document's sections back to the flat block
+ * array the editor's JS speaks (this editor has no multi-section UI — every
+ * document it produces has exactly one implicit section, per DocumentSchema's
+ * own legacy-upconversion contract).
+ */
+function slate_editor_flatten(array $document): array
+{
+    $out = [];
+    foreach (($document['sections'] ?? []) as $section) {
+        foreach (($section['blocks'] ?? []) as $b) {
+            $out[] = $b;
+        }
+    }
+    return $out;
+}
+
+/** Wrap the editor's posted flat layout array into a validated, canonical schema-1 document. */
+function slate_editor_document_from_post(array $layoutArr, string $type): array
+{
+    $document = EditorStateSerializer::serialize(['document' => $layoutArr]);
+    $document['type'] = $type;
+    return $document;
+}
+
+function slate_editor_update_meta(\Slate\Services\Content\ContentPageRepository $pages, int $postId): void
+{
+    $title = trim($_POST['title'] ?? '');
+    $slug  = trim($_POST['slug'] ?? '');
+    if ($title !== '' || $slug !== '') {
+        $pages->updateMeta($postId, ['title' => $title, 'slug' => $slug]);
     }
 }
 
@@ -128,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
             echo json_encode(['ok' => false, 'error' => 'Invalid block']);
             exit;
         }
-        $html = ContentBuilderAPI::renderLayout([$blockData]);
+        $html = $blockRenderer->renderBlock($blockData, $renderCtx);
         echo json_encode(['ok' => true, 'html' => $html]);
         exit;
     }
@@ -141,79 +202,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
         $results = [];
         foreach ($blocksArr as $b) {
             if (!is_array($b)) { $results[] = ''; continue; }
-            $results[] = ContentBuilderAPI::renderLayout([$b]);
+            $results[] = $blockRenderer->renderBlock($b, $renderCtx);
         }
         echo json_encode(['ok' => true, 'html' => $results]);
         exit;
     }
 
-    if ($action === 'save_draft') {
+    if ($action === 'save_draft' || $action === 'publish') {
+        if ($action === 'publish' && !Auth::can('content.publish')) {
+            echo json_encode(['ok' => false, 'error' => 'No publish permission']);
+            exit;
+        }
+
+        slate_editor_update_meta($pages, $postId);
+
         $layoutJson = $_POST['layout'] ?? '[]';
         $layoutArr  = json_decode($layoutJson, true);
         if (!is_array($layoutArr)) $layoutArr = [];
 
-        $title = trim($_POST['title'] ?? '');
-        $slug  = trim($_POST['slug'] ?? '');
-        if ($title !== '' || $slug !== '') {
-            $update = [];
-            if ($title !== '') $update['title'] = $title;
-            if ($slug !== '')  $update['slug']  = $slug;
-            if ($update) {
-                Database::update('contentbuilder_posts', $update,
-                    'id = ? AND tenant_id = ?', [$postId, current_tenant_id()]);
-            }
-        }
-
-        ContentBuilderAPI::saveDraft($postId, $layoutArr);
-        echo json_encode(['ok' => true, 'action' => 'draft_saved']);
-        exit;
-    }
-
-    if ($action === 'publish') {
-        if (!Auth::can('content.publish')) {
-            echo json_encode(['ok' => false, 'error' => 'No publish permission']);
+        try {
+            $document = slate_editor_document_from_post($layoutArr, $type);
+        } catch (\InvalidArgumentException $e) {
+            echo json_encode(['ok' => false, 'error' => 'invalid_json', 'message' => $e->getMessage()]);
             exit;
         }
-        $title = trim($_POST['title'] ?? '');
-        $slug  = trim($_POST['slug'] ?? '');
-        if ($title !== '' || $slug !== '') {
-            $update = [];
-            if ($title !== '') $update['title'] = $title;
-            if ($slug !== '')  $update['slug']  = $slug;
-            if ($update) {
-                Database::update('contentbuilder_posts', $update,
-                    'id = ? AND tenant_id = ?', [$postId, current_tenant_id()]);
-            }
+
+        $validated = DocumentValidator::validate($document, ContentServiceFactory::validatorRegistry());
+        if (!$validated['valid']) {
+            echo json_encode([
+                'ok'     => false,
+                'error'  => 'validation_failed',
+                'errors' => $validated['errors'],
+            ]);
+            exit;
         }
-        $layoutJson = $_POST['layout'] ?? null;
-        if ($layoutJson) {
-            $layoutArr = json_decode($layoutJson, true);
-            if (is_array($layoutArr)) {
-                ContentBuilderAPI::saveDraft($postId, $layoutArr);
+
+        $publication = ContentServiceFactory::publicationService();
+        $themeVersion = '1';
+        try {
+            if ($action === 'publish') {
+                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion);
+                $result = $publication->publish(CONTENT_PAGE_OWNER_TYPE, $postId, $renderCtx, $themeVersion);
+                if ($result === null) {
+                    echo json_encode(['ok' => false, 'error' => 'nothing_to_publish']);
+                    exit;
+                }
+                $pages->markPublished($postId);
+                echo json_encode(['ok' => true, 'action' => 'published']);
+            } else {
+                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion);
+                echo json_encode(['ok' => true, 'action' => 'draft_saved']);
             }
+        } catch (\Throwable $e) {
+            echo json_encode(['ok' => false, 'error' => 'save_failed', 'message' => $e->getMessage()]);
         }
-        ContentBuilderAPI::publishDraft($postId);
-        echo json_encode(['ok' => true, 'action' => 'published']);
         exit;
     }
 
-    if ($action === 'revert') {
-        $ok = ContentBuilderAPI::revertToPublished($postId);
-        echo json_encode(['ok' => $ok, 'action' => 'reverted']);
+    // ── Immutable document operations (top-level blocks only) ────────────
+    // Pure — validated but not persisted (no DB write). The client already
+    // applied the same change locally for instant feedback; this call exists
+    // to surface real, server-side DocumentOperations/DocumentValidator
+    // feedback (e.g. a prop that fails validation) without changing what the
+    // client treats as authoritative — that stays the Save Draft/Publish
+    // round trip, so the existing undo/redo and nested-block (Columns/
+    // Container) state machine is untouched.
+    if (in_array($action, ['op_insert_block', 'op_move_block', 'op_update_block_props'], true)) {
+        $layoutJson = $_POST['layout'] ?? '[]';
+        $layoutArr  = json_decode($layoutJson, true);
+        if (!is_array($layoutArr)) $layoutArr = [];
+
+        try {
+            $document = slate_editor_document_from_post($layoutArr, $type);
+            $sectionId = $document['sections'][0]['id'] ?? 's1';
+
+            if ($action === 'op_insert_block') {
+                $block = json_decode($_POST['block'] ?? '{}', true);
+                if (!is_array($block) || empty($block['type'])) {
+                    throw new \InvalidArgumentException('Invalid block.');
+                }
+                $index = (int) ($_POST['index'] ?? 0);
+                $document = DocumentOperations::insertBlock($document, $sectionId, $index, $block);
+            } elseif ($action === 'op_move_block') {
+                $fromIndex = (int) ($_POST['from_index'] ?? -1);
+                $toIndex   = (int) ($_POST['to_index'] ?? -1);
+                $document  = DocumentOperations::moveBlock($document, $sectionId, $fromIndex, $sectionId, $toIndex);
+            } else {
+                $index = (int) ($_POST['index'] ?? -1);
+                $patch = json_decode($_POST['patch'] ?? '{}', true);
+                if (!is_array($patch)) $patch = [];
+                $document = DocumentOperations::updateBlockProps($document, $sectionId, $index, $patch);
+            }
+
+            $validated = DocumentValidator::validate($document, ContentServiceFactory::validatorRegistry());
+            if (!$validated['valid']) {
+                echo json_encode(['ok' => false, 'error' => 'validation_failed', 'errors' => $validated['errors']]);
+                exit;
+            }
+            echo json_encode(['ok' => true, 'layout' => slate_editor_flatten($validated['document'])]);
+        } catch (\InvalidArgumentException $e) {
+            echo json_encode(['ok' => false, 'error' => 'invalid_operation', 'message' => $e->getMessage()]);
+        }
         exit;
     }
 
-    if ($action === 'update_meta') {
-        $title  = trim($_POST['title'] ?? '');
-        $slug   = trim($_POST['slug'] ?? '');
-        $update = [];
-        if ($title !== '') $update['title'] = $title;
-        if ($slug !== '')  $update['slug']  = $slug;
-        if ($update) {
-            Database::update('contentbuilder_posts', $update,
-                'id = ? AND tenant_id = ?', [$postId, current_tenant_id()]);
+    // ── Revision history / restore (RevisionStore only — never a raw UPDATE) ─
+    if ($action === 'list_revisions') {
+        $rows = $revisions->listForOwner(CONTENT_PAGE_OWNER_TYPE, $postId);
+        $out = array_map(static fn (array $r) => [
+            'id'         => (int) $r['id'],
+            'revision'   => (int) $r['revision'],
+            'status'     => $r['status'],
+            'author_id'  => $r['author_id'] !== null ? (int) $r['author_id'] : null,
+            'note'       => $r['note'],
+            'created_at' => $r['created_at'],
+        ], $rows);
+        echo json_encode(['ok' => true, 'revisions' => $out]);
+        exit;
+    }
+
+    if ($action === 'restore_revision') {
+        $revisionId = (int) ($_POST['revision_id'] ?? 0);
+        $target = $revisions->get($revisionId);
+        // get() is not owner-scoped — a platform-wide id lookup — so the
+        // caller must confirm the fetched row actually belongs to THIS post
+        // before treating it as restorable (defense against cross-post
+        // restore within the same tenant).
+        if ($target === null || $target['owner_type'] !== CONTENT_PAGE_OWNER_TYPE || (int) $target['owner_id'] !== $postId) {
+            echo json_encode(['ok' => false, 'error' => 'not_found']);
+            exit;
         }
-        echo json_encode(['ok' => true]);
+        $document = RevisionStore::documentOf($target);
+        $validated = DocumentValidator::validate($document, ContentServiceFactory::validatorRegistry());
+        if (!$validated['valid']) {
+            echo json_encode(['ok' => false, 'error' => 'validation_failed', 'errors' => $validated['errors']]);
+            exit;
+        }
+        try {
+            ContentServiceFactory::publicationService()->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, '1');
+            echo json_encode(['ok' => true, 'action' => 'restored', 'layout' => slate_editor_flatten($validated['document'])]);
+        } catch (\Throwable $e) {
+            echo json_encode(['ok' => false, 'error' => 'restore_failed', 'message' => $e->getMessage()]);
+        }
         exit;
     }
 
@@ -265,7 +395,7 @@ foreach ($themeTokens as $name => $val) {
 $tokenCss .= "}\n";
 $canvasCss = $tokenCss . $canvasCss;
 
-$previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id=' . $postId;
+$previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 ?>
 <!DOCTYPE html>
 <html lang="en" data-editor-mode>
@@ -641,6 +771,7 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
         <div class="ve-panel-tabs">
             <button class="ve-panel-tab active" data-tab="inspector">Inspector</button>
             <button class="ve-panel-tab" data-tab="page">Page</button>
+            <button class="ve-panel-tab" data-tab="history">History</button>
         </div>
         <div class="ve-panel-content active" id="tabInspector">
             <div id="inspectorContent">
@@ -664,6 +795,9 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
                 <label>Status</label>
                 <input type="text" id="settingsStatus" value="<?= e($post['status'] ?? 'draft') ?>" disabled>
             </div>
+        </div>
+        <div class="ve-panel-content" id="tabHistory">
+            <div id="historyList"><div class="ve-inspector-empty">Loading…</div></div>
         </div>
     </div>
 
@@ -1150,6 +1284,32 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
         });
     }
 
+    // ── Phase 2 document operations (top-level blocks only) ────
+    // Fire-and-forget: routes the same change the client just applied locally
+    // through DocumentOperations + DocumentValidator server-side, purely for
+    // real validation feedback (e.g. a prop that fails a field constraint).
+    // The response is never adopted back into `layout`/`RENDERED` — that would
+    // require reconciling this editor's undo/redo and nested-block (Columns/
+    // Container) addressing against a server round trip, which is out of
+    // scope for this migration. Save Draft / Publish remain the authoritative
+    // persistence path.
+    async function postEditorOp(action, params, baseLayout) {
+        try {
+            const body = new URLSearchParams();
+            body.append('_editor_action', action);
+            body.append('_csrf', CSRF);
+            body.append('layout', JSON.stringify(baseLayout || layout));
+            for (const [k, v] of Object.entries(params)) {
+                body.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+            }
+            const res = await fetch(SAVE_URL + '?id=' + POST.id, { method: 'POST', body });
+            const json = await res.json();
+            if (!json.ok) {
+                toast((json.errors && json.errors[0] && json.errors[0].message) || json.error || 'Validation warning', 'error');
+            }
+        } catch (e) { /* best-effort only */ }
+    }
+
     // ── Insert block ──────────────────────────────────────────
     async function insertBlock(type) {
         const def = BLOCKS[type];
@@ -1177,6 +1337,7 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
         }
 
         // Insert at specific position or append
+        const layoutBefore = JSON.parse(JSON.stringify(layout));
         let idx;
         if (insertAtIndex >= 0 && insertAtIndex <= layout.length) {
             idx = insertAtIndex;
@@ -1191,6 +1352,7 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
             idx = layout.length - 1;
         }
         markDirty();
+        postEditorOp('op_insert_block', { index: idx, block }, layoutBefore);
 
         // Render via server
         const html = await renderBlockServer(block);
@@ -1501,13 +1663,17 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
             return;
         }
         if (action === 'up' && idx > 0) {
+            const layoutBefore = JSON.parse(JSON.stringify(layout));
             [layout[idx], layout[idx-1]] = [layout[idx-1], layout[idx]];
             [RENDERED[idx], RENDERED[idx-1]] = [RENDERED[idx-1], RENDERED[idx]];
             selectedBlockIndex = idx - 1;
+            postEditorOp('op_move_block', { from_index: idx, to_index: idx - 1 }, layoutBefore);
         } else if (action === 'down' && idx < layout.length - 1) {
+            const layoutBefore = JSON.parse(JSON.stringify(layout));
             [layout[idx], layout[idx+1]] = [layout[idx+1], layout[idx]];
             [RENDERED[idx], RENDERED[idx+1]] = [RENDERED[idx+1], RENDERED[idx]];
             selectedBlockIndex = idx + 1;
+            postEditorOp('op_move_block', { from_index: idx, to_index: idx + 1 }, layoutBefore);
         } else if (action === 'dup') {
             const clone = JSON.parse(JSON.stringify(layout[idx]));
             layout.splice(idx + 1, 0, clone);
@@ -1760,11 +1926,16 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
                 const key = input.dataset.key;
                 let val = input.type === 'checkbox' ? input.checked : input.value;
                 if (input.type === 'number') val = parseFloat(val) || 0;
+                const isTopLevel = !selectedNestedPath || !selectedNestedPath.length;
+                const layoutBefore = isTopLevel ? JSON.parse(JSON.stringify(layout)) : null;
                 getSelectedBlock().props[key] = val;
                 // sync color picker ↔ hex text
                 const hexSib = $inspector.querySelector('[data-key-hex="' + key + '"]');
                 if (hexSib && input.type === 'color') hexSib.value = val;
                 markDirty();
+                if (isTopLevel) {
+                    postEditorOp('op_update_block_props', { index: selectedBlockIndex, patch: { [key]: val } }, layoutBefore);
+                }
                 debounceRender(selectedBlockIndex, 350);
             });
         });
@@ -1909,9 +2080,66 @@ $previewUrl = SLATE_URL . '/plugins/content-builder/public/canvas-preview.php?id
                 panel.querySelectorAll('.ve-panel-content').forEach(c => c.classList.remove('active'));
                 const target = document.getElementById('tab' + capitalize(tab.dataset.tab));
                 if (target) target.classList.add('active');
+                if (tab.dataset.tab === 'history') loadHistory();
             });
         });
     });
+
+    // ── Revision history (RevisionStore only, via list_revisions/restore_revision) ─
+    async function loadHistory() {
+        const $list = document.getElementById('historyList');
+        $list.innerHTML = '<div class="ve-inspector-empty">Loading…</div>';
+        try {
+            const body = new URLSearchParams();
+            body.append('_editor_action', 'list_revisions');
+            body.append('_csrf', CSRF);
+            const res = await fetch(SAVE_URL + '?id=' + POST.id, { method: 'POST', body });
+            const json = await res.json();
+            if (!json.ok || !json.revisions.length) {
+                $list.innerHTML = '<div class="ve-inspector-empty">No revisions yet — Save Draft to create one.</div>';
+                return;
+            }
+            $list.innerHTML = json.revisions.map(r =>
+                '<div class="ve-layer" style="cursor:default">'
+                + '<span class="ve-layer-label">#' + r.revision + ' · ' + escHtml(r.status) + '</span>'
+                + '<span class="ve-layer-type">' + escHtml(r.created_at) + '</span>'
+                + '<button type="button" class="ve-btn ve-btn-ghost" data-restore="' + r.id + '" style="padding:2px 8px;font-size:11px">Restore</button>'
+                + '</div>'
+            ).join('');
+            $list.querySelectorAll('[data-restore]').forEach(btn => {
+                btn.addEventListener('click', () => restoreRevision(parseInt(btn.dataset.restore, 10)));
+            });
+        } catch (e) {
+            $list.innerHTML = '<div class="ve-inspector-empty">Failed to load history.</div>';
+        }
+    }
+
+    async function restoreRevision(revisionId) {
+        if (!confirm('Restore this revision? This becomes the new working draft (does not overwrite history).')) return;
+        try {
+            const body = new URLSearchParams();
+            body.append('_editor_action', 'restore_revision');
+            body.append('_csrf', CSRF);
+            body.append('revision_id', String(revisionId));
+            const res = await fetch(SAVE_URL + '?id=' + POST.id, { method: 'POST', body });
+            const json = await res.json();
+            if (!json.ok) { toast(json.error || 'Restore failed', 'error'); return; }
+            pushUndo();
+            layout = json.layout;
+            RENDERED.length = 0;
+            const rendered = await Promise.all(layout.map(b => renderBlockServer(b)));
+            rendered.forEach(h => RENDERED.push(h));
+            selectedBlockIndex = -1;
+            selectedNestedPath = null;
+            isDirty = false;
+            $unsavedDot.style.display = 'none';
+            rebuildCanvas();
+            loadHistory();
+            toast('Revision restored', 'success');
+        } catch (e) {
+            toast('Restore failed', 'error');
+        }
+    }
 
     // ── Device switcher ───────────────────────────────────────
     const $deviceIndicator = document.getElementById('deviceIndicator');
