@@ -549,6 +549,26 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-canvas { background: #fff; min-height: 400px; overflow: hidden; position: relative; }
     .ve-canvas-frame.device-tablet .ve-canvas { border-radius: 14px; }
     .ve-canvas-frame.device-mobile .ve-canvas { border-radius: 24px; }
+    @media (max-width: 900px) {
+        .ve-topbar { min-height: 48px; padding: 6px 10px; gap: 6px; }
+        .ve-topbar-left { gap: 8px; min-width: 0; }
+        .ve-topbar-left > .ve-unsaved { display: none !important; }
+        .ve-topbar-center { display: none; }
+        .ve-topbar-right .ve-device-group { display: none; }
+        .ve-layout { position: relative; }
+        .ve-panel-left { width: 190px; }
+        .ve-panel-right { width: 260px; }
+        .ve-canvas-wrap { padding: 12px 8px 28px; overflow-x: auto; align-items: flex-start; }
+        .ve-canvas-frame { min-width: 100%; }
+        .ve-canvas-frame.device-mobile { width: 390px; min-width: 390px; margin: 0 auto; }
+        .ve-canvas-frame.device-tablet { width: 768px; min-width: 768px; margin: 0 auto; }
+    }
+    @media (max-width: 640px) {
+        .ve-panel-left, .ve-panel-right { display: none; }
+        .ve-canvas-wrap { width: 100%; padding: 10px 6px 24px; }
+        .ve-canvas-frame.device-mobile { width: min(390px, calc(100vw - 20px)); min-width: 0; border-width: 8px; border-radius: 24px; }
+        .ve-canvas-frame.device-tablet { width: min(768px, calc(100vw - 20px)); min-width: 0; border-width: 8px; border-radius: 18px; }
+    }
 
     /* ── Style Accordion ─────────────────────────────────────── */
     .ve-accordion { border: 1px solid var(--ve-border); border-radius: 6px; overflow: hidden; margin-bottom: 14px; }

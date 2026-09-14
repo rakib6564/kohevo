@@ -175,23 +175,62 @@ final class LegacyBlockBridge
      */
     private static function registerArchivedFallbacks(InMemoryBlockRegistry $registry): void
     {
-        foreach (['columns', 'container', 'cta', 'divider', 'html', 'icon-grid', 'image-grid', 'post-list', 'spacer', 'testimonial', 'react', 'rx-gallery', 'rx-hero', 'rx-marquee', 'rx-menu', 'rx-reviews', 'rx-story', 'rx-visit'] as $type) {
-            $registry->register(new CallbackBlock(
-                $type,
-                FieldSchema::of([
-                    ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'],
-                    ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
-                ], ['heading' => ucfirst(str_replace('-', ' ', $type)), 'content' => '']),
-                static function (array $props, RenderContext $ctx) use ($type): string {
-                    $heading = trim((string) ($props['heading'] ?? ''));
-                    $content = trim((string) ($props['content'] ?? ''));
-                    $html = '<div class="cb-legacy-' . \e($type) . '">';
-                    if ($heading !== '') $html .= '<h2>' . \e($heading) . '</h2>';
-                    if ($content !== '') $html .= '<p>' . nl2br(\e($content)) . '</p>';
-                    return $html . '</div>';
-                },
-            ));
+        $registry->register(new CallbackBlock('cta', FieldSchema::of([
+            ['key' => 'eyebrow', 'type' => 'text', 'label' => 'Eyebrow'],
+            ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'],
+            ['key' => 'text', 'type' => 'textarea', 'label' => 'Text'],
+            ['key' => 'btnText', 'type' => 'text', 'label' => 'Button label'],
+            ['key' => 'btnHref', 'type' => 'url', 'label' => 'Button link'],
+            ['key' => 'pad', 'type' => 'select', 'label' => 'Spacing', 'options' => [['v' => 'compact', 'l' => 'Compact'], ['v' => 'normal', 'l' => 'Normal'], ['v' => 'spacious', 'l' => 'Spacious']]],
+        ], ['eyebrow' => 'A better way forward', 'heading' => 'Ready to get started?', 'text' => 'Give your visitors a clear next step.', 'btnText' => 'Get started', 'btnHref' => '#', 'pad' => 'normal']),
+            static fn (array $p, RenderContext $c): string => '<section class="cb-pad-' . self::choice($p['pad'] ?? 'normal', ['compact', 'normal', 'spacious'], 'normal') . ' cb-cta"><div class="cb-cta-inner">' . (($p['eyebrow'] ?? '') !== '' ? '<span class="cb-eyebrow">' . \e((string)$p['eyebrow']) . '</span>' : '') . '<h2 class="cb-cta-title">' . \e((string)($p['heading'] ?? 'Ready to get started?')) . '</h2><p class="cb-cta-text">' . \e((string)($p['text'] ?? '')) . '</p><a class="cb-btn cb-btn-primary" href="' . \e(\slate_safe_url((string)($p['btnHref'] ?? '#'))) . '">' . \e((string)($p['btnText'] ?? 'Get started')) . '</a></div></section>'
+        ));
+
+        $registry->register(new CallbackBlock('divider', FieldSchema::of([
+            ['key' => 'style', 'type' => 'select', 'label' => 'Style', 'options' => [['v' => 'solid', 'l' => 'Solid'], ['v' => 'dashed', 'l' => 'Dashed']]],
+            ['key' => 'width', 'type' => 'number', 'label' => 'Width (px)'],
+        ], ['style' => 'solid', 'width' => 100]), static fn (array $p, RenderContext $c): string => '<div style="padding:24px 0"><hr style="width:' . max(10, min(100, (int)($p['width'] ?? 100))) . '%;border:0;border-top:2px ' . self::choice($p['style'] ?? 'solid', ['solid', 'dashed'], 'solid') . ' currentColor;opacity:.18;margin:auto"></div>'));
+        $registry->register(new CallbackBlock('spacer', FieldSchema::of([['key' => 'height', 'type' => 'number', 'label' => 'Height (px)']], ['height' => 48]), static fn (array $p, RenderContext $c): string => '<div class="cb-block cb-spacer" style="height:' . max(8, min(400, (int)($p['height'] ?? 48))) . 'px" aria-hidden="true"></div>'));
+        $registry->register(new CallbackBlock('html', FieldSchema::of([['key' => 'content', 'type' => 'textarea', 'label' => 'Text content']], ['content' => 'Add custom content here']), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner"><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>'));
+        $registry->register(new CallbackBlock('testimonial', FieldSchema::of([
+            ['key' => 'quote', 'type' => 'textarea', 'label' => 'Quote'], ['key' => 'author', 'type' => 'text', 'label' => 'Author'], ['key' => 'role', 'type' => 'text', 'label' => 'Role'],
+        ], ['quote' => 'A thoughtful experience from start to finish.', 'author' => 'Happy customer', 'role' => 'Client']), static fn (array $p, RenderContext $c): string => '<section class="cb-testimonial"><figure class="cb-testimonial-inner"><blockquote class="cb-testimonial-quote">&ldquo;' . \e((string)($p['quote'] ?? '')) . '&rdquo;</blockquote><figcaption class="cb-testimonial-cite"><span><b class="cb-testimonial-author">' . \e((string)($p['author'] ?? '')) . '</b><span class="cb-testimonial-role">' . \e((string)($p['role'] ?? '')) . '</span></span></figcaption></figure></section>'));
+        $registry->register(new CallbackBlock('columns', FieldSchema::of([
+            ['key' => 'columns', 'type' => 'number', 'label' => 'Columns'], ['key' => 'gap', 'type' => 'number', 'label' => 'Gap (px)'],
+        ], ['columns' => 2, 'gap' => 24]), static function (array $p, RenderContext $c): string { $n = max(1, min(4, (int)($p['columns'] ?? 2))); $items = ''; for ($i = 1; $i <= $n; $i++) $items .= '<div class="cb-card"><h3 class="cb-card-title">Column ' . $i . '</h3><p class="cb-card-text">Drop blocks here</p></div>'; return '<div class="cb-columns cb-cols-' . $n . '" style="gap:' . max(0, min(80, (int)($p['gap'] ?? 24))) . 'px">' . $items . '</div>'; }));
+        $registry->register(new CallbackBlock('container', FieldSchema::of([
+            ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
+        ], ['heading' => 'Container', 'content' => 'Add content inside this container']), static fn (array $p, RenderContext $c): string => '<div class="cb-section-inner" style="padding:24px;border:1px dashed #94a3b8;border-radius:10px"><h3>' . \e((string)($p['heading'] ?? 'Container')) . '</h3><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div>'));
+        $registry->register(new CallbackBlock('icon-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-icon-grid')));
+        $registry->register(new CallbackBlock('image-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-image-grid')));
+
+        foreach (['post-list', 'react', 'rx-gallery', 'rx-hero', 'rx-marquee', 'rx-menu', 'rx-reviews', 'rx-story', 'rx-visit'] as $type) {
+            $registry->register(new CallbackBlock($type, FieldSchema::of([
+                ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
+            ], ['heading' => ucfirst(str_replace('-', ' ', $type)), 'content' => 'Add content for this section']), static function (array $p, RenderContext $c) use ($type): string {
+                return '<section class="cb-section cb-legacy-' . \e($type) . '"><div class="cb-section-inner"><span class="cb-eyebrow">' . \e(ucfirst(str_replace('-', ' ', $type))) . '</span><h2 class="cb-section-title">' . \e((string)($p['heading'] ?? '')) . '</h2><p>' . nl2br(\e((string)($p['content'] ?? ''))) . '</p></div></section>';
+            }));
         }
+    }
+
+    private static function choice(mixed $value, array $allowed, string $fallback): string
+    {
+        return in_array((string)$value, $allowed, true) ? (string)$value : $fallback;
+    }
+
+    private static function cardGridSchema(): FieldSchema
+    {
+        return FieldSchema::of([
+            ['key' => 'eyebrow', 'type' => 'text', 'label' => 'Eyebrow'], ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'cols', 'type' => 'select', 'label' => 'Columns', 'options' => [['v' => '2', 'l' => '2'], ['v' => '3', 'l' => '3'], ['v' => '4', 'l' => '4']]],
+        ], ['eyebrow' => 'What we offer', 'heading' => 'Explore the possibilities', 'cols' => '3']);
+    }
+
+    private static function renderCardGrid(array $p, string $class): string
+    {
+        $cols = self::choice($p['cols'] ?? '3', ['2', '3', '4'], '3');
+        $cards = '';
+        foreach (['Simple and clear', 'Built for you', 'Made to last'] as $title) $cards .= '<div class="cb-card"><span class="cb-card-icon">✦</span><h3 class="cb-card-title">' . \e($title) . '</h3><p class="cb-card-text">A concise description that makes this section useful immediately.</p></div>';
+        return '<section class="cb-section ' . $class . '"><div class="cb-section-inner"><span class="cb-eyebrow">' . \e((string)($p['eyebrow'] ?? '')) . '</span><h2 class="cb-section-title">' . \e((string)($p['heading'] ?? '')) . '</h2><div class="cb-grid cb-grid-' . $cols . '">' . $cards . '</div></div></section>';
     }
 
     /** @param array<string,mixed>|null $media */
