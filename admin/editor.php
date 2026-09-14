@@ -1439,6 +1439,34 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     }
 
     // ── Insert block ──────────────────────────────────────────
+    let widgetClipboard = null;
+    function copySelectedWidget() {
+        const block = getSelectedBlock();
+        if (!block) return;
+        widgetClipboard = JSON.parse(JSON.stringify(block));
+        toast('Widget copied');
+    }
+    async function pasteSelectedWidget() {
+        if (!widgetClipboard) { toast('Nothing to paste', 'error'); return; }
+        const clone = JSON.parse(JSON.stringify(widgetClipboard));
+        pushUndo();
+        if (selectedNestedPath?.length) {
+            const info = getSelectedParentInfo();
+            if (!info) return;
+            info.arr.splice(info.idx + 1, 0, clone);
+            selectedNestedPath = [...selectedNestedPath.slice(0, -1), { ...selectedNestedPath[selectedNestedPath.length - 1], index: info.idx + 1 }];
+            markDirty();
+            await refreshTopLevelBlock(selectedBlockIndex);
+            renderLayers(); renderInspector();
+            return;
+        }
+        const idx = selectedBlockIndex >= 0 ? selectedBlockIndex + 1 : layout.length;
+        layout.splice(idx, 0, clone);
+        RENDERED.splice(idx, 0, await renderBlockServer(clone));
+        selectedBlockIndex = idx;
+        markDirty();
+        rebuildCanvas();
+    }
     async function insertBlock(type) {
         const def = BLOCKS[type];
         if (!def) return;
@@ -2412,6 +2440,16 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             doAction('save_draft');
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInput) {
+            e.preventDefault();
+            copySelectedWidget();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInput) {
+            e.preventDefault();
+            pasteSelectedWidget();
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
