@@ -514,6 +514,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-layer svg { width: 16px; height: 16px; flex-shrink: 0; }
     .ve-layer-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ve-layer-type { font-size: 11px; color: var(--ve-text-dim); }
+    .ve-layer-toggle, .ve-layer-toggle-spacer { width: 16px; height: 18px; flex: 0 0 16px; display: inline-flex; align-items: center; justify-content: center; }
+    .ve-layer-toggle { border: 0; background: none; color: var(--ve-text-dim); cursor: pointer; font-size: 13px; padding: 0; }
+    .ve-layer-toggle:hover { color: var(--ve-accent); }
     .ve-layer-indent-1 { padding-left: 28px; }
     .ve-layer-indent-2 { padding-left: 44px; }
     .ve-layer-group { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 10px 12px 4px; }
@@ -906,6 +909,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     let selectedBlockIndex = -1;
     let selectedNestedPath = null; // null = top-level selection; else array of {slot:'col'|'children', col?:N, index:N} steps relative to layout[selectedBlockIndex].props
     let activeDevice = 'desktop';
+    const collapsedNavigatorNodes = new Set();
     let pendingInsertTarget = null; // {topIdx, path} — when set, the next insertBlock() splices into that nested slot instead of the top-level layout
     let isDirty = POST.hasDraft;
     let isSaving = false;
@@ -1887,11 +1891,16 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                 ? stripTags(block.props.text).substring(0, 30)
                 : (labelOverride || def.label || block.type);
             const selected = topIndex === selectedBlockIndex && nestedPathKey(path) === nestedPathKey(selectedNestedPath || []);
+            const nodeKey = topIndex + ':' + nestedPathKey(path);
+            const hasChildren = (Array.isArray(block.props?.children) && block.props.children.length) || (Array.isArray(block.props?.cols) && block.props.cols.some(col => (col?.blocks || []).length));
+            const collapsed = collapsedNavigatorNodes.has(nodeKey);
             html += '<div class="ve-layer ve-layer-indent-' + Math.min(depth, 2) + (selected ? ' selected' : '') + '" data-index="' + topIndex + '" data-path="' + escHtml(JSON.stringify(path)) + '">'
+                + (hasChildren ? '<button type="button" class="ve-layer-toggle" data-node-key="' + escHtml(nodeKey) + '">' + (collapsed ? '▸' : '▾') + '</button>' : '<span class="ve-layer-toggle-spacer"></span>')
                 + blockIcon(block.type)
                 + '<span class="ve-layer-label">' + escHtml(label) + '</span>'
                 + '<span class="ve-layer-type">' + (def.label || block.type) + '</span>'
                 + '</div>';
+            if (collapsed) return;
             if (Array.isArray(block.props?.cols)) block.props.cols.forEach((col, colIndex) => {
                 html += '<div class="ve-layer-group ve-layer-indent-' + Math.min(depth + 1, 2) + '">Column ' + (colIndex + 1) + '</div>';
                 (col?.blocks || []).forEach((child, childIndex) => addRow(child, topIndex, [...path, { slot: 'col', col: colIndex, index: childIndex }], depth + 1));
@@ -1905,6 +1914,15 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                 const path = JSON.parse(el.dataset.path || '[]');
                 if (path.length) selectNestedBlock(parseInt(el.dataset.index), path);
                 else selectBlock(parseInt(el.dataset.index));
+            });
+        });
+        $layerTree.querySelectorAll('.ve-layer-toggle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const key = btn.dataset.nodeKey;
+                if (collapsedNavigatorNodes.has(key)) collapsedNavigatorNodes.delete(key);
+                else collapsedNavigatorNodes.add(key);
+                renderLayers();
             });
         });
     }
