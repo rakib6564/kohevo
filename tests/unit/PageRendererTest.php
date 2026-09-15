@@ -71,6 +71,25 @@ unit('renderBlock returns empty string for a typeless block', function () use ($
     assert_eq('', $r->renderBlock(['props' => []], $CTX));
 });
 
+// Regression: renderBlock used to defer to \Renderer::applyStyle(), a class
+// that only ever existed in the archived content-builder plugin — so a
+// block's `style` was validated and saved but never actually rendered
+// anywhere outside the editor's own client-side canvas. See
+// BlockStyleRenderer's own docblock and its dedicated test file for full
+// per-property coverage; this just proves PageRenderer actually calls it.
+unit('renderBlock with no style is unaffected (no wrapper)', function () use ($CTX) {
+    $r = _rendererFixture();
+    assert_eq('<h1>Hi</h1>', $r->renderBlock(['type' => 'heading', 'props' => ['text' => 'Hi', 'level' => '1'], 'style' => []], $CTX));
+});
+
+unit('renderBlock with a style wraps the block and applies real CSS', function () use ($CTX) {
+    $r = _rendererFixture();
+    $out = $r->renderBlock(['type' => 'heading', 'props' => ['text' => 'Hi', 'level' => '1'], 'style' => ['bgColor' => '#ff0000', 'hideMobile' => true]], $CTX);
+    assert_true(str_contains($out, '<h1>Hi</h1>'), 'the block\'s own HTML must still be present');
+    assert_true(str_contains($out, 'background-color:rgba(255,0,0,1)'), 'the style must actually be rendered as real CSS: ' . $out);
+    assert_true(str_contains($out, 've-hide-mobile'), 'a visibility toggle must become a real class: ' . $out);
+});
+
 // ── renderSection ─────────────────────────────────────────
 unit('a default-layout section renders TRANSPARENTLY (no wrapper)', function () use ($CTX) {
     $r = _rendererFixture();

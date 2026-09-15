@@ -88,6 +88,92 @@ unit('an unknown slug 404s without a fatal error', function () {
     assert_eq(404, $res['status']);
 });
 
+unit('a published page links the block-rendering stylesheet (regression: DocumentTemplate never emitted it)', function () {
+    // DocumentTemplate::render() only ever emitted the --slate-* token block,
+    // never the hero/card/cta/testimonial/columns/rx-* CSS the blocks'
+    // rendered markup actually depends on — every published Phase 2 page
+    // rendered with zero of that styling until PublicContentRoute started
+    // linking assets/css/content-blocks.css into the head itself.
+    $slug = 'ep2pub-css-' . bin2hex(random_bytes(4));
+    $pageId = ep2pub_make_page($slug);
+    try {
+        $document = \Slate\Presentation\EditorStateSerializer::serialize([
+            'document' => [['type' => 'hero', 'props' => ['heading' => 'Styled Hero']]],
+        ]);
+        $document['type'] = 'page';
+        $context = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_PAGE);
+        $publication = ContentServiceFactory::publicationService();
+        $publication->save(ContentPageRepository::OWNER_TYPE, $pageId, $document, $context, '1');
+        $publication->publish(ContentPageRepository::OWNER_TYPE, $pageId, $context, '1');
+        ContentServiceFactory::pageRepository()->markPublished($pageId);
+
+        $res = ep2pub_probe($slug);
+        assert_eq(200, $res['status']);
+        assert_true(str_contains($res['body'], 'assets/css/content-blocks.css'), 'the published page must link the block-rendering stylesheet');
+        assert_true(str_contains($res['body'], '</head>'), 'the stylesheet link must land inside a real <head>, not be appended blindly');
+    } finally {
+        ep2pub_cleanup($pageId);
+    }
+});
+
+unit('a block\'s Style-panel customization actually renders on the published page (regression: PageRenderer deferred to the archive-only \\Renderer::applyStyle())', function () {
+    $slug = 'ep2pub-style-' . bin2hex(random_bytes(4));
+    $pageId = ep2pub_make_page($slug);
+    try {
+        $document = \Slate\Presentation\EditorStateSerializer::serialize([
+            'document' => [[
+                'type' => 'heading',
+                'props' => ['text' => 'Styled Heading', 'level' => '2'],
+                'style' => ['bgColor' => '#22aa66', 'responsive' => ['mobile' => ['textAlign' => 'center']]],
+            ]],
+        ]);
+        $document['type'] = 'page';
+        $context = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_PAGE);
+        $publication = ContentServiceFactory::publicationService();
+        $publication->save(ContentPageRepository::OWNER_TYPE, $pageId, $document, $context, '1');
+        $publication->publish(ContentPageRepository::OWNER_TYPE, $pageId, $context, '1');
+        ContentServiceFactory::pageRepository()->markPublished($pageId);
+
+        $res = ep2pub_probe($slug);
+        assert_eq(200, $res['status']);
+        assert_true(str_contains($res['body'], 'background-color:rgba(34,170,102,1)'), 'the saved background color must actually render: ' . $res['body']);
+        assert_true((bool) preg_match('/@media \(max-width:640px\)\{#[a-z0-9-]+\{text-align:center;\}\}/', $res['body']), 'the mobile responsive override must render as a real scoped @media rule: ' . $res['body']);
+    } finally {
+        ep2pub_cleanup($pageId);
+    }
+});
+
+function ep2pub_editor_post(int $pageId, array $fields): array
+{
+    $cmd = escapeshellarg(PHP_BINARY) . ' '
+         . escapeshellarg(dirname(__DIR__) . '/fixtures/admin-page-post-with-query-probe.php') . ' '
+         . escapeshellarg('admin/editor.php') . ' '
+         . escapeshellarg('id=' . $pageId) . ' '
+         . escapeshellarg(json_encode($fields)) . ' 2>/dev/null';
+    $out = (string) shell_exec($cmd);
+    preg_match('/^STATUS (\d+)\n/', $out, $m);
+    return ['status' => (int) ($m[1] ?? 0), 'body' => substr($out, strlen($m[0] ?? ''))];
+}
+
+unit('admin/editor.php\'s own Publish action compiles a real page, not a bare fragment (regression: it reused the canvas\'s SURFACE_FRAGMENT context, so the cached HTML — served verbatim to real visitors whenever its fingerprint/version matched — had no <html>/<head>/theme/stylesheet at all)', function () {
+    $slug = 'ep2pub-realpublish-' . bin2hex(random_bytes(4));
+    $pageId = ep2pub_make_page($slug);
+    try {
+        $layout = [['type' => 'heading', 'props' => ['text' => 'Real Publish Test', 'level' => '1']]];
+        $res = ep2pub_editor_post($pageId, ['_editor_action' => 'publish', 'layout' => json_encode($layout), 'title' => 'Real Publish Test', 'slug' => $slug]);
+        assert_eq(200, $res['status'], $res['body']);
+        $json = json_decode($res['body'], true);
+        assert_true(is_array($json) && ($json['ok'] ?? false) === true, 'publish must succeed: ' . $res['body']);
+
+        $compiled = ContentServiceFactory::compilationStore()->latest(ContentPageRepository::OWNER_TYPE, $pageId);
+        assert_true($compiled !== null, 'a compilation row must exist after publish');
+        assert_true(str_contains((string) $compiled['content_html'], '<head>'), 'the compiled HTML must be a full document, not a bare content fragment: ' . $compiled['content_html']);
+        assert_true(str_contains((string) $compiled['content_html'], 'Real Publish Test'), 'the compiled HTML must contain the actual content');
+    } finally {
+        ep2pub_cleanup($pageId);
+    }
+});
+
 unit('PageContentRecompiler actually recompiles a content_pages owner (owner_type must match, not silently no-op)', function () {
     $slug = 'ep2pub-recompile-' . bin2hex(random_bytes(4));
     $pageId = ep2pub_make_page($slug);

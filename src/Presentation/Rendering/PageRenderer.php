@@ -19,6 +19,14 @@
  * content is byte-identical to content-builder's Renderer::render() (the B5 parity
  * gate). A wrapper appears only for a Section that actually specifies layout.
  *
+ * A block's own `style` (background/spacing/alignment/responsive overrides —
+ * DocumentValidator's STYLE_KEYS) is applied via BlockStyleRenderer, not the
+ * legacy content-builder \Renderer::applyStyle() this class used to defer to —
+ * that class exists only in archive/plugins/content-builder/, so the check was
+ * always false and every style customization silently never rendered outside
+ * the editor's own client-side canvas preview. See BlockStyleRenderer's own
+ * docblock.
+ *
  * @internal — implementation detail below the Renderer contract
  * (platform-foundation §8). Depend on Slate\Presentation\Renderer.
  */
@@ -35,9 +43,13 @@ use Slate\Presentation\Section;
 
 final class PageRenderer implements Renderer
 {
+    private readonly BlockStyleRenderer $styles;
+
     public function __construct(
         private readonly BlockRegistry $registry,
-    ) {}
+    ) {
+        $this->styles = new BlockStyleRenderer();
+    }
 
     public function renderPage(Page $page, RenderContext $ctx): string
     {
@@ -98,11 +110,7 @@ final class PageRenderer implements Renderer
             return '<!-- block "' . self::comment($type) . '" failed to render -->';
         }
 
-        if (class_exists('\Renderer')) {
-            return \Renderer::applyStyle($html, (array) ($block['style'] ?? []));
-        }
-
-        return $html;
+        return $this->styles->apply($html, (array) ($block['style'] ?? []));
     }
 
     /** Escape a value destined for a double-quoted HTML attribute. */

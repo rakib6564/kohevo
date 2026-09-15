@@ -54,7 +54,7 @@ unit('DocumentTemplate emits a full document with tokens + regions in place', fu
     assert_true(str_starts_with($html, '<!doctype html>'));
     assert_true(str_contains($html, '<style id="slate-tokens">'), 'one token block in head');
     assert_true(str_contains($html, '<title>Hi</title>'));
-    assert_true(str_contains($html, '<main class="slate-content"><h1>Body</h1></main>'));
+    assert_true(str_contains($html, '<main class="slate-content cb-public"><h1>Body</h1></main>'));
     assert_true(str_contains($html, '<nav>H</nav><main'), 'header before content');
     assert_true(str_contains($html, '</main><footer>F</footer>'), 'footer after content');
 });
@@ -115,7 +115,7 @@ function _page(): Page {
 unit('PageAssembler wraps content in the full document for a page surface', function () {
     $html = _assembler()->assemble(_page(), RenderContext::for(1));
     assert_true(str_starts_with($html, '<!doctype html>'));
-    assert_true(str_contains($html, '<main class="slate-content"><h1>Hello</h1></main>'));
+    assert_true(str_contains($html, '<main class="slate-content cb-public"><h1>Hello</h1></main>'));
 });
 
 unit('PageAssembler returns bare content (no frame) for a fragment surface', function () {

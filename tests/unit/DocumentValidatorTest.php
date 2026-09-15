@@ -202,6 +202,7 @@ $styled['sections'][0]['blocks'][0]['style'] = [
     'paddingTop' => 10, 'paddingBottom' => 10, 'paddingLeft' => 0, 'paddingRight' => 0,
     'marginTop' => 5, 'marginBottom' => 5, 'borderRadius' => 4, 'maxWidth' => '600px',
     'customClass' => 'my-class', 'hideDesktop' => false, 'hideTablet' => true, 'hideMobile' => false,
+    'cssId' => 'my-anchor', 'zIndex' => 5,
     'responsive' => ['tablet' => ['textAlign' => 'left'], 'mobile' => ['hideMobile' => true]],
 ];
 $r = DocumentValidator::validate($styled, $registry);
@@ -214,6 +215,13 @@ assert_false($r['valid'], 'unsafe/out-of-range style values are rejected');
 assert_true(in_array('unsafe_url', array_column($r['errors'], 'code'), true), 'a javascript: bgImage is rejected');
 assert_true(in_array('class_name', array_column($r['errors'], 'code'), true), 'an invalid customClass is rejected');
 assert_true(in_array('range', array_column($r['errors'], 'code'), true), 'an out-of-range bgOpacity is rejected');
+
+$badAdvanced = $valid;
+$badAdvanced['sections'][0]['blocks'][0]['style'] = ['cssId' => '1-starts-with-a-digit', 'zIndex' => 100000];
+$r = DocumentValidator::validate($badAdvanced, $registry);
+assert_false($r['valid'], 'an invalid CSS ID and an out-of-range z-index are both rejected');
+assert_true(in_array('pattern', array_column($r['errors'], 'code'), true), 'a CSS ID starting with a digit is rejected');
+assert_true(in_array('range', array_column($r['errors'], 'code'), true), 'an out-of-range zIndex is rejected');
 
 $badResponsive = $valid;
 $badResponsive['sections'][0]['blocks'][0]['style'] = ['responsive' => ['desktop' => ['textAlign' => 'center']]];

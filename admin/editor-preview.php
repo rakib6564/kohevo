@@ -18,6 +18,7 @@ require_once dirname(__DIR__) . '/config.php';
 use Slate\Presentation\RenderContext;
 use Slate\Services\Content\ContentPageRepository;
 use Slate\Services\Content\ContentServiceFactory;
+use Slate\Services\Content\PublicContentRoute;
 use Slate\Services\Content\RevisionStore;
 
 Auth::require();
@@ -38,7 +39,9 @@ $document  = $working !== null
     : ['schema' => 1, 'type' => $post['type'], 'template' => '', 'sections' => [], 'seo' => []];
 $document['type'] = $post['type'];
 
-$context = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_PAGE)->withPreview(true);
+$context = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_PAGE)
+    ->withPreview(true)
+    ->withTheme(ContentServiceFactory::theme());
 
 try {
     $result = ContentServiceFactory::previewService()->render($document, $context);
@@ -50,4 +53,7 @@ try {
 foreach ($result['headers'] as $name => $value) {
     header($name . ': ' . $value);
 }
-echo $result['html'];
+// Same treatment PublicContentRoute gives real published output — a draft
+// preview that doesn't carry the block-rendering stylesheet or the tenant's
+// actual brand isn't a real preview of what publishing will produce.
+echo PublicContentRoute::withBlockStylesheet($result['html']);

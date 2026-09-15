@@ -46,12 +46,17 @@ final class LegacyBlockBridge
                         ['v' => '1', 'l' => 'H1'], ['v' => '2', 'l' => 'H2'],
                         ['v' => '3', 'l' => 'H3'], ['v' => '4', 'l' => 'H4'],
                     ]],
+                    ['key' => 'align', 'type' => 'select', 'label' => 'Alignment', 'options' => [
+                        ['v' => 'left', 'l' => 'Left'], ['v' => 'center', 'l' => 'Center'], ['v' => 'right', 'l' => 'Right'],
+                    ]],
                 ],
-                ['text' => 'Heading', 'level' => '2'],
+                ['text' => 'Heading', 'level' => '2', 'align' => 'left'],
             ),
             static function (array $props, RenderContext $ctx): string {
                 $lvl = max(1, min(6, (int) ($props['level'] ?? 2)));
-                return sprintf('<h%1$d class="cb-heading">%2$s</h%1$d>', $lvl, \e((string) ($props['text'] ?? '')));
+                $align = self::choice($props['align'] ?? 'left', ['left', 'center', 'right'], 'left');
+                $style = $align !== 'left' ? ' style="text-align:' . $align . '"' : '';
+                return sprintf('<h%1$d class="cb-heading"%3$s>%2$s</h%1$d>', $lvl, \e((string) ($props['text'] ?? '')), $style);
             },
         ));
 
@@ -231,7 +236,9 @@ final class LegacyBlockBridge
         $registry->register(new CallbackBlock('icon-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-icon-grid')));
         $registry->register(new CallbackBlock('image-grid', self::cardGridSchema(), static fn (array $p, RenderContext $c): string => self::renderCardGrid($p, 'cb-image-grid')));
 
-        foreach (['post-list', 'react', 'rx-gallery', 'rx-hero', 'rx-marquee', 'rx-menu', 'rx-reviews', 'rx-story', 'rx-visit'] as $type) {
+        self::registerRxGallery($registry);
+
+        foreach (['post-list', 'react', 'rx-hero', 'rx-marquee', 'rx-menu', 'rx-reviews', 'rx-story', 'rx-visit'] as $type) {
             $registry->register(new CallbackBlock($type, FieldSchema::of([
                 ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'], ['key' => 'content', 'type' => 'textarea', 'label' => 'Content'],
             ], ['heading' => ucfirst(str_replace('-', ' ', $type)), 'content' => 'Add content for this section']), static function (array $p, RenderContext $c) use ($type): string {
@@ -243,6 +250,86 @@ final class LegacyBlockBridge
     private static function choice(mixed $value, array $allowed, string $fallback): string
     {
         return in_array((string)$value, $allowed, true) ? (string)$value : $fallback;
+    }
+
+    /**
+     * rx-gallery — a real image gallery (upload via the Media Library picker,
+     * a repeater of {media, label, size} tiles) with a dependency-free,
+     * CSS-only lightbox. Faithfully ported from the archived template
+     * (archive/plugins/content-builder/lib/blocks/rx-gallery.php) — same
+     * markup/classes (.rx-gallery-grid/.rx-tile/.rx-tone-*), so it renders
+     * through content-blocks.css's existing rx-* styling — plus the lightbox,
+     * which the archived version never had.
+     *
+     * Previously this type was just a generic heading+content placeholder (see
+     * the loop below) — a real photo gallery with no way to add photos.
+     */
+    private static function registerRxGallery(InMemoryBlockRegistry $registry): void
+    {
+        $registry->register(new CallbackBlock(
+            'rx-gallery',
+            FieldSchema::of(
+                [
+                    ['key' => 'eyebrow', 'type' => 'text', 'label' => 'Eyebrow'],
+                    ['key' => 'heading', 'type' => 'text', 'label' => 'Heading'],
+                    ['key' => 'tone', 'type' => 'select', 'label' => 'Tone', 'options' => [
+                        ['v' => 'light', 'l' => 'Light'], ['v' => 'dark', 'l' => 'Dark'], ['v' => 'surface', 'l' => 'Surface'],
+                    ]],
+                    ['key' => 'images', 'type' => 'repeater', 'label' => 'Images', 'itemLabel' => 'Image', 'maxItems' => 24, 'item' => [
+                        ['key' => 'media', 'type' => 'media', 'label' => 'Image', 'required' => true],
+                        ['key' => 'label', 'type' => 'text', 'label' => 'Caption (optional)', 'maxLength' => 120],
+                        ['key' => 'size', 'type' => 'select', 'label' => 'Tile size', 'options' => [
+                            ['v' => 'normal', 'l' => 'Normal'], ['v' => 'wide', 'l' => 'Wide'], ['v' => 'tall', 'l' => 'Tall'],
+                        ]],
+                    ]],
+                ],
+                ['eyebrow' => '', 'heading' => 'Gallery', 'tone' => 'light', 'images' => []],
+            ),
+            static function (array $props, RenderContext $ctx): string {
+                $tone = self::choice($props['tone'] ?? 'light', ['light', 'dark', 'surface'], 'light');
+                $eyebrow = (string) ($props['eyebrow'] ?? '');
+                $heading = (string) ($props['heading'] ?? '');
+                $images = is_array($props['images'] ?? null) ? $props['images'] : [];
+
+                // A stable-enough id namespace per block instance so multiple
+                // galleries on one page don't collide on their lightbox anchors.
+                $gid = 'rxg' . substr(md5(json_encode($images) ?: uniqid('', true)), 0, 8);
+
+                $head = '';
+                if ($eyebrow !== '') $head .= '<span class="rx-eyebrow">' . \e($eyebrow) . '</span>';
+                if ($heading !== '') $head .= '<h2 class="rx-h2">' . \e($heading) . '</h2>';
+
+                $tiles = '';
+                $lightboxes = '';
+                foreach ($images as $i => $item) {
+                    if (!is_array($item)) continue;
+                    $media = is_array($item['media'] ?? null) ? $item['media'] : null;
+                    $url = self::resolveMediaUrl($media);
+                    if ($url === '') continue;
+                    $label = (string) ($item['label'] ?? '');
+                    $size = self::choice($item['size'] ?? 'normal', ['normal', 'wide', 'tall'], 'normal');
+                    $sizeClass = $size !== 'normal' ? ' rx-tile-' . $size : '';
+                    $alt = (string) ($media['alt'] ?? $label);
+                    $anchorId = $gid . '-' . $i;
+
+                    $tiles .= '<a class="rx-tile' . $sizeClass . '" href="#' . \e($anchorId) . '" style="background-image:url(\'' . \e($url) . '\')">'
+                        . '<span class="rx-tile-zoom" aria-hidden="true">⤢</span>'
+                        . ($label !== '' ? '<span class="rx-tile-label">' . \e($label) . '</span>' : '')
+                        . '</a>';
+
+                    $lightboxes .= '<div class="rx-lightbox" id="' . \e($anchorId) . '">'
+                        . '<a href="#" class="rx-lightbox-close" aria-label="Close">✕</a>'
+                        . '<img src="' . \e($url) . '" alt="' . \e($alt) . '" loading="lazy">'
+                        . ($label !== '' ? '<div class="rx-lightbox-cap">' . \e($label) . '</div>' : '')
+                        . '</div>';
+                }
+
+                return '<section class="rx rx-gallery rx-tone-' . \e($tone) . '"><div class="rx-inner">'
+                    . ($head !== '' ? '<div class="rx-head">' . $head . '</div>' : '')
+                    . '<div class="rx-gallery-grid">' . $tiles . '</div>'
+                    . '</div></section>' . $lightboxes;
+            },
+        ));
     }
 
     private static function cardGridSchema(): FieldSchema

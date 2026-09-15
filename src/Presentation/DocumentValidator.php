@@ -285,7 +285,20 @@ final class DocumentValidator
     /** @param array<string,mixed> $value @param list<array<string,mixed>> $errors */
     private static function validateMedia(array $value, string $path, array &$errors): void
     {
-        if (!isset($value['key']) || !is_string($value['key']) || !preg_match('/^[a-z][a-z0-9_.-]{0,127}$/', $value['key'])) self::error($errors, "$path.key", 'media_key', 'Media key is invalid.');
+        // A media key is either a short logical alias (e.g. "hero.primary",
+        // this codebase's own convention) or a real upload path under
+        // uploads/ (e.g. "2026/09/photo.jpg", what the Media Library picker
+        // actually returns — see LegacyBlockBridge::resolveMediaUrl(), which
+        // this must stay compatible with) — so '/' is allowed, but '..' is
+        // rejected outright as defense-in-depth alongside resolveMediaUrl()'s
+        // own traversal check.
+        if (
+            !isset($value['key']) || !is_string($value['key'])
+            || str_contains($value['key'], '..')
+            || !preg_match('#^[a-z][a-z0-9_./-]{0,254}$#', $value['key'])
+        ) {
+            self::error($errors, "$path.key", 'media_key', 'Media key is invalid.');
+        }
         if (!array_key_exists('alt', $value)) self::error($errors, "$path.alt", 'required', 'Media alt text is required.');
         if (isset($value['alt']) && !is_string($value['alt'])) self::error($errors, "$path.alt", 'type', 'Media alt text must be a string.');
         if (isset($value['alt']) && is_string($value['alt'])) {
@@ -339,6 +352,7 @@ final class DocumentValidator
         'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight',
         'marginTop', 'marginBottom', 'borderRadius', 'maxWidth', 'customClass',
         'hideDesktop', 'hideTablet', 'hideMobile',
+        'cssId', 'zIndex',
     ];
 
     private static function validateStyle(mixed $style, string $path, array &$errors): void
@@ -394,6 +408,14 @@ final class DocumentValidator
         if (isset($style['customClass']) && (!is_string($style['customClass']) || !preg_match('/^[A-Za-z0-9_ -]{0,120}$/', $style['customClass']))) self::error($errors, "$path.customClass", 'class_name', 'Custom class is invalid.');
         foreach (['hideDesktop', 'hideTablet', 'hideMobile'] as $visKey) {
             if (isset($style[$visKey]) && !is_bool($style[$visKey])) self::error($errors, "$path.$visKey", 'type', 'Visibility flag must be a boolean.');
+        }
+        if (isset($style['cssId']) && $style['cssId'] !== '') {
+            if (!is_string($style['cssId']) || !preg_match('/^[A-Za-z][A-Za-z0-9_-]{0,63}$/', $style['cssId'])) {
+                self::error($errors, "$path.cssId", 'pattern', 'CSS ID must start with a letter and contain only letters, numbers, hyphens, and underscores.');
+            }
+        }
+        if (isset($style['zIndex']) && $style['zIndex'] !== '') {
+            if (!is_int($style['zIndex']) || $style['zIndex'] < -999 || $style['zIndex'] > 9999) self::error($errors, "$path.zIndex", 'range', 'Z-index must be an integer from -999 to 9999.');
         }
     }
 

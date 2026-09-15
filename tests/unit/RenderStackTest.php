@@ -69,7 +69,7 @@ unit('the full stack renders a themed document: Page→Section→Block→Compone
     assert_true(str_contains($html, '--slate-color-accent:#0E7490;'), 'tenant accent in head');
 
     // Block composed Components, inside the content region.
-    assert_true(str_contains($html, '<main class="slate-content"><article class="slate-card'), 'card in content');
+    assert_true(str_contains($html, '<main class="slate-content cb-public"><article class="slate-card'), 'card in content');
     assert_true(str_contains($html, '<a class="slate-btn slate-btn--accent slate-btn--md" href="/p/signup"'), 'button composed');
     assert_true(str_contains($html, '<h3 class="slate-card__title">Join us</h3>'));
     assert_true(str_contains($html, '>Sign up</a>'));

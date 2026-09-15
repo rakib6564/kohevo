@@ -68,11 +68,45 @@ if ($postId) {
 } else {
     $type = preg_match('/^[a-z][a-z0-9_-]{0,31}$/', (string) $type) ? $type : 'page';
     $postId = $pages->create($type, 'Untitled ' . ucfirst($type), 'untitled-' . bin2hex(random_bytes(4)));
+
+    // A brand-new page opened from the Template Library (?template=<id>) or
+    // the Section Layout Library (?insert_section=<id>) — seed its very first
+    // working draft with real, renderable starter blocks instead of leaving
+    // "Use Template"/"Insert in Editor" as dead links (they previously carried
+    // this query param nowhere; admin/editor.php never read it).
+    $starterKey = (string) ($_GET['template'] ?? $_GET['insert_section'] ?? '');
+    if ($starterKey !== '') {
+        $starterBlocks = slate_editor_starter_blocks($starterKey);
+        if ($starterBlocks !== null) {
+            $starterDoc = slate_editor_document_from_post($starterBlocks, $type);
+            $starterValidated = DocumentValidator::validate($starterDoc, ContentServiceFactory::validatorRegistry());
+            if ($starterValidated['valid']) {
+                ContentServiceFactory::publicationService()->save(
+                    CONTENT_PAGE_OWNER_TYPE,
+                    $postId,
+                    $starterValidated['document'],
+                    RenderContext::for(current_tenant_id(), RenderContext::SURFACE_PAGE)->withTheme(ContentServiceFactory::theme()),
+                    ContentServiceFactory::themeVersion(),
+                );
+            }
+        }
+    }
+
     header('Location: editor.php?id=' . $postId);
     exit;
 }
 
-$renderCtx     = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_FRAGMENT);
+$renderCtx     = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_FRAGMENT)->withTheme(ContentServiceFactory::theme());
+// A SEPARATE context for save()/publish() — real-page surface, not fragment.
+// ContentPublicationService caches whatever $this->compiler->compile()
+// produces for the context it's given, and PublicContentService's own
+// cache-freshness check (fingerprint + rendererVersion + themeVersion) does
+// NOT distinguish surface. Publishing with $renderCtx (fragment, meant only
+// for the canvas's own per-block preview calls below) cached a bare content
+// fragment — no <html>/<head>/theme/content-blocks.css at all — as "fresh"
+// for the exact key a real page view would also compute, so every visitor
+// got that same headless fragment until something else forced a recompile.
+$publishRenderCtx = RenderContext::for(current_tenant_id(), RenderContext::SURFACE_PAGE)->withTheme(ContentServiceFactory::theme());
 $blockRenderer = new PageRenderer(ContentServiceFactory::blockRegistry());
 
 // ── Load working draft (RevisionStore only — never a raw query) ──────────
@@ -112,6 +146,29 @@ foreach (ContentServiceFactory::paletteProjection() as $def) {
             }
             $entry['options'] = $opts;
         }
+        if (($f['type'] ?? '') === 'repeater') {
+            // Without these the editor's repeater UI (Gallery images, Menu
+            // items, …) has nothing to render per item — it silently showed
+            // an empty item card with no fields at all.
+            $entry['itemLabel'] = $f['itemLabel'] ?? 'Item';
+            if (isset($f['maxItems'])) $entry['maxItems'] = (int) $f['maxItems'];
+            $itemFields = [];
+            foreach ((array) ($f['item'] ?? []) as $sf) {
+                if (!is_array($sf) || empty($sf['key'])) continue;
+                $subEntry = ['key' => $sf['key'], 'type' => $sf['type'] ?? 'text', 'label' => $sf['label'] ?? $sf['key']];
+                if (!empty($sf['required'])) $subEntry['required'] = true;
+                if (!empty($sf['options']) && is_array($sf['options'])) {
+                    $subOpts = [];
+                    foreach ($sf['options'] as $opt) {
+                        if (is_array($opt) && isset($opt['v'])) $subOpts[(string)$opt['v']] = (string)($opt['l'] ?? $opt['v']);
+                        elseif (is_string($opt)) $subOpts[$opt] = $opt;
+                    }
+                    $subEntry['options'] = $subOpts;
+                }
+                $itemFields[] = $subEntry;
+            }
+            $entry['item'] = $itemFields;
+        }
         $jsFields[$f['key']] = $entry;
     }
     $blocks[$btype] = [
@@ -133,9 +190,6 @@ foreach ($layout as $block) {
     $renderedBlocks[] = $blockRenderer->renderBlock($block, $renderCtx);
 }
 
-// ── Theme tokens for canvas CSS ────────────────────────────── (no theme layer wired yet; empty is a safe no-op)
-$themeTokens = [];
-
 /**
  * Flatten a canonical schema-1 document's sections back to the flat block
  * array the editor's JS speaks (this editor has no multi-section UI — every
@@ -151,6 +205,94 @@ function slate_editor_flatten(array $document): array
         }
     }
     return $out;
+}
+
+/**
+ * Resolve a flat block array to seed a brand-new page from, for both the 4
+ * built-in Template Library entries (admin/templates.php's $pageTemplates) and
+ * the 5 Section Layout Library presets ($sectionTemplates) — and, for a
+ * user-saved template, from `document_templates` (id prefixed 'custom:').
+ * Returns null for an unrecognized key (the new page then just opens empty).
+ *
+ * @return list<array<string,mixed>>|null
+ */
+function slate_editor_starter_blocks(string $key): ?array
+{
+    if (str_starts_with($key, 'custom:')) {
+        $id = (int) substr($key, 7);
+        if ($id <= 0) return null;
+        $repo = ContentServiceFactory::templateRepository();
+        $row  = $repo->find($id);
+        if ($row === null) return null;
+        $document = $repo->documentOf($row);
+        return $document !== null ? slate_editor_flatten($document) : null;
+    }
+
+    $hero = static fn (array $overrides = []): array => ['type' => 'hero', 'props' => $overrides];
+    $heading = static fn (string $text, string $level = '2', string $align = 'left'): array => ['type' => 'heading', 'props' => ['text' => $text, 'level' => $level, 'align' => $align]];
+    $para = static fn (string $text): array => ['type' => 'paragraph', 'props' => ['text' => $text]];
+    $btn = static fn (string $text, string $href = '#'): array => ['type' => 'button', 'props' => ['text' => $text, 'href' => $href, 'style' => 'primary']];
+    $divider = ['type' => 'divider', 'props' => []];
+    // A Columns block whose columns carry real nested blocks — renderNestedBlocks()
+    // in LegacyBlockBridge knows heading/paragraph/button/container/columns, so
+    // these actually render as authored content, not the "Drop widgets here"
+    // placeholder a truly-empty column shows.
+    $columns = static fn (array $cols, int $gap = 32): array => [
+        'type' => 'columns',
+        'props' => ['columns' => count($cols), 'gap' => $gap, 'cols' => array_map(static fn (array $blocks) => ['blocks' => $blocks], $cols)],
+    ];
+
+    return match ($key) {
+        // Page Document Templates (admin/templates.php $pageTemplates)
+        'default' => [
+            $heading('Welcome to your new page', '1'),
+            $para('Start writing, or replace this with your own blocks from the Elements panel. This starter includes a two-column layout below to show how Columns work.'),
+            $columns([
+                [$heading('About this section', '3'), $para('Use a column to place related content side by side — text, images, or nested widgets.')],
+                [$heading('Another column', '3'), $para('Columns resize independently and can each hold their own set of blocks.')],
+            ]),
+            $divider,
+            ['type' => 'cta', 'props' => ['heading' => 'Ready to publish?', 'text' => 'Replace this content, then hit Publish when you\'re happy with the page.', 'btnText' => 'Learn more']],
+        ],
+        'full-width' => [
+            $hero(['layout' => 'banner', 'pad' => 'spacious', 'height' => 'tall', 'heading' => 'Edge-to-edge canvas', 'subheading' => 'Built for bold, modern visual marketing pages that run full-bleed from edge to edge.', 'btnText' => 'Get started']),
+            ['type' => 'icon-grid', 'props' => ['eyebrow' => 'Why full width', 'heading' => 'Room to make an impression']],
+            ['type' => 'testimonial', 'props' => []],
+            ['type' => 'cta', 'props' => ['heading' => 'Ready to go full-bleed?', 'btnText' => 'Start building']],
+        ],
+        'landing' => [
+            $hero(['layout' => 'split', 'heading' => 'Your big headline', 'subheading' => 'A short supporting sentence that sells the idea.', 'btnText' => 'Get started', 'btn2Text' => 'See how it works']),
+            ['type' => 'icon-grid', 'props' => ['eyebrow' => 'What we offer', 'heading' => 'Explore the possibilities']],
+            ['type' => 'testimonial', 'props' => []],
+            $heading('Simple, transparent pricing', '2', 'center'),
+            $columns([
+                [$heading('Starter', '3'), $para('For small teams getting started.'), $btn('Choose Starter')],
+                [$heading('Pro', '3'), $para('For growing teams that need more.'), $btn('Choose Pro')],
+                [$heading('Enterprise', '3'), $para('Custom limits and dedicated support.'), $btn('Contact sales')],
+            ]),
+            ['type' => 'cta', 'props' => ['heading' => 'Still have questions?', 'text' => 'We\'re happy to help you get set up.', 'btnText' => 'Contact us']],
+        ],
+        'blog-single' => [
+            $heading('Your article title', '1'),
+            $para('A short introduction that draws the reader in and sets up what this article covers.'),
+            $para('Continue the story here — replace this with your own writing. Break long articles into a few paragraphs like this one to keep them readable.'),
+            ['type' => 'testimonial', 'props' => ['quote' => 'A great pull-quote can highlight the single most important idea in your article.', 'author' => 'Replace with a name', 'role' => 'Or a source']],
+            $para('Wrap up with a closing paragraph that reinforces your main point and, if relevant, a call to action.'),
+            $divider,
+        ],
+        // Section Layout Library ($sectionTemplates) — single-section inserts,
+        // each with fuller default props than the block's own bare defaults.
+        'hero-split' => [$hero(['layout' => 'split', 'heading' => 'A headline that grabs attention', 'subheading' => 'Explain the value in one clear, confident sentence.', 'btnText' => 'Get started', 'btn2Text' => 'Learn more'])],
+        'features-grid-3' => [['type' => 'icon-grid', 'props' => ['eyebrow' => 'Why choose us', 'heading' => 'Everything you need to succeed']]],
+        'social-proof' => [['type' => 'testimonial', 'props' => []]],
+        'pricing-table' => [$columns([
+            [$heading('Starter', '3'), $para('For small teams getting started.'), $btn('Choose Starter')],
+            [$heading('Pro', '3'), $para('For growing teams that need more.'), $btn('Choose Pro')],
+            [$heading('Enterprise', '3'), $para('Custom limits and dedicated support.'), $btn('Contact sales')],
+        ])],
+        'contact-cta' => [['type' => 'cta', 'props' => ['heading' => 'Get in touch', 'text' => 'Have a question? We usually reply within one business day.', 'btnText' => 'Contact us']]],
+        default => null,
+    };
 }
 
 /** Wrap the editor's posted flat layout array into a validated, canonical schema-1 document. */
@@ -196,6 +338,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
     if (!csrf_verify()) {
         echo json_encode(['ok' => false, 'error' => 'CSRF failed']);
         exit;
+    }
+
+    // Release the session file lock immediately. PHP's default session
+    // handler holds an exclusive lock on the session file for a request's
+    // ENTIRE execution unless told otherwise — so two requests from the same
+    // browser session (e.g. insertBlock()'s un-awaited op_insert_block ping
+    // firing right alongside its own render_block call, or any other pair of
+    // near-simultaneous editor actions) serialize behind each other instead
+    // of running concurrently. On a slow/shared host that queueing is enough
+    // to make the second request time out client-side, surfacing as the
+    // canvas's generic "Render failed" for whichever block lost the race.
+    // Nothing below this point reads or writes $_SESSION again (the only
+    // per-request session write, slate_last_activity, already happened
+    // earlier during Auth::startSession()), so closing it here is safe.
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
     }
 
     $action = $_POST['_editor_action'];
@@ -257,12 +415,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
         }
 
         $publication = ContentServiceFactory::publicationService();
-        $themeVersion = '1';
+        // Must match PublicContentRoute's own themeVersion exactly — otherwise
+        // the compilation cached here at save/publish time never counts as
+        // "fresh" for a real page view (or worse, would if computed with a
+        // different theme baked in). See ContentServiceFactory::themeVersion().
+        $themeVersion = ContentServiceFactory::themeVersion();
         $dependencyKeys = slate_editor_dependency_keys($validated['document']);
         try {
             if ($action === 'publish') {
-                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion, $dependencyKeys);
-                $result = $publication->publish(CONTENT_PAGE_OWNER_TYPE, $postId, $renderCtx, $themeVersion, $dependencyKeys);
+                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $publishRenderCtx, $themeVersion, $dependencyKeys);
+                $result = $publication->publish(CONTENT_PAGE_OWNER_TYPE, $postId, $publishRenderCtx, $themeVersion, $dependencyKeys);
                 if ($result === null) {
                     echo json_encode(['ok' => false, 'error' => 'nothing_to_publish']);
                     exit;
@@ -273,12 +435,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
                 }
                 echo json_encode(['ok' => true, 'action' => 'published']);
             } else {
-                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, $themeVersion, $dependencyKeys);
+                $publication->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $publishRenderCtx, $themeVersion, $dependencyKeys);
                 echo json_encode(['ok' => true, 'action' => 'draft_saved']);
             }
         } catch (\Throwable $e) {
             echo json_encode(['ok' => false, 'error' => 'save_failed', 'message' => $e->getMessage()]);
         }
+        exit;
+    }
+
+    // ── Save the current canvas as a reusable Template Library entry ─────
+    if ($action === 'save_as_template') {
+        $name = trim((string) ($_POST['name'] ?? ''));
+        if ($name === '') {
+            echo json_encode(['ok' => false, 'error' => 'name_required']);
+            exit;
+        }
+        $layoutJson = $_POST['layout'] ?? '[]';
+        $layoutArr  = json_decode($layoutJson, true);
+        if (!is_array($layoutArr)) $layoutArr = [];
+
+        try {
+            $document = slate_editor_document_from_post($layoutArr, $type);
+        } catch (\InvalidArgumentException $e) {
+            echo json_encode(['ok' => false, 'error' => 'invalid_json', 'message' => $e->getMessage()]);
+            exit;
+        }
+        $validated = DocumentValidator::validate($document, ContentServiceFactory::validatorRegistry());
+        if (!$validated['valid']) {
+            echo json_encode(['ok' => false, 'error' => 'validation_failed', 'errors' => $validated['errors']]);
+            exit;
+        }
+        $templateId = ContentServiceFactory::templateRepository()->create($name, $type, $validated['document']);
+        echo json_encode(['ok' => true, 'id' => $templateId]);
+        exit;
+    }
+
+    // ── Site Settings: global brand colors/fonts (Site Settings panel) ───
+    // Writes the SAME setting keys admin/settings.php's own Branding section
+    // uses (see TenantBranding::KEYS) — one source of truth, edited from
+    // either place. Gated separately from content.edit: changing site-wide
+    // branding is a settings-level action, not a page-content one.
+    if ($action === 'save_site_settings') {
+        if (!Auth::can('settings.edit') && !Auth::isSuperAdmin()) {
+            echo json_encode(['ok' => false, 'error' => 'no_permission']);
+            exit;
+        }
+        $brand = json_decode($_POST['brand'] ?? '{}', true);
+        if (!is_array($brand)) $brand = [];
+
+        $hexOrEmpty = static function (mixed $v): ?string {
+            $v = trim((string) $v);
+            if ($v === '') return '';
+            return preg_match('/^#[0-9a-fA-F]{3,8}$/', $v) ? $v : null;
+        };
+        $fontOrEmpty = static function (mixed $v): ?string {
+            $v = trim((string) $v);
+            if ($v === '') return '';
+            // A CSS font-family list: letters, spaces, commas, hyphens, quotes.
+            return preg_match('/^[A-Za-z0-9 ,\'"_-]{0,120}$/', $v) ? $v : null;
+        };
+
+        $accent  = $hexOrEmpty($brand['accent'] ?? '');
+        $ink     = $hexOrEmpty($brand['ink'] ?? '');
+        $pageBg  = $hexOrEmpty($brand['pageBg'] ?? '');
+        $heading = $fontOrEmpty($brand['heading'] ?? '');
+        $body    = $fontOrEmpty($brand['body'] ?? '');
+
+        if ($accent === null || $ink === null || $pageBg === null || $heading === null || $body === null) {
+            echo json_encode(['ok' => false, 'error' => 'validation_failed']);
+            exit;
+        }
+
+        Database::setSetting(\Slate\Services\Content\TenantBranding::KEYS['accent'], $accent);
+        Database::setSetting(\Slate\Services\Content\TenantBranding::KEYS['ink'], $ink);
+        Database::setSetting(\Slate\Services\Content\TenantBranding::KEYS['pageBg'], $pageBg);
+        Database::setSetting(\Slate\Services\Content\TenantBranding::KEYS['heading'], $heading);
+        Database::setSetting(\Slate\Services\Content\TenantBranding::KEYS['body'], $body);
+
+        echo json_encode(['ok' => true]);
         exit;
     }
 
@@ -303,6 +538,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
                 $block = json_decode($_POST['block'] ?? '{}', true);
                 if (!is_array($block) || empty($block['type'])) {
                     throw new \InvalidArgumentException('Invalid block.');
+                }
+                // A brand-new, still-empty page normalizes to zero sections
+                // (DocumentSchema's documented "legacy flat array -> one
+                // implicit Section, or none if empty" rule) — insertBlock
+                // needs the implicit section to actually exist to insert the
+                // very first block into it.
+                if ($document['sections'] === []) {
+                    $document['sections'][] = ['id' => $sectionId, 'layout' => \Slate\Presentation\LayoutSpec::default()->toArray(), 'blocks' => []];
                 }
                 $index = (int) ($_POST['index'] ?? 0);
                 $document = DocumentOperations::insertBlock($document, $sectionId, $index, $block);
@@ -362,7 +605,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_editor_action'])) {
             exit;
         }
         try {
-            ContentServiceFactory::publicationService()->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $renderCtx, '1');
+            ContentServiceFactory::publicationService()->save(CONTENT_PAGE_OWNER_TYPE, $postId, $validated['document'], $publishRenderCtx, ContentServiceFactory::themeVersion());
             echo json_encode(['ok' => true, 'action' => 'restored', 'layout' => slate_editor_flatten($validated['document'])]);
         } catch (\Throwable $e) {
             echo json_encode(['ok' => false, 'error' => 'restore_failed', 'message' => $e->getMessage()]);
@@ -393,11 +636,20 @@ $postJson  = json_encode([
 $blocksJson = json_encode($blocks, JSON_HEX_TAG | JSON_HEX_APOS);
 $mediaJson  = json_encode($mediaMap, JSON_HEX_TAG | JSON_HEX_APOS);
 $renderedJson = json_encode($renderedBlocks, JSON_HEX_TAG | JSON_HEX_APOS);
+$brandJson = json_encode(\Slate\Services\Content\TenantBranding::resolve(), JSON_HEX_TAG | JSON_HEX_APOS);
 
-// Public CSS files to inline for canvas
+// Public CSS files to inline for canvas.
+// content-blocks.css is the styling for every block LegacyBlockBridge renders
+// (hero/card/cta/testimonial/columns/rx-* …) — it used to point at
+// plugins/content-builder/assets/css/public.css, but that plugin was archived
+// and the live plugins/ directory never had a replacement, so the canvas (and,
+// via PublicContentRoute below, published pages too) rendered every block with
+// ZERO of this styling: raw, unstyled <h1>/<p>/<a> tags only. Ported verbatim
+// from archive/plugins/content-builder/assets/css/public.css (self-contained —
+// only var(--slate-*) tokens, no external asset references) to a live,
+// plugin-independent path.
 $cssFiles = [
-    'plugins/content-builder/assets/css/public.css',
-    'plugins/small-business-kit/assets/css/sb.css',
+    'assets/css/content-blocks.css',
     'plugins/forms/assets/css/public.css',
     'plugins/booking/assets/css/public.css',
 ];
@@ -408,20 +660,24 @@ foreach ($cssFiles as $rel) {
         $canvasCss .= file_get_contents($absPath) . "\n";
     }
 }
-// Add theme tokens as CSS custom properties
-$tokenCss = ":root {\n";
-foreach ($themeTokens as $name => $val) {
-    if (!is_scalar($val)) continue;
-    $prop = str_starts_with((string)$name, '--') ? (string)$name : '--' . (string)$name;
-    $tokenCss .= "  " . e($prop) . ": " . e((string)$val) . ";\n";
-}
-$tokenCss .= "}\n";
-$canvasCss = $tokenCss . $canvasCss;
+// Real --slate-* tokens — the tenant's actual configured brand (Site
+// Settings), not the empty no-op this used to be. Confirmed bug fixed by
+// this: several content-blocks.css rules (e.g. .cb-cta-title/.cb-btn text
+// color) resolve their `var(--slate-color-on-accent, #fff)` fallback to
+// white while the block carrying them (.cb-cta background: var(--slate-
+// color-accent), no fallback) fell back to no background at all — white
+// text on a transparent/white canvas, i.e. the CTA block's whole rendered
+// content was invisible in the editor, though the server was rendering it
+// correctly (visible in the raw HTML). Uses the same TokenEmitter::css()
+// DocumentTemplate/PublicContentRoute use for the real public frame, with
+// the tenant's real brand tokens, so the editor canvas stays byte-for-byte
+// visually consistent with what a real published page actually looks like.
+$canvasCss = \Slate\Presentation\Tokens\TokenEmitter::css(ContentServiceFactory::theme()->tokens(), false, true) . "\n" . $canvasCss;
 
 $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 ?>
 <!DOCTYPE html>
-<html lang="en" data-editor-mode>
+<html lang="en" data-editor-mode data-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -436,8 +692,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         --ve-border: #23272f;
         --ve-text: #e4e4e7;
         --ve-text-dim: #9ca3af;
-        --ve-accent: #22c55e;
-        --ve-accent-hover: #16a34a;
+        --ve-accent: #9333ea;
+        --ve-accent-hover: #7e22ce;
         --ve-danger: #ef4444;
         --ve-radius: 8px;
         --ve-panel-w: 320px;
@@ -463,6 +719,10 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-title-input:focus { box-shadow: 0 1px 0 var(--ve-accent); }
     .ve-topbar-center { flex: 1; display: flex; justify-content: center; align-items: center; }
     .ve-topbar-right { display: flex; align-items: center; gap: 8px; }
+    .ve-icon-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px;
+                   background: transparent; border: 1px solid transparent; color: var(--ve-text-dim); cursor: pointer; }
+    .ve-icon-btn svg { width: 17px; height: 17px; }
+    .ve-icon-btn:hover { color: var(--ve-text); background: var(--ve-border); }
     .ve-device-group { display: flex; border: 1px solid var(--ve-border); border-radius: 6px; overflow: hidden; }
     .ve-device-btn { background: transparent; border: none; color: var(--ve-text-dim); padding: 6px 10px; cursor: pointer; font-size: 16px; }
     .ve-device-btn:hover { color: var(--ve-text); }
@@ -470,7 +730,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-btn { padding: 7px 16px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
     .ve-btn-ghost { background: transparent; color: var(--ve-text-dim); border: 1px solid var(--ve-border); }
     .ve-btn-ghost:hover { color: var(--ve-text); border-color: var(--ve-text-dim); }
-    .ve-btn-primary { background: var(--ve-accent); color: #000; }
+    .ve-btn-primary { background: var(--ve-accent); color: #fff; }
     .ve-btn-primary:hover { background: var(--ve-accent-hover); }
     .ve-btn-danger { background: #dc262622; color: var(--ve-danger); border: 1px solid var(--ve-danger)44; }
     .ve-btn-danger:hover { background: #dc262633; }
@@ -484,9 +744,13 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-panel-right { width: var(--ve-panel-right-w); border-right: none; border-left: 1px solid var(--ve-border); }
     .ve-panel-editor { width: var(--ve-panel-w); box-shadow: 8px 0 28px rgba(0,0,0,.12); z-index: 2; }
     .ve-panel-tabs { display: flex; border-bottom: 1px solid var(--ve-border); background: #13161d; }
-    .ve-panel-tab { flex: 1; min-width: 0; padding: 12px 3px; text-align: center; font-size: 11px; font-weight: 600; cursor: pointer;
-                    color: var(--ve-text-dim); border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; }
+    .ve-panel-tab { flex: 1; min-width: 0; padding: 10px 3px 9px; text-align: center; font-size: 10.5px; font-weight: 600; cursor: pointer;
+                    color: var(--ve-text-dim); border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none;
+                    display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .ve-panel-tab svg { width: 17px; height: 17px; opacity: .85; }
+    .ve-panel-tab:hover { color: var(--ve-text); }
     .ve-panel-tab.active { color: var(--ve-accent); border-bottom-color: var(--ve-accent); }
+    .ve-panel-tab.active svg { opacity: 1; }
     .ve-panel-content { padding: 12px; flex: 1; overflow-y: auto; display: none; }
     .ve-panel-content.active { display: block; }
 
@@ -503,7 +767,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-block-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px;
                      background: var(--ve-bg); border: 1px solid var(--ve-border); border-radius: 6px; cursor: pointer;
                      color: var(--ve-text-dim); font-size: 11px; text-align: center; transition: all .15s; }
-    .ve-block-item:hover { border-color: var(--ve-accent); color: var(--ve-text); background: #22c55e0a; }
+    .ve-block-item:hover { border-color: var(--ve-accent); color: var(--ve-text); background: #9333ea0a; }
     .ve-block-item svg { width: 24px; height: 24px; }
 
     /* Layers */
@@ -535,12 +799,17 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     /* ── Canvas area ────────────────────────────────────────── */
     .ve-canvas-wrap { flex: 1; min-width: 0; overflow-y: auto; overflow-x: auto; background: #20242b;
                       display: flex; flex-direction: column; align-items: center; padding: 26px 34px 80px; }
+    /* Desktop is the common case: no device-frame chrome to label and no
+       reason to keep any side/top padding — the canvas should be the full,
+       edge-to-edge working area, not a bordered island. Tablet/Mobile keep
+       the padding (room for the phone/tablet frame's border+shadow) and the
+       width indicator (the one place that label is actually informative). */
+    .ve-canvas-wrap-desktop { padding: 0; }
+    .ve-canvas-wrap-desktop .ve-device-bar { display: none; }
+    .ve-canvas-wrap-desktop .ve-canvas-frame { min-height: 100%; }
     .ve-device-bar { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; flex-shrink: 0; }
     .ve-device-indicator { font-size: 11px; color: var(--ve-text-dim); font-variant-numeric: tabular-nums; letter-spacing: .02em; min-width: 60px; text-align: center; }
-    .ve-custom-width-wrap { display: flex; align-items: center; gap: 4px; }
-    .ve-custom-width-input { background: var(--ve-bg); border: 1px solid var(--ve-border); border-radius: 4px; color: var(--ve-text); font-size: 11px; padding: 2px 6px; width: 64px; outline: none; }
-    .ve-custom-width-input:focus { border-color: var(--ve-accent); }
-    .ve-canvas-frame { width: 100%; max-width: 1180px; min-height: 720px; transition: max-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-radius .3s ease; }
+    .ve-canvas-frame { width: 100%; max-width: 100%; min-height: 720px; transition: max-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-radius .3s ease; }
     .ve-canvas-frame.device-tablet {
         max-width: 768px;
         border: 10px solid #23272f;
@@ -642,6 +911,16 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                           background-size: 8px 8px; background-position: 0 0,0 4px,4px -4px,-4px 0; }
     .ve-swatch-preview-fill { width: 100%; height: 100%; border-radius: 4px; }
     .ve-field-hint { font-size: 10px; color: var(--ve-text-dim); margin-top: 4px; line-height: 1.4; }
+
+    /* ── Repeater fields (Gallery images, Menu items, Reviews, …) ────── */
+    .ve-repeater-item { border: 1px solid var(--ve-border); border-radius: 6px; padding: 10px; margin-bottom: 8px; background: #ffffff03; }
+    .ve-repeater-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .ve-repeater-item-head span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ve-text-dim); }
+    .ve-repeater-remove { background: none; border: 1px solid transparent; color: var(--ve-text-dim); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+    .ve-repeater-remove:hover { color: var(--ve-danger); border-color: var(--ve-danger); background: #ef444410; }
+    .ve-repeater-item .ve-field:last-child { margin-bottom: 0; }
+    .ve-repeater-add { width: 100%; margin-top: 4px; }
+    .ve-repeater-empty { font-size: 12px; color: var(--ve-text-dim); text-align: center; padding: 10px 0; }
 
     /* ── Canvas block wrappers (Elementor style) ──────────── */
     .ve-block { position: relative; cursor: pointer; transition: outline .15s ease, box-shadow .15s ease; outline: 1.5px solid transparent; outline-offset: -1px; margin: 0; }
@@ -782,6 +1061,22 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-toast-error { background: #dc2626; color: #fff; }
     @keyframes veToast { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* ── Right-click context menu ───────────────────────────── */
+    .ve-ctx-menu { position: fixed; z-index: 10001; min-width: 200px; background: var(--ve-surface);
+                   border: 1px solid var(--ve-border); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,.45);
+                   padding: 6px; display: none; }
+    .ve-ctx-item { display: flex; align-items: center; width: 100%; gap: 10px; padding: 7px 10px; border-radius: 5px;
+                   background: none; border: none; color: var(--ve-text); font-size: 13px; text-align: left; cursor: pointer; }
+    .ve-ctx-item:hover:not(.disabled) { background: var(--ve-accent); color: #fff; }
+    .ve-ctx-item:hover:not(.disabled) em, .ve-ctx-item:hover:not(.disabled) svg { color: #fff; opacity: 1; }
+    .ve-ctx-item.disabled { color: var(--ve-text-dim); opacity: .45; cursor: default; }
+    .ve-ctx-item.danger { color: var(--ve-danger); }
+    .ve-ctx-item.danger:hover:not(.disabled) { background: var(--ve-danger); color: #fff; }
+    .ve-ctx-item span { flex: 1; }
+    .ve-ctx-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: .8; }
+    .ve-ctx-item em { font-style: normal; font-size: 11px; color: var(--ve-text-dim); }
+    .ve-ctx-sep { height: 1px; background: var(--ve-border); margin: 5px 2px; }
+
     /* Saving overlay */
     .ve-saving { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--ve-accent), #3b82f6, var(--ve-accent));
                  background-size: 200% auto; animation: veSaving 1s linear infinite; z-index: 9999; display: none; }
@@ -810,6 +1105,11 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     </div>
 
     <div class="ve-topbar-right">
+        <?php if (Auth::can('settings.edit') || Auth::isSuperAdmin()): ?>
+        <button type="button" class="ve-icon-btn" id="btnSiteSettings" title="Site Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+        <?php endif; ?>
         <div class="ve-device-group">
             <button class="ve-device-btn active" data-device="desktop" title="Desktop"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.6" y="4" width="18.8" height="12.6" rx="1.8"/><path d="M8.6 20.8h6.8"/><path d="M12 16.6v4.2"/></svg></button>
             <button class="ve-device-btn" data-device="tablet" title="Tablet"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.6" y="2.6" width="12.8" height="18.8" rx="2.2"/><path d="M11.4 18.6h1.2"/></svg></button>
@@ -827,11 +1127,26 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     <!-- Elementor-style left editor panel: elements, navigator, inspector, page, history -->
     <div class="ve-panel ve-panel-editor">
         <div class="ve-panel-tabs">
-            <button class="ve-panel-tab active" data-tab="blocks">Elements</button>
-            <button class="ve-panel-tab" data-tab="layers">Navigator</button>
-            <button class="ve-panel-tab" data-tab="inspector">Settings</button>
-            <button class="ve-panel-tab" data-tab="page">Page</button>
-            <button class="ve-panel-tab" data-tab="history">History</button>
+            <button class="ve-panel-tab active" data-tab="blocks">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                <span>Elements</span>
+            </button>
+            <button class="ve-panel-tab" data-tab="layers">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                <span>Navigator</span>
+            </button>
+            <button class="ve-panel-tab" data-tab="inspector">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                <span>Settings</span>
+            </button>
+            <button class="ve-panel-tab" data-tab="page">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <span>Page</span>
+            </button>
+            <button class="ve-panel-tab" data-tab="history">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+                <span>History</span>
+            </button>
         </div>
         <div class="ve-panel-content active" id="tabBlocks">
             <input type="text" class="ve-search" id="blockSearch" placeholder="Search blocks…">
@@ -862,6 +1177,11 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                 <label>Status</label>
                 <input type="text" id="settingsStatus" value="<?= e($post['status'] ?? 'draft') ?>" disabled>
             </div>
+            <div class="ve-field">
+                <label>Template Library</label>
+                <button type="button" class="ve-btn ve-btn-ghost" id="btnSaveAsTemplate" style="width:100%;margin-bottom:8px;">Save as Template…</button>
+                <a href="<?= e(SLATE_URL) ?>/admin/template-export.php?page=<?= (int) $postId ?>" class="ve-btn ve-btn-ghost" style="width:100%;display:block;text-align:center;box-sizing:border-box;">Export Page as JSON</a>
+            </div>
         </div>
         <div class="ve-panel-content" id="tabHistory">
                 <div id="historyList"><div class="ve-inspector-empty">Loading…</div></div>
@@ -869,13 +1189,9 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     </div>
 
     <!-- Full-width canvas -->
-    <div class="ve-canvas-wrap">
+    <div class="ve-canvas-wrap ve-canvas-wrap-desktop" id="canvasWrap">
         <div class="ve-device-bar">
             <span class="ve-device-indicator" id="deviceIndicator">Desktop</span>
-            <div class="ve-custom-width-wrap">
-                <input type="number" class="ve-custom-width-input" id="customWidthInput" placeholder="px" min="320" max="2560" title="Custom canvas width">
-                <span style="font-size:11px;color:var(--ve-text-dim)">px</span>
-            </div>
         </div>
         <div class="ve-canvas-frame" id="canvasFrame">
             <div class="ve-canvas cb-public" id="canvas">
@@ -896,6 +1212,47 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         </div>
     </div>
 </div>
+<?php if (Auth::can('settings.edit') || Auth::isSuperAdmin()): ?>
+<div class="ve-structure-modal" id="siteSettingsModal" aria-hidden="true">
+    <div class="ve-structure-card" role="dialog" aria-modal="true" aria-labelledby="siteSettingsTitle" style="width:min(460px, calc(100vw - 32px));">
+        <div class="ve-structure-head"><h3 id="siteSettingsTitle">Site Settings</h3><button type="button" class="ve-structure-close" id="closeSiteSettings" aria-label="Close">×</button></div>
+        <p style="color:#94a3b8;font-size:12.5px;margin:-10px 0 16px;">Global colors and fonts, applied across every published page on this site.</p>
+        <div class="ve-field">
+            <label>Accent Color</label>
+            <div class="ve-color-row">
+                <input type="color" id="brandAccent">
+                <input type="text" id="brandAccentHex" placeholder="#2563EB">
+            </div>
+        </div>
+        <div class="ve-field">
+            <label>Text Color</label>
+            <div class="ve-color-row">
+                <input type="color" id="brandText">
+                <input type="text" id="brandTextHex" placeholder="#0f172a">
+            </div>
+        </div>
+        <div class="ve-field">
+            <label>Canvas / Background Color</label>
+            <div class="ve-color-row">
+                <input type="color" id="brandCanvas">
+                <input type="text" id="brandCanvasHex" placeholder="#ffffff">
+            </div>
+        </div>
+        <div class="ve-field">
+            <label>Heading Font</label>
+            <input type="text" id="brandHeadingFont" placeholder="e.g. Georgia, serif">
+        </div>
+        <div class="ve-field" style="margin-bottom:0">
+            <label>Body Font</label>
+            <input type="text" id="brandBodyFont" placeholder="e.g. system-ui, sans-serif">
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+            <button type="button" class="ve-btn ve-btn-ghost" id="resetSiteSettings">Reset to default</button>
+            <button type="button" class="ve-btn ve-btn-primary" id="saveSiteSettings">Save Changes</button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Canvas CSS (loaded from site theme + public.css) injected into a scoped style -->
 <style id="canvasCss">
@@ -926,6 +1283,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     const POST   = <?= $postJson ?>;
     const BLOCKS = <?= $blocksJson ?>;
     const MEDIA  = <?= $mediaJson ?>;
+    const BRAND  = <?= $brandJson ?>;
     const RENDERED = <?= $renderedJson ?>;
     const SAVE_URL    = window.location.pathname;
     const PREVIEW_URL = <?= json_encode($previewUrl) ?>;
@@ -1303,6 +1661,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     // ── DOM refs ──────────────────────────────────────────────
     const $canvas       = document.getElementById('canvas');
     const $canvasFrame  = document.getElementById('canvasFrame');
+    const $canvasWrap   = document.getElementById('canvasWrap');
     const $blockList    = document.getElementById('blockList');
     const $layerTree    = document.getElementById('layerTree');
     const $inspector    = document.getElementById('inspectorContent');
@@ -1367,6 +1726,75 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         $statusPill.className = 've-status-pill ve-status-' + status;
         document.getElementById('settingsStatus').value = status;
     }
+
+    // ── Site Settings (global brand: accent/text/canvas colors, fonts) ────
+    (function initSiteSettings() {
+        const $btn = document.getElementById('btnSiteSettings');
+        const $modal = document.getElementById('siteSettingsModal');
+        if (!$btn || !$modal) return; // no settings.edit permission
+        const $close = document.getElementById('closeSiteSettings');
+
+        function fieldPair(colorId, hexId, brandKey, placeholder) {
+            const picker = document.getElementById(colorId);
+            const hex = document.getElementById(hexId);
+            const val = BRAND[brandKey] || '';
+            picker.value = /^#[0-9a-f]{6}$/i.test(val) ? val : (placeholder || '#000000');
+            hex.value = val;
+            const sync = (v) => {
+                if (/^#[0-9a-f]{3,8}$/i.test(v)) picker.value = v.length <= 7 ? v : v.slice(0, 7);
+                hex.value = v;
+            };
+            picker.addEventListener('input', () => sync(picker.value));
+            hex.addEventListener('input', () => sync(hex.value));
+        }
+
+        function populate() {
+            fieldPair('brandAccent', 'brandAccentHex', 'accent', '#2563eb');
+            fieldPair('brandText', 'brandTextHex', 'ink', '#0f172a');
+            fieldPair('brandCanvas', 'brandCanvasHex', 'pageBg', '#ffffff');
+            document.getElementById('brandHeadingFont').value = BRAND.heading || '';
+            document.getElementById('brandBodyFont').value = BRAND.body || '';
+        }
+
+        function openModal() { populate(); $modal.classList.add('open'); $modal.setAttribute('aria-hidden', 'false'); }
+        function closeModal() { $modal.classList.remove('open'); $modal.setAttribute('aria-hidden', 'true'); }
+
+        $btn.addEventListener('click', openModal);
+        $close.addEventListener('click', closeModal);
+        $modal.addEventListener('click', (e) => { if (e.target === $modal) closeModal(); });
+
+        document.getElementById('resetSiteSettings').addEventListener('click', () => {
+            ['brandAccentHex', 'brandTextHex', 'brandCanvasHex', 'brandHeadingFont', 'brandBodyFont'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+        });
+
+        document.getElementById('saveSiteSettings').addEventListener('click', async () => {
+            const payload = {
+                accent: document.getElementById('brandAccentHex').value.trim(),
+                ink: document.getElementById('brandTextHex').value.trim(),
+                pageBg: document.getElementById('brandCanvasHex').value.trim(),
+                heading: document.getElementById('brandHeadingFont').value.trim(),
+                body: document.getElementById('brandBodyFont').value.trim(),
+            };
+            try {
+                const body = new URLSearchParams();
+                body.append('_editor_action', 'save_site_settings');
+                body.append('_csrf', CSRF);
+                body.append('brand', JSON.stringify(payload));
+                const res = await fetch(SAVE_URL + '?id=' + POST.id, { method: 'POST', body });
+                const json = await res.json();
+                if (json.ok) {
+                    toast('Site settings saved — reloading…', 'success');
+                    setTimeout(() => window.location.reload(), 700);
+                } else {
+                    toast(json.error || 'Could not save site settings', 'error');
+                }
+            } catch (e) {
+                toast('Network error', 'error');
+            }
+        });
+    })();
 
     // ── Block icons ───────────────────────────────────────────
     const BLOCK_ICONS = {
@@ -1458,7 +1886,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const body = new URLSearchParams();
             body.append('_editor_action', action);
             body.append('_csrf', CSRF);
-            body.append('layout', JSON.stringify(baseLayout || layout));
+            body.append('layout', JSON.stringify(cleanLayoutForSave(baseLayout || layout)));
             for (const [k, v] of Object.entries(params)) {
                 body.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
             }
@@ -1499,6 +1927,98 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         markDirty();
         rebuildCanvas();
     }
+    // ── Right-click context menu ────────────────────────────────
+    let styleClipboard = null;
+    const $ctxMenu = document.createElement('div');
+    $ctxMenu.className = 've-ctx-menu';
+    document.body.appendChild($ctxMenu);
+
+    function closeCtxMenu() { $ctxMenu.style.display = 'none'; }
+    document.addEventListener('click', closeCtxMenu);
+    document.addEventListener('scroll', closeCtxMenu, true);
+    window.addEventListener('blur', closeCtxMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCtxMenu(); });
+
+    function openCtxMenu(x, y, items) {
+        $ctxMenu.innerHTML = items.map(it => it.sep
+            ? '<div class="ve-ctx-sep"></div>'
+            : '<button type="button" class="ve-ctx-item' + (it.disabled ? ' disabled' : '') + (it.danger ? ' danger' : '') + '" data-act="' + it.act + '">'
+                + '<span>' + escHtml(it.label) + '</span>' + (it.shortcut ? '<em>' + escHtml(it.shortcut) + '</em>' : '') + '</button>'
+        ).join('');
+        $ctxMenu.style.left = x + 'px';
+        $ctxMenu.style.top = y + 'px';
+        $ctxMenu.style.display = 'block';
+        const rect = $ctxMenu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) $ctxMenu.style.left = Math.max(4, x - rect.width) + 'px';
+        if (rect.bottom > window.innerHeight) $ctxMenu.style.top = Math.max(4, y - rect.height) + 'px';
+    }
+
+    function openBlockContextMenu(e, idx) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectBlock(idx);
+        openCtxMenu(e.clientX, e.clientY, [
+            { act: 'settings', label: 'Edit' },
+            { sep: true },
+            { act: 'dup', label: 'Duplicate' },
+            { act: 'copy', label: 'Copy', shortcut: '⌘C' },
+            { act: 'paste', label: 'Paste', shortcut: '⌘V', disabled: !widgetClipboard },
+            { sep: true },
+            { act: 'copy-style', label: 'Copy style' },
+            { act: 'paste-style', label: 'Paste style', disabled: !styleClipboard },
+            { act: 'reset-style', label: 'Reset style', disabled: !(layout[idx]?.style && Object.keys(layout[idx].style).length) },
+            { sep: true },
+            { act: 'delete', label: 'Delete', danger: true },
+        ]);
+        $ctxMenu.dataset.blockIndex = String(idx);
+    }
+
+    $ctxMenu.addEventListener('click', (e) => {
+        const btn = e.target.closest('.ve-ctx-item');
+        if (!btn || btn.classList.contains('disabled')) return;
+        const idx = parseInt($ctxMenu.dataset.blockIndex, 10);
+        const act = btn.dataset.act;
+        closeCtxMenu();
+        if (!(idx >= 0) || !layout[idx]) return;
+
+        if (act === 'settings') {
+            selectBlock(idx);
+            const t = document.querySelector('[data-tab="inspector"]');
+            if (t) t.click();
+        } else if (act === 'dup') {
+            pushUndo();
+            handleBlockAction(idx, 'dup');
+        } else if (act === 'copy') {
+            selectBlock(idx);
+            copySelectedWidget();
+        } else if (act === 'paste') {
+            selectBlock(idx);
+            pasteSelectedWidget();
+        } else if (act === 'copy-style') {
+            styleClipboard = JSON.parse(JSON.stringify(layout[idx].style || {}));
+            toast('Style copied');
+        } else if (act === 'paste-style') {
+            if (!styleClipboard) return;
+            pushUndo();
+            layout[idx].style = JSON.parse(JSON.stringify(styleClipboard));
+            markDirty();
+            const blockEl = document.querySelector('.ve-block[data-index="' + idx + '"]');
+            if (blockEl) applyBlockStyleToEl(blockEl, layout[idx].style);
+            if (selectedBlockIndex === idx) renderInspector();
+            toast('Style pasted');
+        } else if (act === 'reset-style') {
+            pushUndo();
+            layout[idx].style = {};
+            markDirty();
+            const blockEl = document.querySelector('.ve-block[data-index="' + idx + '"]');
+            if (blockEl) applyBlockStyleToEl(blockEl, {});
+            if (selectedBlockIndex === idx) renderInspector();
+        } else if (act === 'delete') {
+            pushUndo();
+            handleBlockAction(idx, 'delete');
+        }
+    });
+
     async function insertBlock(type) {
         const def = BLOCKS[type];
         if (!def) return;
@@ -1581,6 +2101,31 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         }
     }
 
+    // Render every block in ONE round trip via the server's batch endpoint,
+    // instead of firing one concurrent fetch per block. Whole-layout re-renders
+    // (restore revision) used to fire N simultaneous render_block requests —
+    // harmless on a dev box, but enough to exhaust a shared host's PHP-FPM
+    // worker pool and time a few of them out, surfacing as "Render failed" for
+    // whichever blocks lost the race.
+    async function renderBlocksServerBatch(blocks) {
+        if (!blocks.length) return [];
+        try {
+            const body = new URLSearchParams();
+            body.append('_editor_action', 'render_blocks');
+            body.append('_csrf', CSRF);
+            body.append('blocks', JSON.stringify(blocks));
+            const res = await fetch(SAVE_URL + '?id=' + POST.id, { method: 'POST', body });
+            const json = await res.json();
+            if (json.ok && Array.isArray(json.html)) return json.html;
+        } catch (e) { /* fall through to per-block fallback below */ }
+        // Batch call failed outright (network/JSON error) — fall back to
+        // sequential (not parallel) per-block calls so one bad response
+        // doesn't take the rest down with it.
+        const out = [];
+        for (const b of blocks) out.push(await renderBlockServer(b));
+        return out;
+    }
+
     // ── Apply block styles to canvas DOM element ──────────────
     function applyBlockStyleToEl(blockEl, s) {
         if (!blockEl) return;
@@ -1621,9 +2166,10 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         if (s.marginBottom !== '' && s.marginBottom !== undefined) styleStr += 'margin-bottom:' + parseInt(s.marginBottom) + 'px;';
         if (s.borderRadius !== '' && s.borderRadius !== undefined) styleStr += 'border-radius:' + parseInt(s.borderRadius) + 'px;';
         if (s.maxWidth) styleStr += 'max-width:' + s.maxWidth + (isNaN(s.maxWidth) ? '' : 'px') + ';';
+        if (s.zIndex !== '' && s.zIndex !== undefined) styleStr += 'position:relative;z-index:' + parseInt(s.zIndex) + ';';
 
         const innerEl = blockEl.querySelector('.cb-block-wrapper') || blockEl.querySelector('.ve-block-inner') || blockEl;
-        innerEl.style.cssText = innerEl.style.cssText.replace(/(?:background-color|background-image|background-size|background-position|color|text-align|padding[^:]*|margin[^:]*|border-radius|max-width)[^;]*;/g, '');
+        innerEl.style.cssText = innerEl.style.cssText.replace(/(?:background-color|background-image|background-size|background-position|color|text-align|padding[^:]*|margin[^:]*|border-radius|max-width|position|z-index)[^;]*;/g, '');
         if (styleStr) innerEl.setAttribute('style', (innerEl.getAttribute('style') || '') + styleStr);
 
         // visibility classes
@@ -1736,6 +2282,12 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             if (e.target.closest('.ve-block-controls')) return;
             if (e.target.isContentEditable) return;
             selectBlock(parseInt(wrapper.dataset.index));
+        });
+
+        // Right-click context menu
+        wrapper.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.ve-block-controls')) return;
+            openBlockContextMenu(e, parseInt(wrapper.dataset.index));
         });
 
         // Control buttons
@@ -2041,7 +2593,43 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                         </div>`;
                 } else if (field.type === 'repeater') {
                     const items = Array.isArray(val) ? val : [];
-                    contentFields += '<div style="font-size:12px;color:var(--ve-text-dim)">' + items.length + ' items (edit in code view)</div>';
+                    const itemFields = field.item || [];
+                    contentFields += '<div class="ve-repeater" data-repeater="' + key + '">';
+                    if (!items.length) contentFields += '<div class="ve-repeater-empty">No items yet</div>';
+                    items.forEach((item, i) => {
+                        item = item && typeof item === 'object' ? item : {};
+                        contentFields += '<div class="ve-repeater-item">'
+                            + '<div class="ve-repeater-item-head"><span>' + escHtml(field.itemLabel || 'Item') + ' ' + (i + 1) + '</span>'
+                            + '<button type="button" class="ve-repeater-remove" data-repeater-remove="' + key + '" data-index="' + i + '" title="Remove">✕</button></div>';
+                        itemFields.forEach(sf => {
+                            const sv = item[sf.key] ?? '';
+                            contentFields += '<div class="ve-field"><label>' + escHtml(sf.label || sf.key) + '</label>';
+                            if (sf.type === 'media') {
+                                const mv = sv && typeof sv === 'object' ? sv : null;
+                                const purl = mv && mv.key ? ((MEDIA || {})[mv.key] || '') : '';
+                                contentFields += '<div style="display:flex;flex-direction:column;gap:6px;">'
+                                    + (purl ? '<img src="' + escHtml(purl) + '" style="max-width:100%;max-height:90px;object-fit:cover;border-radius:4px;">' : '')
+                                    + '<button type="button" class="ve-btn ve-btn-ghost" data-repeater-media="' + key + '" data-index="' + i + '" data-subkey="' + sf.key + '" style="font-size:11px;padding:6px 8px;">' + (purl ? 'Change Image' : 'Select Image') + '</button>'
+                                    + '</div>';
+                            } else if (sf.type === 'textarea') {
+                                contentFields += '<textarea data-repeater-field="' + key + '" data-index="' + i + '" data-subkey="' + sf.key + '">' + escHtml(String(sv)) + '</textarea>';
+                            } else if (sf.type === 'select' && sf.options) {
+                                contentFields += '<select data-repeater-field="' + key + '" data-index="' + i + '" data-subkey="' + sf.key + '">';
+                                for (const [optVal, optLabel] of Object.entries(sf.options)) {
+                                    contentFields += '<option value="' + escHtml(optVal) + '"' + (String(sv) === String(optVal) ? ' selected' : '') + '>' + escHtml(optLabel) + '</option>';
+                                }
+                                contentFields += '</select>';
+                            } else {
+                                contentFields += '<input type="text" data-repeater-field="' + key + '" data-index="' + i + '" data-subkey="' + sf.key + '" value="' + escHtml(String(sv)) + '">';
+                            }
+                            contentFields += '</div>';
+                        });
+                        contentFields += '</div>';
+                    });
+                    if (!field.maxItems || items.length < field.maxItems) {
+                        contentFields += '<button type="button" class="ve-btn ve-btn-ghost ve-repeater-add" data-repeater-add="' + key + '">+ Add ' + escHtml(field.itemLabel || 'Item') + '</button>';
+                    }
+                    contentFields += '</div>';
                 } else {
                     contentFields += '<input type="text" data-key="' + key + '" value="' + escHtml(String(val)) + '">';
                 }
@@ -2069,6 +2657,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         const hideDesktop = st.hideDesktop || false;
         const hideTablet = st.hideTablet || false;
         const hideMobile = st.hideMobile || false;
+        const cssId = st.cssId || '';
+        const zIndex = st.zIndex !== undefined ? st.zIndex : '';
 
         function styleSection(key, title, bodyHtml) {
             const isOpen = !collapsedStyleSections.has(key);
@@ -2182,9 +2772,19 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     </div>`);
 
         const advancedSection = styleSection('advanced', 'Advanced', `
-    <div class="ve-field" style="margin-bottom:0">
-      <label>Custom CSS Class</label>
+    <div class="ve-field">
+      <label>CSS ID</label>
+      <input type="text" id="stCssId" value="${escHtml(cssId)}" placeholder="e.g. hero-banner">
+      <div class="ve-field-hint">A unique id for anchor links or custom CSS — letters, numbers, hyphens, and underscores only.</div>
+    </div>
+    <div class="ve-field">
+      <label>CSS Classes</label>
       <input type="text" id="stClass" value="${escHtml(customClass)}" placeholder="my-class another-class">
+    </div>
+    <div class="ve-field" style="margin-bottom:0">
+      <label>Z-Index</label>
+      <input type="number" id="stZIndex" value="${escHtml(String(zIndex))}" placeholder="e.g. 10" step="1">
+      <div class="ve-field-hint">Controls stacking order for overlapping blocks. Leave blank to inherit.</div>
     </div>`);
 
         const styleAccordion = `
@@ -2264,6 +2864,59 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                     markDirty();
                     debounceRender(selectedBlockIndex, 600);
                 }
+            });
+        });
+
+        // ── Repeater fields (Gallery images, Menu items, Reviews, …) ────
+        function repeaterArr(key) {
+            const block = getSelectedBlock();
+            if (!Array.isArray(block.props[key])) block.props[key] = [];
+            return block.props[key];
+        }
+        $inspector.querySelectorAll('[data-repeater-field]').forEach(input => {
+            input.addEventListener('input', () => {
+                const arr = repeaterArr(input.dataset.repeaterField);
+                const item = arr[parseInt(input.dataset.index, 10)];
+                if (!item) return;
+                item[input.dataset.subkey] = input.value;
+                markDirty();
+                debounceRender(selectedBlockIndex, 350);
+            });
+        });
+        $inspector.querySelectorAll('[data-repeater-remove]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                pushUndo();
+                const arr = repeaterArr(btn.dataset.repeaterRemove);
+                arr.splice(parseInt(btn.dataset.index, 10), 1);
+                markDirty();
+                renderInspector();
+                debounceRender(selectedBlockIndex, 0);
+            });
+        });
+        $inspector.querySelectorAll('[data-repeater-add]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                pushUndo();
+                const key = btn.dataset.repeaterAdd;
+                const field = (BLOCKS[getSelectedBlock().type]?.fields || {})[key];
+                const blank = {};
+                (field?.item || []).forEach(sf => {
+                    if (sf.type === 'media') blank[sf.key] = null;
+                    // A <select> with no option marked "selected" still shows its
+                    // FIRST option visually — defaulting the value here keeps the
+                    // stored data honest with what the field actually displays,
+                    // instead of silently staying '' until the user touches it.
+                    else if (sf.type === 'select' && sf.options) blank[sf.key] = Object.keys(sf.options)[0] ?? '';
+                    else blank[sf.key] = '';
+                });
+                repeaterArr(key).push(blank);
+                markDirty();
+                renderInspector();
+                debounceRender(selectedBlockIndex, 0);
+            });
+        });
+        $inspector.querySelectorAll('[data-repeater-media]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                openMediaPicker(btn, 'media', 'repeater:' + btn.dataset.repeaterMedia + ':' + btn.dataset.index + ':' + btn.dataset.subkey);
             });
         });
 
@@ -2418,6 +3071,18 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             applyStyle();
         });
 
+        // Advanced: CSS ID & Z-Index
+        const stCssId = document.getElementById('stCssId');
+        if (stCssId) stCssId.addEventListener('input', () => {
+            writeStyle('cssId', stCssId.value);
+            markDirty();
+        });
+        const stZIndex = document.getElementById('stZIndex');
+        if (stZIndex) stZIndex.addEventListener('input', () => {
+            writeStyle('zIndex', stZIndex.value === '' ? '' : parseInt(stZIndex.value, 10));
+            applyStyle();
+        });
+
         // Visibility toggles
         ['Desktop','Tablet','Mobile'].forEach(dev => {
             const btn = document.getElementById('vis' + dev);
@@ -2492,7 +3157,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             pushUndo();
             layout = json.layout;
             RENDERED.length = 0;
-            const rendered = await Promise.all(layout.map(b => renderBlockServer(b)));
+            const rendered = await renderBlocksServerBatch(layout);
             rendered.forEach(h => RENDERED.push(h));
             selectedBlockIndex = -1;
             selectedNestedPath = null;
@@ -2508,20 +3173,18 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 
     // ── Device switcher ───────────────────────────────────────
     const $deviceIndicator = document.getElementById('deviceIndicator');
-    const $customWidthInput = document.getElementById('customWidthInput');
     const DEVICE_LABELS = { desktop: 'Desktop', tablet: 'Tablet · 768px', mobile: 'Mobile · 390px' };
 
-    function setDevice(device, customPx) {
+    function setDevice(device) {
         activeDevice = device;
         $canvasFrame.className = 've-canvas-frame';
         if (device !== 'desktop') $canvasFrame.classList.add('device-' + device);
-        if (customPx) {
-            $canvasFrame.style.maxWidth = customPx + 'px';
-            $deviceIndicator.textContent = customPx + 'px';
-        } else {
-            $canvasFrame.style.maxWidth = '';
-            $deviceIndicator.textContent = DEVICE_LABELS[device] || device;
-        }
+        $deviceIndicator.textContent = DEVICE_LABELS[device] || device;
+        // Desktop is the common case — no device-frame chrome to label, so the
+        // "Desktop" bar was pure dead space (and, scrolled, could overlap the
+        // first block's own floating toolbar). Only Tablet/Mobile need the
+        // width label; Desktop gets the full-width, edge-to-edge canvas.
+        $canvasWrap.classList.toggle('ve-canvas-wrap-desktop', device === 'desktop');
         const selected = getSelectedBlock();
         const selectedEl = getSelectedBlockEl();
         if (selected && selectedEl) applyBlockStyleToEl(selectedEl, selected.style || {});
@@ -2532,20 +3195,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         btn.addEventListener('click', () => {
             document.querySelectorAll('.ve-device-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            $customWidthInput.value = '';
             setDevice(btn.dataset.device);
         });
-    });
-
-    $customWidthInput.addEventListener('input', () => {
-        const px = parseInt($customWidthInput.value);
-        if (px >= 320) {
-            document.querySelectorAll('.ve-device-btn').forEach(b => b.classList.remove('active'));
-            setDevice('desktop', px);
-        }
-    });
-    $customWidthInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter') $customWidthInput.blur();
     });
 
     // ── Title sync ────────────────────────────────────────────
@@ -2565,6 +3216,41 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     });
 
     // ── Save / Publish ────────────────────────────────────────
+    // A repeater item left incomplete (e.g. "+ Add Image" clicked, then no
+    // image actually picked before saving) fails DocumentValidator's
+    // required-field check for the whole document, silently blocking Save/
+    // Publish with no visible indication of which item was the problem. Drop
+    // any item missing a required sub-field's value before it ever reaches
+    // the server — an empty slot is not content, so silently omitting it is
+    // the right behavior (matches Elementor's own "empty widgets don't
+    // publish" convention), not a data-loss risk.
+    function cleanLayoutForSave(sourceLayout) {
+        const cleaned = JSON.parse(JSON.stringify(sourceLayout));
+        const isFilled = (v) => {
+            if (v === null || v === undefined || v === '') return false;
+            if (typeof v === 'object') return Object.keys(v).length > 0 && !!(v.key || Object.values(v).some(x => x !== '' && x != null));
+            return true;
+        };
+        const cleanBlock = (block) => {
+            if (!block || !block.type) return;
+            const def = BLOCKS[block.type];
+            if (def && def.fields) {
+                for (const [key, field] of Object.entries(def.fields)) {
+                    if (field.type !== 'repeater' || !Array.isArray(block.props?.[key])) continue;
+                    const requiredKeys = (field.item || []).filter(sf => sf.required).map(sf => sf.key);
+                    block.props[key] = block.props[key].filter(item =>
+                        item && requiredKeys.every(rk => isFilled(item[rk]))
+                    );
+                }
+            }
+            // Recurse into Columns/Container nested content so the same rule applies there too.
+            (block.props?.cols || []).forEach(col => (col.blocks || []).forEach(cleanBlock));
+            (block.props?.children || []).forEach(cleanBlock);
+        };
+        cleaned.forEach(cleanBlock);
+        return cleaned;
+    }
+
     async function doAction(action, extra = {}) {
         if (isSaving) return;
         isSaving = true;
@@ -2573,7 +3259,7 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         const body = new URLSearchParams();
         body.append('_editor_action', action);
         body.append('_csrf', CSRF);
-        body.append('layout', JSON.stringify(layout));
+        body.append('layout', JSON.stringify(cleanLayoutForSave(layout)));
         body.append('title', $titleInput.value);
         body.append('slug', $settingsSlug.value);
         for (const [k,v] of Object.entries(extra)) body.append(k, v);
@@ -2610,6 +3296,27 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
 
     document.getElementById('btnSave').addEventListener('click', () => doAction('save_draft'));
     document.getElementById('btnPublish').addEventListener('click', () => doAction('publish'));
+
+    document.getElementById('btnSaveAsTemplate').addEventListener('click', async () => {
+        const name = prompt('Name this template:', $titleInput.value || 'Untitled template');
+        if (!name || !name.trim()) return;
+        try {
+            const body = new URLSearchParams();
+            body.append('_editor_action', 'save_as_template');
+            body.append('_csrf', CSRF);
+            body.append('name', name.trim());
+            body.append('layout', JSON.stringify(cleanLayoutForSave(layout)));
+            const res = await fetch(SAVE_URL + '?id=' + POST.id, { method: 'POST', body });
+            const json = await res.json();
+            if (json.ok) {
+                toast('Saved to Template Library', 'success');
+            } else {
+                toast(json.error || 'Could not save template', 'error');
+            }
+        } catch (e) {
+            toast('Network error', 'error');
+        }
+    });
 
     // Ctrl+S / Cmd+S to save, Ctrl+Z undo, Ctrl+Shift+Z redo, Delete, Escape, Arrows
     document.addEventListener('keydown', (e) => {
@@ -2707,13 +3414,25 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             onPick: function (path, item) {
                 let finalVal = path;
                 if (type === 'media') {
-                    const id = item && item.id ? parseInt(item.id, 10) : 0;
-                    if (!id) {
-                        alert("That item has no media id, so it cannot be referenced by key.");
+                    // The media FieldSchema (see LegacyBlockBridge::resolveMediaUrl()
+                    // and DocumentValidator::validateMedia()) addresses an image by
+                    // its real upload path — item.path — not a synthetic "media:<id>"
+                    // id-reference (that never resolved to anything: resolveMediaUrl()
+                    // has no id lookup, and the colon failed the key's own validation
+                    // pattern, so a picked image silently never actually saved).
+                    // Media::url()/item.path already carry a leading "uploads/"
+                    // (Media's own path convention) — resolveMediaUrl() treats the
+                    // key as relative TO uploads/ and prepends it unconditionally,
+                    // so keeping that prefix here produced a real, saved, but
+                    // doubled ".../uploads/uploads/..." URL that 404s.
+                    let mediaPath = (item && item.path) || (typeof path === 'string' ? path : '');
+                    mediaPath = mediaPath.replace(/^\/?uploads\//, '');
+                    if (!mediaPath) {
+                        alert('That item has no path, so it cannot be referenced.');
                         return;
                     }
-                    finalVal = { key: "media:" + id };
-                    MEDIA[finalVal.key] = (item && item.url) || path || "";
+                    finalVal = { key: mediaPath, alt: (item && item.original_name) || '' };
+                    MEDIA[mediaPath] = (item && item.url) || '';
                 } else {
                     finalVal = (item && item.url) || path || "";
                 }
@@ -2724,6 +3443,20 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                         input.value = typeof finalVal === 'object' ? finalVal.key : finalVal;
                         input.dispatchEvent(new Event('input', {bubbles: true}));
                     }
+                } else if (key.startsWith('repeater:') && selectedBlockIndex > -1 && getSelectedBlock()) {
+                    // 'repeater:<fieldKey>:<itemIndex>:<subKey>' — one image field
+                    // inside one item of a repeater (e.g. a Gallery's per-image
+                    // media, or a Menu item's dish photo).
+                    const [, fieldKey, idxStr, subKey] = key.split(':');
+                    const block = getSelectedBlock();
+                    if (!Array.isArray(block.props[fieldKey])) block.props[fieldKey] = [];
+                    const arr = block.props[fieldKey];
+                    const idx = parseInt(idxStr, 10);
+                    if (!arr[idx]) arr[idx] = {};
+                    arr[idx][subKey] = finalVal;
+                    markDirty();
+                    renderInspector();
+                    debounceRender(selectedBlockIndex);
                 } else if (selectedBlockIndex > -1 && getSelectedBlock()) {
                     getSelectedBlock().props = getSelectedBlock().props || {};
                     getSelectedBlock().props[key] = finalVal;

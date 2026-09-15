@@ -62,7 +62,15 @@ final class DocumentTemplate implements Template
             . '</head>'
             . '<body>'
             .   $regions->get('header')
-            .   '<main class="slate-content">' . $regions->get('content') . '</main>'
+            // cb-public: the same scope class the editor's own canvas preview
+            // uses (admin/editor.php's <div class="ve-canvas cb-public">) —
+            // most of content-blocks.css's rules (typography, links, buttons)
+            // are written as ".cb-public X", so without it here a published
+            // page's buttons/links would render unstyled while the editor
+            // preview (which does carry the class) looks correct. Keeping the
+            // wrapper class identical is what gives editor/public byte-parity
+            // for anything the CSS itself controls.
+            .   '<main class="slate-content cb-public">' . $regions->get('content') . '</main>'
             .   $regions->get('footer')
             . '</body>'
             . '</html>';

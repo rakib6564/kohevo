@@ -30,13 +30,27 @@ use Slate\Presentation\Rendering\PageContentCompiler;
 use Slate\Presentation\Rendering\PageRenderer;
 use Slate\Presentation\Templates\DocumentTemplate;
 use Slate\Presentation\Templates\TemplateResolver;
+use Slate\Presentation\Theme\TenantThemeResolver;
+use Slate\Presentation\Theme\Theme;
 use Slate\Tenancy\TenantContext;
 
 final class ContentServiceFactory
 {
     private static ?InMemoryBlockRegistry $registry = null;
 
-    public const RENDERER_VERSION = '1.0.0';
+    // Bumped twice so far — each time a rendering-logic change altered what a
+    // page's compiled HTML looks like without changing the stored document
+    // itself, which is otherwise all CompilationStore::fresh()'s cache key
+    // tracks:
+    //   1.0.1 — DocumentTemplate's content wrapper gained the cb-public class,
+    //           and content-blocks.css started being linked into published
+    //           pages (PublicContentRoute).
+    //   1.0.2 — the heading block gained a real `align` field (LegacyBlockBridge).
+    //   1.0.3 — PageRenderer now applies a block's `style` via the new
+    //           BlockStyleRenderer instead of the always-false, archive-only
+    //           \Renderer::applyStyle() — every previously-saved style
+    //           customization starts actually rendering for the first time.
+    public const RENDERER_VERSION = '1.0.3';
 
     /** The live block registry — the 5 ported blocks (see LegacyBlockBridge). */
     public static function blockRegistry(): InMemoryBlockRegistry
@@ -103,6 +117,36 @@ final class ContentServiceFactory
     public static function pageRepository(): ContentPageRepository
     {
         return new ContentPageRepository(new TenantContext());
+    }
+
+    /**
+     * The tenant's actual configured brand (admin/editor.php's "Site Settings"
+     * panel / admin/settings.php's Branding section — same brand_accent_color
+     * setting either way) as a Theme, for both the editor's own canvas preview
+     * and PublicContentRoute's real published output. Before this, neither
+     * ever attached a theme to RenderContext at all (both silently rendered
+     * with the platform DEFAULT tokens, not the tenant's actual brand).
+     */
+    public static function theme(): Theme
+    {
+        return TenantThemeResolver::fromBrand(TenantBranding::resolve());
+    }
+
+    /**
+     * A cache-key fingerprint of the tenant's current brand settings. Passed
+     * as PublicContentService::render()'s $themeVersion so CompilationStore's
+     * freshness check actually invalidates when an admin changes a Site
+     * Settings color/font — a literal, unchanging 'default' string here would
+     * mean an already-cached page keeps serving its old branding forever.
+     */
+    public static function themeVersion(): string
+    {
+        return substr(md5(json_encode(TenantBranding::resolve()) ?: ''), 0, 12);
+    }
+
+    public static function templateRepository(): DocumentTemplateRepository
+    {
+        return new DocumentTemplateRepository(new TenantContext());
     }
 
     public static function publicationService(): ContentPublicationService

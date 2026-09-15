@@ -21,8 +21,10 @@ final class PageContentRecompiler implements ContentRecompiler
         $revision = $this->revisions->published($ownerType, $ownerId);
         if ($revision === null) return;
         $document = RevisionStore::documentOf($revision);
-        $metadata = CompilationMetadata::for($document, $this->rendererVersion, 'default', []);
-        $html = $this->compiler->compile($document, RenderContext::for(function_exists('current_tenant_id') ? (int)current_tenant_id() : 1));
-        $this->compilations->put($ownerType, $ownerId, (int)$revision['id'], $html, $metadata->fingerprint, $this->rendererVersion, 'default');
+        $themeVersion = ContentServiceFactory::themeVersion();
+        $metadata = CompilationMetadata::for($document, $this->rendererVersion, $themeVersion, []);
+        $context = RenderContext::for(function_exists('current_tenant_id') ? (int)current_tenant_id() : 1)->withTheme(ContentServiceFactory::theme());
+        $html = $this->compiler->compile($document, $context);
+        $this->compilations->put($ownerType, $ownerId, (int)$revision['id'], $html, $metadata->fingerprint, $this->rendererVersion, $themeVersion);
     }
 }
