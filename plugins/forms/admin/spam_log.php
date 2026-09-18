@@ -207,7 +207,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             $detail = [
                 'Reason'  => $r['reason'] ?: $meta[0],
                 'Form'    => $form,
-                'When'    => date('j M Y, H:i', strtotime($r['created_at'])),
+                'When'    => I18n::localDate('j M Y, H:i', strtotime($r['created_at'])),
                 'IP'      => $r['ip'] ?: '—',
             ];
             if (!empty($r['country']))    $detail['Country']    = $r['country'];
@@ -218,7 +218,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 'avatar_html'  => FormsAPI::cardIcon($meta[2] ?? 'shield'),
                 'avatar_color' => $meta[1] === 'danger' ? 'danger' : ($meta[1] === 'warning' ? 'warning' : 'muted'),
                 'title'        => $meta[0],
-                'meta'         => $form . ' · ' . $where . ' · ' . date('j M, H:i', strtotime($r['created_at'])),
+                'meta'         => $form . ' · ' . $where . ' · ' . I18n::localDate('j M, H:i', strtotime($r['created_at'])),
                 'badge'        => [$meta[0], $meta[1]],
                 'detail'       => $detail,
             ]);

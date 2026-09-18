@@ -464,7 +464,7 @@ if (!function_exists('slate_portal_welcome')) {
                     </span>
                 <?php endif; ?>
                 <?php if (!empty($o['clock'])): ?>
-                    <span class="phero-clock"><?= e(date('D · j M Y')) ?> · <span class="t"><?= e(date('g:i a')) ?></span></span>
+                    <span class="phero-clock"><?= e(I18n::localDate('D · j M Y')) ?> · <span class="t"><?= e(date('g:i a')) ?></span></span>
                 <?php endif; ?>
             </div>
         </div>

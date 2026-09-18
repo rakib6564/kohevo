@@ -211,7 +211,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                         'avatar_color' => $r['mode'] === 'live' ? 'success' : 'warning',
                         'title'        => ($r['customer_email'] ?: '(no email)')
                                           . ' · ' . slate_format_price_plain((int)$amount, $r['currency']),
-                        'meta'         => $r['source_plugin'] . ' · ' . date('j M Y, H:i', strtotime($r['created_at'])),
+                        'meta'         => $r['source_plugin'] . ' · ' . I18n::localDate('j M Y, H:i', strtotime($r['created_at'])),
                         'badge'        => $statusBadge,
                         'detail'       => $detail,
                         'actions'      => $actions,

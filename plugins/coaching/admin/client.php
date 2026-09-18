@@ -363,7 +363,7 @@ $initial = mb_strtoupper(mb_substr($customer['name'], 0, 1));
                                         <span class="coach-tag is-muted" style="margin-left:6px;"><?= e($e['emotion']) ?></span>
                                     <?php endif; ?>
                                 </div>
-                                <div class="coach-list-sub"><?= e(date('j M Y', strtotime($e['day']))) ?><?= !empty($e['summary']) ? ' · ' . e($e['summary']) : '' ?></div>
+                                <div class="coach-list-sub"><?= e(I18n::localDate('j M Y', strtotime($e['day']))) ?><?= !empty($e['summary']) ? ' · ' . e($e['summary']) : '' ?></div>
                             </div>
                         </div>
                     <?php endforeach; ?>

@@ -339,7 +339,7 @@ class Coaching extends Plugin {
                     'id'          => 'coaching-checkin-' . $ch['id'],
                     'type'        => 'coaching',
                     'label'       => 'Goal Check-in: ' . ($ch['goal_title'] ?? 'Goal'),
-                    'description' => ucfirst(str_replace('_', ' ', $status)) . ' on ' . date('M j, Y', strtotime($ch['day'] ?? 'now')),
+                    'description' => ucfirst(str_replace('_', ' ', $status)) . ' on ' . I18n::localDate('M j, Y', strtotime($ch['day'] ?? 'now')),
                     'occurred_at' => $ch['created_at'] ?? ($ch['day'] . ' 12:00:00'),
                     'href'        => SLATE_URL . '/coaching?view=goals',
                     'icon'        => 'target',

@@ -116,7 +116,7 @@ if (isset($_GET['poll']) && $activeThread) {
             'day'      => date('Y-m-d', strtotime($m['sent_at'])),
             'dayLabel' => $m['sent_at'] && date('Y-m-d', strtotime($m['sent_at'])) === date('Y-m-d') ? 'Today'
                           : (date('Y-m-d', strtotime($m['sent_at'])) === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday'
-                             : date('l, j F', strtotime($m['sent_at']))),
+                             : I18n::localDate('l, j F', strtotime($m['sent_at']))),
             'html'     => coaching_admin_render_bubble_html($m, $m['sender'] === 'practitioner'),
         ];
     }
@@ -177,8 +177,8 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                     ? (date('Y-m-d', strtotime($t['last_message_at'])) === date('Y-m-d')
                         ? date('H:i', strtotime($t['last_message_at']))
                         : (date('Y-W', strtotime($t['last_message_at'])) === date('Y-W')
-                            ? date('D', strtotime($t['last_message_at']))
-                            : date('j M', strtotime($t['last_message_at']))))
+                            ? I18n::localDate('D', strtotime($t['last_message_at']))
+                            : I18n::localDate('j M', strtotime($t['last_message_at']))))
                     : '';
                 $isActive = ((int)$t['thread_id'] === $threadId);
             ?>
@@ -233,7 +233,7 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                             $lastDay = $day;
                             $dayLabel = $day === date('Y-m-d')
                                 ? 'Today'
-                                : ($day === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday' : date('l, j F', strtotime($day)));
+                                : ($day === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday' : I18n::localDate('l, j F', strtotime($day)));
                             ?>
                             <div class="coach-msg-day-divider"><?= e($dayLabel) ?></div>
                         <?php endif;
@@ -250,7 +250,7 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                         <div class="coach-scheduled">
                             <div style="flex:1;min-width:0;">
                                 <div style="font-size:13px;color:var(--coach-text);white-space:pre-wrap;overflow:hidden;text-overflow:ellipsis;"><?= e($m['body'] ?? '') !== '' ? e($m['body']) : slate_admin_nav_icon('camera') . ' Photo' ?></div>
-                                <div style="font-size:11px;color:var(--coach-warn);margin-top:2px;">Fires <?= e(date('l, j M · H:i', strtotime($m['send_at']))) ?></div>
+                                <div style="font-size:11px;color:var(--coach-warn);margin-top:2px;">Fires <?= e(I18n::localDate('l, j M · H:i', strtotime($m['send_at']))) ?></div>
                             </div>
                             <form method="post" style="margin:0;" onsubmit="return confirm('Cancel this scheduled message?');">
                                 <?= csrf_field() ?>

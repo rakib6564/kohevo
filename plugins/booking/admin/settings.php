@@ -370,7 +370,7 @@ $gLastSync = (string) Database::setting('booking.google_last_cron_at');
     <div class="card-header"><h2>Sync status</h2></div>
     <p class="text-sm text-muted">
         <?= $gConnectedCount ?> provider<?= $gConnectedCount === 1 ? '' : 's' ?> connected.
-        <?= $gLastSync !== '' ? 'Last automatic sync: ' . e(date('M j, Y H:i', strtotime($gLastSync))) . ' UTC.' : 'No automatic sync has run yet — it runs on the site\'s regular cron schedule.' ?>
+        <?= $gLastSync !== '' ? 'Last automatic sync: ' . e(I18n::localDate('M j, Y H:i', strtotime($gLastSync))) . ' UTC.' : 'No automatic sync has run yet — it runs on the site\'s regular cron schedule.' ?>
     </p>
     <form method="post" action="<?= e(SLATE_URL) ?>/plugins/booking/admin/gcal-sync-now.php">
         <?= csrf_field() ?>

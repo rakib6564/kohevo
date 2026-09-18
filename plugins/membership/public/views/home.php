@@ -36,7 +36,7 @@ $token  = (string)($profile['qr_token'] ?? '');
 $qrLib  = is_file(dirname(__DIR__, 2) . '/assets/js/qrcode-generator.js');
 $qrUrl  = plugin_url('membership', 'assets/js/qrcode-generator.js');
 
-$fmtDate = fn($d) => $d ? date('j M Y', strtotime($d)) : '—';
+$fmtDate = fn($d) => $d ? I18n::localDate('j M Y', strtotime($d)) : '—';
 $palette = ['var(--m-blue)', 'var(--accent)', 'var(--m-green)', 'var(--m-amber)', '#7C3AED', '#0d9488'];
 ?>
 
@@ -98,7 +98,7 @@ slate_portal_welcome([
                         <div class="att-row">
                             <span class="att-dot" style="background:<?= $dot ?>;"></span>
                             <div class="att-main">
-                                <b><?= e(date('D j M Y', strtotime($a['starts_at']))) ?></b>
+                                <b><?= e(I18n::localDate('D j M Y', strtotime($a['starts_at']))) ?></b>
                                 <span><?= e((string)($a['service_name'] ?? __('membership_session','Session'))) ?></span>
                             </div>
                             <span class="att-time"><?= $present ? e(date('H:i', strtotime($a['starts_at']))) : '—' ?></span>
@@ -235,7 +235,7 @@ slate_portal_welcome([
 <div class="dash">
     <div class="dash-col">
         <div class="pcard">
-            <div class="pcard-eyebrow"><?= __('membership_weekly', 'Weekly activity') ?> — <?= e(strtoupper(date('F Y'))) ?></div>
+            <div class="pcard-eyebrow"><?= __('membership_weekly', 'Weekly activity') ?> — <?= e(mb_strtoupper(I18n::localDate('F Y'))) ?></div>
             <?php $wmax = max(1, max($weeks)); $wsum = array_sum($weeks); ?>
             <div class="weeks">
                 <?php $wi=0; foreach ($weeks as $n => $cnt): $h = round($cnt / $wmax * 100); $wi++; ?>

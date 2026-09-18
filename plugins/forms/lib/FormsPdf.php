@@ -595,7 +595,7 @@ class FormsPdf {
 
     private function fmtDate(string $ts): string {
         $t = strtotime($ts) ?: time();
-        return date('j M Y, H:i', $t);
+        return I18n::localDate('j M Y, H:i', $t);
     }
 
     // ───────────────────────── image loading ─────────────────────────────

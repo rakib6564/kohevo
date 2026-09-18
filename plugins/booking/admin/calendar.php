@@ -70,7 +70,7 @@ if (!preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
 }
 $first      = DateTime::createFromFormat('Y-m-d', $monthParam . '-01') ?: new DateTime('first day of this month');
 $first->setTime(0, 0, 0);
-$monthLabel = $first->format('F Y');
+$monthLabel = I18n::localDate('F Y', $first->getTimestamp());
 $prevMonth  = (clone $first)->modify('-1 month')->format('Y-m');
 $nextMonth  = (clone $first)->modify('+1 month')->format('Y-m');
 
@@ -86,7 +86,7 @@ $weekEnd    = (clone $weekStart)->modify('+6 days');
 $prevWeek   = (clone $weekStart)->modify('-7 days')->format('Y-m-d');
 $nextWeek   = (clone $weekStart)->modify('+7 days')->format('Y-m-d');
 $sameYear   = $weekStart->format('Y') === $weekEnd->format('Y');
-$weekLabel  = $weekStart->format($sameYear ? 'j M' : 'j M Y') . ' – ' . $weekEnd->format('j M Y');
+$weekLabel  = I18n::localDate($sameYear ? 'j M' : 'j M Y', $weekStart->getTimestamp()) . ' – ' . I18n::localDate('j M Y', $weekEnd->getTimestamp());
 
 if ($view === 'week') {
     $rangeStart = clone $weekStart;
@@ -457,7 +457,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             $isToday = $wCursor->format('Y-m-d') === $todayKey;
         ?>
             <div class="bk-week-head-cell<?= $isToday ? ' is-today' : '' ?>">
-                <div class="bk-week-head-dow"><?= e($wCursor->format('D')) ?></div>
+                <div class="bk-week-head-dow"><?= e(I18n::localDate('D', $wCursor->getTimestamp())) ?></div>
                 <div class="bk-week-head-num"><?= (int)$wCursor->format('j') ?></div>
             </div>
         <?php

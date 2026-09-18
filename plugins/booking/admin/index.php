@@ -215,7 +215,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                             'title'        => $name,
                             'sub'          => $a['service_name'] . ' · with ' . $a['provider_name'],
                             'amount'       => $a['starts_at'] ? slate_format_time($a['starts_at']) : '',
-                            'time'         => $a['starts_at'] ? date('M j', strtotime($a['starts_at'])) : '',
+                            'time'         => $a['starts_at'] ? I18n::localDate('M j', strtotime($a['starts_at'])) : '',
                             'href'         => plugin_url('booking', 'admin/appointment.php') . '?id=' . (int)$a['id'],
                         ]);
                     endforeach; ?>
@@ -237,7 +237,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                             'title'        => $name,
                             'sub'          => $a['service_name'],
                             'amount'       => $a['starts_at'] ? slate_format_time($a['starts_at']) : '',
-                            'time'         => $a['starts_at'] ? date('D j M', strtotime($a['starts_at'])) : '',
+                            'time'         => $a['starts_at'] ? I18n::localDate('D j M', strtotime($a['starts_at'])) : '',
                             'href'         => plugin_url('booking', 'admin/appointment.php') . '?id=' . (int)$a['id'],
                         ]);
                     endforeach; ?>

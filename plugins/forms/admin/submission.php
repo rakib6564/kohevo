@@ -201,7 +201,7 @@ $deleteBtn  = Auth::can('forms.manage')
         'actions_html' => $deleteBtn . $markUnread . $pdfBtn,
         'stats'        => [
             ['Form',     '<small>' . e($row['form_title']) . '</small>'],
-            ['Received', '<small>' . e(date('j M Y, H:i', strtotime($row['created_at']))) . '</small>'],
+            ['Received', '<small>' . e(I18n::localDate('j M Y, H:i', strtotime($row['created_at']))) . '</small>'],
             ['Source',   '<small>' . e($row['submitter_email'] ?: ($row['ip'] ?: '—')) . '</small>'],
         ],
     ]); ?>
@@ -323,7 +323,7 @@ $deleteBtn  = Auth::can('forms.manage')
                 <?php foreach ($audit as $a): if (empty($a['when'])) continue; ?>
                     <li class="audit-trail-item<?= !empty($a['muted']) ? ' is-muted' : '' ?>">
                         <div class="audit-trail-action"><?= e($a['action']) ?></div>
-                        <div class="audit-trail-meta"><?= e(date('j M Y, H:i', strtotime($a['when']))) ?></div>
+                        <div class="audit-trail-meta"><?= e(I18n::localDate('j M Y, H:i', strtotime($a['when']))) ?></div>
                         <?php if (!empty($a['detail'])): ?>
                             <div class="audit-trail-detail"><?= e((string)$a['detail']) ?></div>
                         <?php endif; ?>

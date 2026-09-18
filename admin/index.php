@@ -224,7 +224,7 @@ $activityMeta = static function (string $action): array {
     </div>
     <div class="dash-hero-side">
         <span class="dash-status"><span class="dot"></span> <?= __('all_systems_operational', 'All systems operational') ?></span>
-        <span class="dash-clock" id="dash-clock"><?= e(date('D · j M Y')) ?> · <span class="t"><?= e(date('g:i a')) ?></span></span>
+        <span class="dash-clock" id="dash-clock"><?= e(I18n::localDate('D · j M Y')) ?> · <span class="t"><?= e(date('g:i a')) ?></span></span>
     </div>
 </div>
 
@@ -364,7 +364,7 @@ if (Auth::isPlatformSuperAdmin()):
     <div class="dash-stats">
         <?php slate_stat_card(['icon' => 'tag', 'number' => $myPlan['name'] ?? __('no_plan', 'No plan'), 'label' => __('plan', 'Plan')]); ?>
         <?php slate_stat_card(['icon' => 'key', 'number' => $myLicense ? ucfirst((string)\Slate\Services\Licensing\LicenseService::effectiveStatus($myTenantId)) : __('none', 'None'), 'label' => __('license_status', 'License Status')]); ?>
-        <?php slate_stat_card(['icon' => 'clock', 'number' => ($myLicense['expires_at'] ?? null) ? date('M j, Y', strtotime($myLicense['expires_at'])) : __('never', 'Never'), 'label' => __('license_expiry', 'License Expiry')]); ?>
+        <?php slate_stat_card(['icon' => 'clock', 'number' => ($myLicense['expires_at'] ?? null) ? I18n::localDate('M j, Y', strtotime($myLicense['expires_at'])) : __('never', 'Never'), 'label' => __('license_expiry', 'License Expiry')]); ?>
         <?php slate_stat_card(['icon' => 'check-circle', 'number' => count($myFeatures), 'label' => __('enabled_features', 'Enabled Features'), 'caption' => $myFeatures ? implode(', ', $myFeatures) : '']); ?>
     </div>
 <?php endif; ?>
@@ -419,7 +419,7 @@ if (Auth::isPlatformSuperAdmin()):
                 <?php foreach ($recent as $row):
                     [$label, $icon, $tone] = $activityMeta((string)($row['action'] ?? ''));
                     $when      = $row['created_at'] ?? '';
-                    $whenShort = $when ? date('M j, g:ia', strtotime($when)) : '—';
+                    $whenShort = $when ? I18n::localDate('M j, g:ia', strtotime($when)) : '—';
                 ?>
                     <li class="dash-feed-item">
                         <span class="dash-feed-ico <?= $tone ?>"><?= slate_admin_nav_icon($icon) ?></span>

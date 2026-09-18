@@ -109,7 +109,7 @@ $existingMsg   = trim((string)($meta['client_message'] ?? ''));
 $alreadyReplied = !empty($meta['therapist_replied_at']);
 $alreadySent   = $existingMsg !== '' && ($flash === null || $flash['type'] !== 'success');
 
-$whenStr = date('l, j F Y, H:i', strtotime($appt['starts_at']));
+$whenStr = I18n::localDate('l, j F Y, H:i', strtotime($appt['starts_at']));
 
 // ── Render ──────────────────────────────────────────────────────────
 ob_start(); ?>
@@ -179,7 +179,7 @@ function bookingplus_notify_therapist(array $appt, string $message): void {
     $subj = $siteName . ' · new message from ' . ($appt['customer_name'] ?? 'a client')
           . ' · ' . $appt['service_name'];
 
-    $when = date('l, j F Y, H:i', strtotime($appt['starts_at']));
+    $when = I18n::localDate('l, j F Y, H:i', strtotime($appt['starts_at']));
     $body = '<p>A client just left you a message about their upcoming booking.</p>'
           . '<table style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">'
           . '<tr><td style="padding:6px 12px;color:#555;">Client</td><td style="padding:6px 12px;">'

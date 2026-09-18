@@ -121,7 +121,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             'stats'        => $editing ? [
                 ['Balance', slate_format_price((int)$g['balance_cents'], $g['currency'])],
                 ['Initial', slate_format_price((int)$g['initial_cents'], $g['currency'])],
-                ['Created', !empty($g['created_at']) ? '<small>' . e(date('j M Y', strtotime($g['created_at']))) . '</small>' : '—'],
+                ['Created', !empty($g['created_at']) ? '<small>' . e(I18n::localDate('j M Y', strtotime($g['created_at']))) . '</small>' : '—'],
             ] : [],
         ]); ?>
 
@@ -183,7 +183,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 'detail'       => [
                     'Balance' => slate_format_price_plain((int)$g['balance_cents'], $g['currency']),
                     'Initial' => slate_format_price_plain((int)$g['initial_cents'], $g['currency']),
-                    'Created' => date('j M Y', strtotime($g['created_at'])),
+                    'Created' => I18n::localDate('j M Y', strtotime($g['created_at'])),
                 ],
                 'actions'      => $actions,
             ]);

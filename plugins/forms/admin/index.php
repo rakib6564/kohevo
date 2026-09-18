@@ -274,9 +274,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 'Submissions' => (int)$f['submission_count'] . ' total'
                     . ((int)$f['unread_count'] > 0 ? ' · ' . (int)$f['unread_count'] . ' unread' : ''),
                 'Last submission' => $f['last_submission_at']
-                    ? date('j M Y, H:i', strtotime($f['last_submission_at'])) : '— none yet —',
+                    ? I18n::localDate('j M Y, H:i', strtotime($f['last_submission_at'])) : '— none yet —',
                 'Fields'    => $fieldCount . ' configured',
-                'Updated'   => date('j M Y, H:i', strtotime($f['updated_at'])),
+                'Updated'   => I18n::localDate('j M Y, H:i', strtotime($f['updated_at'])),
                 'Notify'    => $f['notify_email'] ?: '— none —',
             ];
 

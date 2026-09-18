@@ -414,7 +414,7 @@ class GoogleCalendarSync
                     slate_log("GoogleCalendarSync: appointment {$slateId} was moved in Google to {$newStart} but Slate rejected it ({$moveResult['error']}) — left at its original time.", 'warning');
                 } elseif (class_exists('Notifications')) {
                     Notifications::add('Booking rescheduled via Google Calendar · ' . $appt['ref'], [
-                        'body' => 'Moved directly in Google Calendar to ' . date('D j M, g:ia', strtotime($newStart)) . '.',
+                        'body' => 'Moved directly in Google Calendar to ' . I18n::localDate('D j M, g:ia', strtotime($newStart)) . '.',
                         'url'  => plugin_url('booking', 'admin/appointment.php') . '?id=' . $slateId,
                         'icon' => 'calendar',
                     ]);

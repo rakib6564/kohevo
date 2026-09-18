@@ -199,7 +199,7 @@ class Forms extends Plugin {
                             'title'        => $name,
                             'sub'          => $sub,
                             'amount'       => $isUnread ? __('forms_new', 'New') : '',
-                            'time'         => $s['created_at'] ? date('M j', strtotime($s['created_at'])) : '',
+                            'time'         => $s['created_at'] ? I18n::localDate('M j', strtotime($s['created_at'])) : '',
                             'href'         => $inboxUrl,
                         ]);
                     endforeach; ?>

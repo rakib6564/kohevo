@@ -131,8 +131,8 @@ slate_breadcrumbs([
         <div class="data-list" data-single-open>
             <?php foreach ($active as $ch):
                 $kindLabel = $ch['kind'] === 'exercise' ? 'Exercise' : 'Challenge';
-                $when = date('j M', strtotime($ch['starts_at']))
-                      . (!empty($ch['ends_at']) ? ' → ' . date('j M', strtotime($ch['ends_at'])) : '');
+                $when = I18n::localDate('j M', strtotime($ch['starts_at']))
+                      . (!empty($ch['ends_at']) ? ' → ' . I18n::localDate('j M', strtotime($ch['ends_at'])) : '');
 
                 ob_start(); ?>
                 <form method="post" style="margin:0;" onsubmit="return confirm('Remove?');">
@@ -160,7 +160,7 @@ slate_breadcrumbs([
         <h3 style="margin:0;padding:var(--space-4) var(--space-4) 0;">Completed by the client</h3>
         <div class="data-list" data-single-open>
             <?php foreach ($completed as $ch):
-                $completedWhen = date('j M · H:i', strtotime($ch['completed_at']));
+                $completedWhen = I18n::localDate('j M · H:i', strtotime($ch['completed_at']));
                 $note = trim((string)($ch['client_note'] ?? ''));
 
                 slate_data_row([
@@ -178,8 +178,8 @@ slate_breadcrumbs([
     <h3 style="margin-top:0;">End-of-program summary</h3>
     <?php if ($summary): ?>
         <p class="text-muted" style="font-size:13px;">
-            Last generated <?= e(date('j M Y · H:i', strtotime($summary['generated_at']))) ?>.
-            Covers <?= e(date('j M', strtotime($summary['period_start']))) ?> → <?= e(date('j M Y', strtotime($summary['period_end']))) ?>.
+            Last generated <?= e(I18n::localDate('j M Y · H:i', strtotime($summary['generated_at']))) ?>.
+            Covers <?= e(I18n::localDate('j M', strtotime($summary['period_start']))) ?> → <?= e(I18n::localDate('j M Y', strtotime($summary['period_end']))) ?>.
         </p>
         <details style="margin-top:8px;">
             <summary style="cursor:pointer;color:var(--coach-brand);">Preview what the client will see</summary>

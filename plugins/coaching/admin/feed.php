@@ -82,7 +82,7 @@ $emotions = CoachingAPI::emotions();
             if ($ago < 60)   $agoLabel = 'just now';
             elseif ($ago < 3600)   $agoLabel = floor($ago/60) . 'm ago';
             elseif ($ago < 86400)  $agoLabel = floor($ago/3600) . 'h ago';
-            else                   $agoLabel = date('j M, H:i', strtotime((string)$e['created_at']));
+            else                   $agoLabel = I18n::localDate('j M, H:i', strtotime((string)$e['created_at']));
 
             $mealDay = strtotime((string) $e['day']);
             $initials = mb_strtoupper(mb_substr((string)$e['customer_name'], 0, 2));
@@ -91,7 +91,7 @@ $emotions = CoachingAPI::emotions();
                 'Foods'  => !empty($e['summary']) ? (string)$e['summary'] : '—',
                 'Logged' => [
                     'label' => 'Logged',
-                    'value' => ($mealDay ? date('j M Y', $mealDay) : '—') . ' · ' . $agoLabel,
+                    'value' => ($mealDay ? I18n::localDate('j M Y', $mealDay) : '—') . ' · ' . $agoLabel,
                 ],
                 'Email' => (string)$e['customer_email'],
             ];

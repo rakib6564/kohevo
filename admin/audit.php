@@ -192,7 +192,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                                 <?php endif; ?>
                             </div>
                             <div class="audit-trail-meta">
-                                <?= e(date('j M Y, H:i:s', strtotime($r['created_at']))) ?>
+                                <?= e(I18n::localDate('j M Y, H:i:s', strtotime($r['created_at']))) ?>
                                 <?php if ($r['user_name']): ?>
                                     · <?= e($r['user_name']) ?>
                                 <?php elseif ($r['user_id']): ?>
@@ -220,7 +220,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             <ul class="kv-list">
                 <?php foreach ($summary as $s): ?>
                     <li class="kv-row">
-                        <span class="kv-label"><?= e(date('D j M', strtotime($s['day']))) ?></span>
+                        <span class="kv-label"><?= e(I18n::localDate('D j M', strtotime($s['day']))) ?></span>
                         <span class="kv-value kv-mono"><?= (int)$s['n'] ?></span>
                     </li>
                 <?php endforeach; ?>
