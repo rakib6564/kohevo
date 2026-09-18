@@ -55,7 +55,19 @@ unit('localDate renders French weekday and month names', function () {
         ]);
     ');
     assert_eq('vendredi, 18 septembre 2026, 15:00', $got[0]);
-    assert_eq('ven 18 sep', $got[1]);
+    assert_eq('ven 18 sept.', $got[1]);
+});
+
+unit('localDate uses real French short months, so juin and juillet differ', function () {
+    $got = local_date_child('fr', '
+        echo json_encode([
+            I18n::localDate("j M Y", mktime(12, 0, 0, 6, 15, 2026)),
+            I18n::localDate("j M Y", mktime(12, 0, 0, 7, 15, 2026)),
+            I18n::localDate("j M", mktime(12, 0, 0, 2, 3, 2026)),
+            I18n::localDate("j M", mktime(12, 0, 0, 5, 3, 2026)),
+        ]);
+    ');
+    assert_eq(['15 juin 2026', '15 juil. 2026', '3 févr.', '3 mai'], $got);
 });
 
 unit('localDate still passes time tokens through date()', function () {
@@ -70,13 +82,13 @@ unit('harvester skips rendered dates but keeps ordinary copy', function () {
         $r = [];
         foreach ([
             "Fri 18 Sep", "Friday, 11 September 2026, 15:00", "Sep 11, 1:01am",
-            "vendredi, 18 septembre 2026, 15:00", "1er mai",
+            "vendredi, 18 septembre 2026, 15:00", "1er mai", "15 juil. 2026", "ven 18 sept.",
             "You may book up to 3 sessions", "Voir mon profil (2)", "Book now", "3 items",
         ] as $s) $r[$s] = $m->invoke(null, $s);
         echo json_encode($r);
     ');
     foreach (['Fri 18 Sep', 'Friday, 11 September 2026, 15:00', 'Sep 11, 1:01am',
-              'vendredi, 18 septembre 2026, 15:00', '1er mai'] as $s) {
+              'vendredi, 18 septembre 2026, 15:00', '1er mai', '15 juil. 2026', 'ven 18 sept.'] as $s) {
         assert_true($got[$s], "should skip '$s'");
     }
     foreach (['You may book up to 3 sessions', 'Voir mon profil (2)', 'Book now', '3 items'] as $s) {

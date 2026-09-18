@@ -195,4 +195,18 @@ return [
     'month_10'          => 'October',
     'month_11'          => 'November',
     'month_12'          => 'December',
+
+    // Short months (date token M)
+    'month_short_1'     => 'Jan',
+    'month_short_2'     => 'Feb',
+    'month_short_3'     => 'Mar',
+    'month_short_4'     => 'Apr',
+    'month_short_5'     => 'May',
+    'month_short_6'     => 'Jun',
+    'month_short_7'     => 'Jul',
+    'month_short_8'     => 'Aug',
+    'month_short_9'     => 'Sep',
+    'month_short_10'    => 'Oct',
+    'month_short_11'    => 'Nov',
+    'month_short_12'    => 'Dec',
 ];
