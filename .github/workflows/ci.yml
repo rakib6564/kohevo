@@ -289,6 +289,16 @@ jobs:
       - name: Install Membership test schema
         run: mysql -h 127.0.0.1 -P 3306 -uroot -proot slate_test < plugins/membership/install.sql
 
+      # The Stripe race/ownership suites (StripeEmbeddedCheckoutRaceTest and
+      # friends) seed rows straight into stripepayment_sessions. Without this
+      # the first of them dies on "Table 'stripepayment_sessions' doesn't exist"
+      # and takes the whole integration run down with it — tests/bin/
+      # provision-test-db.sh already loads this file; CI had drifted from it.
+      # Schema only: the plugin is deliberately NOT seeded as active, since no
+      # suite needs it booted (they call its code and endpoints directly).
+      - name: Install Stripe Payment test schema
+        run: mysql -h 127.0.0.1 -P 3306 -uroot -proot slate_test < plugins/stripe-payment/install.sql
+
       - name: Smoke tests
         run: php tests/smoke.php
 
