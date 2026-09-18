@@ -1710,7 +1710,7 @@ class FormsAPI {
             'form.title' => (string)($form['title'] ?? ''),
             'form.slug'  => (string)($form['slug']  ?? ''),
             'ref'        => $ref,
-            'date'       => date('j M Y, H:i', $ts),
+            'date'       => I18n::localDate('j M Y, H:i', $ts),
             'submitter'  => $submitterEmail,
         ];
         return preg_replace_callback('/\{\{\s*([a-z0-9_.]+)\s*\}\}/i', function ($m) use ($vars, $data) {
@@ -1799,7 +1799,7 @@ class FormsAPI {
         $sansFont = '-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif';
 
         $title = (string)($form['title'] ?? 'Form submission');
-        $when  = date('j M Y, H:i', strtotime((string)($opts['submitted_at'] ?? 'now')) ?: time());
+        $when  = I18n::localDate('j M Y, H:i', strtotime((string)($opts['submitted_at'] ?? 'now')) ?: time());
         $base  = defined('SLATE_URL') ? rtrim(SLATE_URL, '/') : '';
         $admin = trim((string)($opts['admin_url'] ?? ''));
 

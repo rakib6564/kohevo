@@ -629,7 +629,7 @@ if (!function_exists('slate_format_datetime')) {
     function slate_format_datetime($when, string $dateFmt = 'l, j F Y', string $sep = ', '): string {
         $ts = is_int($when) ? $when : strtotime((string) $when);
         if (!$ts) return '';
-        return date($dateFmt, $ts) . $sep . date(slate_time_format(), $ts);
+        return I18n::localDate($dateFmt, $ts) . $sep . date(slate_time_format(), $ts);
     }
 }
 

@@ -420,7 +420,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
     // a slim stats/links strip below. Replaces the kit hero + the separate
     // action bar (kept the [data-title]/[data-status] hooks so the shared
     // editor JS still live-updates the title and status pill).
-    $createdTxt = (!$isNew && !empty($form['created_at'])) ? date('j M Y', strtotime($form['created_at'])) : '';
+    $createdTxt = (!$isNew && !empty($form['created_at'])) ? I18n::localDate('j M Y', strtotime($form['created_at'])) : '';
     ?>
     <div class="fhead">
         <div class="fhead-top">
@@ -1389,7 +1389,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                         <li class="kv-row" style="align-items:flex-start;">
                             <span class="kv-label">
                                 <span class="fb-badge"><?= e($spCodeLabel[$b['code']] ?? $b['code']) ?></span>
-                                <span class="text-muted text-xs" style="display:block;margin-top:3px;"><?= e(date('j M, H:i', strtotime($b['created_at']))) ?></span>
+                                <span class="text-muted text-xs" style="display:block;margin-top:3px;"><?= e(I18n::localDate('j M, H:i', strtotime($b['created_at']))) ?></span>
                             </span>
                             <span class="kv-value" style="text-align:right;">
                                 <span class="text-xs"><?= e(mb_strimwidth((string)$b['reason'], 0, 60, '…')) ?></span>

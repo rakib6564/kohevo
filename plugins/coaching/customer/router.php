@@ -281,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $enrolled) {
 // Every view gets an identical shell: head → topbar → nav → tiles → FAB.
 
 $pageMeta = [
-    'home'       => ['Today',     date('l, j F')],
+    'home'       => ['Today',     I18n::localDate('l, j F')],
     'profile'    => ['Account',   'My profile'],
     'goals'      => ['Progress',  'My goals'],
     'diary'      => ['Nutrition', 'Food diary'],
@@ -305,7 +305,7 @@ if ($view === 'entry') {
         $peek = CoachingAPI::getDiaryEntry($peekId, $cid);
         if ($peek && (int)$peek['customer_id'] === $cid) {
             $eyebrow = 'Editing entry';
-            $title   = date('l, j F', strtotime((string)$peek['day']));
+            $title   = I18n::localDate('l, j F', strtotime((string)$peek['day']));
         }
     }
 }
@@ -548,7 +548,7 @@ function coaching_context_emoji(): array {
 function coaching_day_label(string $day): string {
     if ($day === date('Y-m-d'))                      return 'Today';
     if ($day === date('Y-m-d', strtotime('-1 day'))) return 'Yesterday';
-    return date('l, j F', strtotime($day));
+    return I18n::localDate('l, j F', strtotime($day));
 }
 
 /** The program areas the 5-slot bottom nav can't hold. */
@@ -1326,7 +1326,7 @@ function coaching_render_diary(int $cid, ?array $flash): void {
             </section>
         <?php else: foreach ($byDay as $day => $items): ?>
             <section class="ck-tile ck-s6">
-                <?php coaching_tile_head(date('j M', strtotime($day)), coaching_day_label($day),
+                <?php coaching_tile_head(I18n::localDate('j M', strtotime($day)), coaching_day_label($day),
                     '<span class="ck-count">' . count($items) . '</span>'); ?>
                 <?php foreach ($items as $en): ?>
                     <a href="?view=entry&amp;id=<?= (int)$en['id'] ?>" class="ck-row"
@@ -2296,9 +2296,9 @@ function coaching_render_motivation(int $cid, ?array $flash): void {
                     (string)$ch['title']); ?>
 
                 <div class="ck-tile-sub" style="margin:-8px 0 12px;">
-                    From <?= e(date('j M', strtotime($ch['starts_at']))) ?>
+                    From <?= e(I18n::localDate('j M', strtotime($ch['starts_at']))) ?>
                     <?php if (!empty($ch['ends_at'])): ?>
-                        to <?= e(date('j M', strtotime($ch['ends_at']))) ?>
+                        to <?= e(I18n::localDate('j M', strtotime($ch['ends_at']))) ?>
                     <?php endif; ?>
                 </div>
 
@@ -2341,7 +2341,7 @@ function coaching_render_motivation(int $cid, ?array $flash): void {
                         <div class="ck-row-body">
                             <div class="ck-row-title">
                                 <?= e($ch['title']) ?>
-                                <span class="ck-tag"><?= e(date('j M', strtotime($ch['completed_at']))) ?></span>
+                                <span class="ck-tag"><?= e(I18n::localDate('j M', strtotime($ch['completed_at']))) ?></span>
                             </div>
                             <?php if (!empty($ch['client_note'])): ?>
                                 <div class="ck-row-sub" style="font-style:italic;">
@@ -2382,8 +2382,8 @@ function coaching_render_summary(int $cid): void {
             <div class="ck-hero-eyebrow">Body &amp; Soul Program</div>
             <h1 class="ck-hero-name">Your summary</h1>
             <p class="ck-hero-sub">
-                <?= e(date('j F Y', strtotime($d['period']['start']))) ?>
-                → <?= e(date('j F Y', strtotime($d['period']['end']))) ?>
+                <?= e(I18n::localDate('j F Y', strtotime($d['period']['start']))) ?>
+                → <?= e(I18n::localDate('j F Y', strtotime($d['period']['end']))) ?>
             </p>
         </section>
 

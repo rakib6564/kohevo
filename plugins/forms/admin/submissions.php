@@ -571,10 +571,10 @@ require SLATE_ROOT . '/admin/partials/header.php';
                         <span class="subs-who-text">
                             <span class="subs-name"><?= e($name !== '' ? $name : '(no name)') ?></span>
                             <span class="subs-email"><?= e($email !== '' ? $email : '—') ?></span>
-                            <span class="subs-sub"><?= e($r['form_title']) ?> · <?= e(date('j M Y, H:i', strtotime($r['created_at']))) ?></span>
+                            <span class="subs-sub"><?= e($r['form_title']) ?> · <?= e(I18n::localDate('j M Y, H:i', strtotime($r['created_at']))) ?></span>
                         </span>
                         <span class="subs-cell subs-cell-form"><?= e($r['form_title']) ?></span>
-                        <span class="subs-cell subs-cell-date"><?= e(date('j M Y, H:i', strtotime($r['created_at']))) ?></span>
+                        <span class="subs-cell subs-cell-date"><?= e(I18n::localDate('j M Y, H:i', strtotime($r['created_at']))) ?></span>
                         <span class="subs-status <?= $stMeta[1] ?>"><span class="subs-status-text"><?= e($stMeta[0]) ?></span></span>
                         <svg class="subs-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
@@ -584,7 +584,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                         <div><dt>Status</dt><dd><?= e($stMeta[0]) ?></dd></div>
                         <div><dt>Read state</dt><dd><?= $isRead ? 'Read' : 'Unread' ?></dd></div>
                         <div><dt>Form</dt><dd><?= e($r['form_title']) ?></dd></div>
-                        <div><dt>Received</dt><dd><?= e(date('j M Y, H:i', strtotime($r['created_at']))) ?></dd></div>
+                        <div><dt>Received</dt><dd><?= e(I18n::localDate('j M Y, H:i', strtotime($r['created_at']))) ?></dd></div>
                         <div><dt>Reference</dt><dd><code><?= e($r['ref']) ?></code></dd></div>
                         <div><dt>IP</dt><dd><?= e($r['ip'] ?: '—') ?></dd></div>
                         <div><dt>Email sent</dt><dd><?= (int)$r['email_sent'] === 1 ? 'Yes' : 'No' ?></dd></div>

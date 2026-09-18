@@ -354,7 +354,7 @@ class Membership extends Plugin {
             'icon'  => 'star',
             'tone'  => $days <= 0 ? 'amber' : ($days <= 30 ? 'amber' : 'green'),
             'meta'  => !empty($sub['expires_at'])
-                ? 'Renews <strong>' . e(date('j M Y', strtotime((string)$sub['expires_at']))) . '</strong>'
+                ? 'Renews <strong>' . e(I18n::localDate('j M Y', strtotime((string)$sub['expires_at']))) . '</strong>'
                 : e((string)($sub['plan_name'] ?? '')),
         ];
         return $kpis;
@@ -432,7 +432,7 @@ class Membership extends Plugin {
                     'id'          => 'membership-sub-' . $s['id'],
                     'type'        => 'membership',
                     'label'       => __('membership', 'Membership') . ': ' . $planName,
-                    'description' => ucfirst((string)$s['status']) . ' subscription (' . date('M j, Y', strtotime($s['created_at'])) . ')',
+                    'description' => ucfirst((string)$s['status']) . ' subscription (' . I18n::localDate('M j, Y', strtotime($s['created_at'])) . ')',
                     'occurred_at' => $s['created_at'],
                     'href'        => SLATE_URL . '/member/membership/overview',
                     'icon'        => 'star',
@@ -493,7 +493,7 @@ class Membership extends Plugin {
                     <li class="kv-row">
                         <span class="kv-label"><?= __('membership_expires', 'Expires') ?></span>
                         <span class="kv-value">
-                            <?= e(date('j M Y', strtotime($sub['expires_at']))) ?>
+                            <?= e(I18n::localDate('j M Y', strtotime($sub['expires_at']))) ?>
                             <?php if ($status['days_left'] !== null): ?>
                                 <span class="text-xs text-muted">· <?= (int)$status['days_left'] ?> <?= __('membership_days_left', 'days left') ?></span>
                             <?php endif; ?>

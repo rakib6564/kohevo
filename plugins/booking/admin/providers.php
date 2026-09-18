@@ -443,7 +443,7 @@ if (!$flash && isset($_GET['gcal_error']))        $flash = ['type' => 'error',  
                 </p>
                 <p class="text-sm text-muted" style="margin-bottom:12px;">
                     New and rescheduled bookings push to this calendar automatically, and events created or moved directly in Google flow back into Slate.
-                    <?php if (!empty($editing['google_synced_at'])): ?>Last synced <?= e(date('M j, Y H:i', strtotime($editing['google_synced_at']))) ?>.<?php endif; ?>
+                    <?php if (!empty($editing['google_synced_at'])): ?>Last synced <?= e(I18n::localDate('M j, Y H:i', strtotime($editing['google_synced_at']))) ?>.<?php endif; ?>
                 </p>
                 <form method="post" action="<?= e(plugin_url('booking', 'admin/gcal-disconnect.php')) ?>" onsubmit="return confirm('Disconnect Google Calendar? Existing synced events on Google will not be deleted.')">
                     <?= csrf_field() ?>

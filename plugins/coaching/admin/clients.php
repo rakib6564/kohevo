@@ -62,7 +62,7 @@ slate_breadcrumbs([
             'BMR'     => !empty($profile['bmr'])       ? (int)$profile['bmr'] . ' kcal/day'                    : '—',
             'TDEE'    => !empty($profile['tdee'])      ? (int)$profile['tdee'] . ' kcal/day'                   : '—',
             'Goals'   => count($goals) . ' active',
-            'Profile updated' => !empty($c['profile_updated_at']) ? date('j M Y', strtotime($c['profile_updated_at'])) : '—',
+            'Profile updated' => !empty($c['profile_updated_at']) ? I18n::localDate('j M Y', strtotime($c['profile_updated_at'])) : '—',
         ];
         $profileFilled = !empty($profile['height_cm']) && !empty($profile['weight_kg']) && !empty($profile['dob']);
         $badge = $profileFilled ? ['Profile filled', 'active'] : ['Profile incomplete', 'inactive'];

@@ -756,7 +756,7 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
         <?php endif; ?>
     </form>
     <?php bookpub_calendar_script(); ?>
-    <div class="book-when-slots" data-day-label="<?= e(date('D j M', strtotime($date))) ?>">
+    <div class="book-when-slots" data-day-label="<?= e(I18n::localDate('D j M', strtotime($date))) ?>">
     <?php
     if (empty($slotMap)) {
         echo '<div class="alert alert-info">' . e(__('booking_no_slots_today', 'No slots available on this day. Pick another date.')) . '</div>';
@@ -956,7 +956,7 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
            . sprintf(e(__('booking_n_times_selected', '%d times selected')), count($multiSelections)) . '</span></div>';
     } else {
         echo '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value">'
-           . e(date('l, j F Y', strtotime($date))) . ' · ' . e(slate_format_time($date . ' ' . $slot)) . '</span></div>';
+           . e(I18n::localDate('l, j F Y', strtotime($date))) . ' · ' . e(slate_format_time($date . ' ' . $slot)) . '</span></div>';
     }
     if ($party > 1) echo '<div><span class="kv-label">' . e(__('booking_people', 'People')) . '</span><span class="kv-value">' . (int)$party . '</span></div>';
     if ($basePrice > 0) {
@@ -979,12 +979,12 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
             $ts = strtotime($dt) ?: time();
             echo '<li class="book-multiselect-summary-item">'
                .   '<span class="book-multiselect-summary-date">'
-               .     '<span class="book-multiselect-summary-dow">' . e(date('D', $ts)) . '</span>'
+               .     '<span class="book-multiselect-summary-dow">' . e(I18n::localDate('D', $ts)) . '</span>'
                .     '<span class="book-multiselect-summary-dom">' . e(date('j', $ts)) . '</span>'
                .   '</span>'
                .   '<span class="book-multiselect-summary-detail">'
                .     '<span class="book-multiselect-summary-time">' . e(slate_format_time($dt)) . '</span>'
-               .     '<span class="book-multiselect-summary-month">' . e(date('M Y', $ts)) . '</span>'
+               .     '<span class="book-multiselect-summary-month">' . e(I18n::localDate('M Y', $ts)) . '</span>'
                .   '</span>'
                . '</li>';
         }
@@ -1610,7 +1610,7 @@ function bookpub_manage(bool $embed): void {
             if (class_exists('Notifications')) {
                 Notifications::add('Booking cancelled by customer · ' . $appt['ref'], [
                     'body' => ($appt['customer_name'] ?: 'A customer') . ' cancelled ' . $appt['service_name']
-                            . (!empty($appt['starts_at']) ? ' · was ' . date('D j M, g:ia', strtotime($appt['starts_at'])) : ''),
+                            . (!empty($appt['starts_at']) ? ' · was ' . I18n::localDate('D j M, g:ia', strtotime($appt['starts_at'])) : ''),
                     'url'  => plugin_url('booking', 'admin/appointment.php') . '?id=' . (int)$appt['id'],
                     'icon' => 'x-circle',
                 ]);
@@ -1633,7 +1633,7 @@ function bookpub_manage(bool $embed): void {
                 if (class_exists('Notifications')) {
                     Notifications::add('Booking rescheduled by customer · ' . $appt['ref'], [
                         'body' => ($appt['customer_name'] ?: 'A customer') . ' moved ' . $appt['service_name']
-                                . ' to ' . date('D j M, g:ia', strtotime($newStart)),
+                                . ' to ' . I18n::localDate('D j M, g:ia', strtotime($newStart)),
                         'url'  => plugin_url('booking', 'admin/appointment.php') . '?id=' . (int)$appt['id'],
                         'icon' => 'calendar',
                     ]);
@@ -1740,7 +1740,7 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     echo '<div class="book-when-slots">';
     echo '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
     echo '    <span style="font-weight:600;font-size:13.5px;color:var(--text, #111217);">';
-    echo '      ' . e(__('booking_available_times', 'Available times')) . ' &middot; <span style="color:var(--accent, #2563EB);">' . e(date('D, j M Y', strtotime($date))) . '</span>';
+    echo '      ' . e(__('booking_available_times', 'Available times')) . ' &middot; <span style="color:var(--accent, #2563EB);">' . e(I18n::localDate('D, j M Y', strtotime($date))) . '</span>';
     echo '    </span>';
 
     $slots = BookingAPI::computeAvailableSlots((int)$appt['service_id'], (int)$appt['provider_id'], $date, $party);
@@ -1754,7 +1754,7 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     } else {
         echo '<div class="book-slots">';
         foreach ($slots as $time) {
-            echo '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'' . e(sprintf(__('booking_confirm_reschedule_prompt', 'Confirm rescheduling your appointment to %s at %s?'), date('l, j F Y', strtotime($date)), $time)) . '\')">'
+            echo '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'' . e(sprintf(__('booking_confirm_reschedule_prompt', 'Confirm rescheduling your appointment to %s at %s?'), I18n::localDate('l, j F Y', strtotime($date)), $time)) . '\')">'
                . csrf_field()
                . '<input type="hidden" name="token" value="' . e($token) . '">'
                . '<input type="hidden" name="_action" value="reschedule">'

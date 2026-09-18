@@ -129,7 +129,7 @@ slate_portal_welcome([
             </div>
             <div class="kvr">
                 <span class="kvr-k"><?= __('portal_joined', 'Joined') ?></span>
-                <span class="kvr-v"><?= e(date('M Y', strtotime($row['created_at'] ?? 'now'))) ?></span>
+                <span class="kvr-v"><?= e(I18n::localDate('M Y', strtotime($row['created_at'] ?? 'now'))) ?></span>
             </div>
             <p style="margin:16px 0 0">
                 <a class="mbtn mbtn-ghost mbtn-block" href="<?= e(SLATE_URL) ?>/customer/profile.php">

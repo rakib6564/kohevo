@@ -784,7 +784,7 @@ class BookingAPI {
             Notifications::add(($awaits ? 'Booking awaiting approval · ' : 'New booking · ') . $ref, [
                 'body' => ($name !== '' ? $name : 'A customer') . ($awaits ? ' requested ' : ' booked ')
                         . ($service['name'] ?? 'a service')
-                        . ($whenTs ? ' · ' . date('D j M, g:ia', $whenTs) : '')
+                        . ($whenTs ? ' · ' . I18n::localDate('D j M, g:ia', $whenTs) : '')
                         . ($awaits ? ' — needs your approval.' : ''),
                 'url'  => function_exists('plugin_url')
                           ? plugin_url('booking', 'admin/appointment.php') . '?id=' . $id

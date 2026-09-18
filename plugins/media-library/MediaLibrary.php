@@ -100,7 +100,7 @@ class MediaLibrary extends Plugin {
                             'title'        => $name,
                             'sub'          => (string)($m['mime'] ?? ''),
                             'amount'       => $fmt((int)$m['size_bytes']),
-                            'time'         => $m['uploaded_at'] ? date('M j', strtotime($m['uploaded_at'])) : '',
+                            'time'         => $m['uploaded_at'] ? I18n::localDate('M j', strtotime($m['uploaded_at'])) : '',
                             'href'         => $libUrl,
                         ]);
                     endforeach; ?>

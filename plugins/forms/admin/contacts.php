@@ -308,13 +308,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <span class="cts-who">
                         <span class="cts-name"><?= e($name !== '' ? $name : '(no name)') ?></span>
                         <span class="cts-email"><?= e($email) ?></span>
-                        <span class="cts-sub"><?= number_format((int)$c['submissions_count']) ?> submission<?= (int)$c['submissions_count'] === 1 ? '' : 's' ?><?= $c['last_seen_at'] ? ' · ' . e(date('j M Y', strtotime($c['last_seen_at']))) : '' ?></span>
+                        <span class="cts-sub"><?= number_format((int)$c['submissions_count']) ?> submission<?= (int)$c['submissions_count'] === 1 ? '' : 's' ?><?= $c['last_seen_at'] ? ' · ' . e(I18n::localDate('j M Y', strtotime($c['last_seen_at']))) : '' ?></span>
                     </span>
                     <span class="cts-phone"><?= e($c['phone'] ?: '—') ?></span>
                     <span class="cts-count">
                         <span class="cts-count-badge"><?= number_format((int)$c['submissions_count']) ?> submission<?= (int)$c['submissions_count'] === 1 ? '' : 's' ?></span>
                     </span>
-                    <span class="cts-seen"><?= $c['last_seen_at'] ? e(date('j M Y', strtotime($c['last_seen_at']))) : '—' ?></span>
+                    <span class="cts-seen"><?= $c['last_seen_at'] ? e(I18n::localDate('j M Y', strtotime($c['last_seen_at']))) : '—' ?></span>
                     <svg class="cts-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </div>

@@ -166,7 +166,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             $nUrl  = (string)($n['url'] ?? '');
             $time  = function_exists('slate_admin_time_ago')
                    ? slate_admin_time_ago((string)($n['created_at'] ?? ''))
-                   : date('j M Y, H:i', strtotime((string)($n['created_at'] ?? 'now')));
+                   : I18n::localDate('j M Y, H:i', strtotime((string)($n['created_at'] ?? 'now')));
 
             $actions = '<label class="notif-pick" title="Select" style="display:inline-flex;align-items:center;margin-right:10px;cursor:pointer;">'
                      . '<input type="checkbox" class="notif-cb" value="' . (int)$n['id'] . '" style="width:17px;height:17px;cursor:pointer;accent-color:var(--accent);"></label>';

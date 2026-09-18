@@ -513,7 +513,7 @@ if (!function_exists('slate_admin_time_ago')) {
         if ($diff < 3600)    return floor($diff / 60) . 'm ago';
         if ($diff < 86400)   return floor($diff / 3600) . 'h ago';
         if ($diff < 604800)  return floor($diff / 86400) . 'd ago';
-        return date('j M', $ts);
+        return I18n::localDate('j M', $ts);
     }
 }
 

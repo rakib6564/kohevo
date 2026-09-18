@@ -128,7 +128,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             'stats'        => $editing ? [
                 ['Discount', $cDiscount],
                 ['Used',     (int)($c['used_count'] ?? 0) . ($c['max_uses'] !== null ? '<small>/' . (int)$c['max_uses'] . '</small>' : '')],
-                ['Expires',  !empty($c['expires_at']) ? '<small>' . e(date('j M Y', strtotime($c['expires_at']))) . '</small>' : '—'],
+                ['Expires',  !empty($c['expires_at']) ? '<small>' . e(I18n::localDate('j M Y', strtotime($c['expires_at']))) . '</small>' : '—'],
             ] : [],
         ]); ?>
 
@@ -209,7 +209,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     'Discount'   => $c['type'] === 'fixed' ? 'Fixed ' . $val : $val,
                     'Min order'  => (int)$c['min_total_cents'] > 0 ? number_format($c['min_total_cents']/100, 2) : '—',
                     'Uses'       => (int)$c['used_count'] . (($c['max_uses'] !== null) ? ' / ' . (int)$c['max_uses'] : ' (unlimited)'),
-                    'Expires'    => !empty($c['expires_at']) ? date('j M Y', strtotime($c['expires_at'])) : '—',
+                    'Expires'    => !empty($c['expires_at']) ? I18n::localDate('j M Y', strtotime($c['expires_at'])) : '—',
                 ],
                 'actions'      => $actions,
             ]);

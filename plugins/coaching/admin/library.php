@@ -522,7 +522,7 @@ function coaching_lib_render_submitted(): void {
                         <div style="flex:1;min-width:280px;">
                             <strong><?= e($r['title']) ?></strong>
                             <div class="text-muted" style="font-size:13px;">
-                                From <?= e($r['customer_name']) ?> · <?= e(date('j M Y', strtotime($r['created_at']))) ?>
+                                From <?= e($r['customer_name']) ?> · <?= e(I18n::localDate('j M Y', strtotime($r['created_at']))) ?>
                             </div>
                             <?php if ($ingredients): ?>
                                 <details style="margin-top:6px;font-size:13px;">

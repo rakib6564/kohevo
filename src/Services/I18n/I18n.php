@@ -165,6 +165,8 @@ class I18n
      * Locale-aware date formatter.
      * Tokens: l (full weekday), D (short weekday), F (full month),
      *         M (short month), j (day no-zero), d (day zero), Y (year).
+     * Every other character is passed through date(), so time tokens
+     * (H, i, g, a, ...) work exactly as they do there; backslash escapes.
      */
     public static function localDate(string $format, ?int $ts = null): string
     {
@@ -191,7 +193,7 @@ class I18n
                 case 'd': $out .= date('d', $ts);      break;
                 case 'Y': $out .= date('Y', $ts);      break;
                 case '\\': if ($i + 1 < $len) { $out .= $format[++$i]; } break;
-                default:  $out .= $format[$i];
+                default:  $out .= date($format[$i], $ts);
             }
         }
         return $out;

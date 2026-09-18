@@ -305,7 +305,7 @@ class Booking extends Plugin {
                             'title'        => $name,
                             'sub'          => trim((string)($a['service_name'] ?? '')) . ' · ' . ucfirst(str_replace('_', ' ', (string)$a['status'])),
                             'amount'       => $a['starts_at'] ? date('g:ia', strtotime($a['starts_at'])) : '',
-                            'time'         => $a['starts_at'] ? date('M j', strtotime($a['starts_at'])) : '',
+                            'time'         => $a['starts_at'] ? I18n::localDate('M j', strtotime($a['starts_at'])) : '',
                             'href'         => $apptUrl,
                         ]);
                     endforeach; ?>
@@ -396,7 +396,7 @@ class Booking extends Plugin {
                     'id'          => 'booking-' . $r['id'],
                     'type'        => 'booking',
                     'label'       => ($r['service_name'] ?? 'Appointment') . ' with ' . ($r['provider_name'] ?? 'Practitioner'),
-                    'description' => ucfirst($status) . ' appointment (' . date('M j, Y g:i a', strtotime($r['starts_at'])) . ')',
+                    'description' => ucfirst($status) . ' appointment (' . I18n::localDate('M j, Y g:i a', strtotime($r['starts_at'])) . ')',
                     'occurred_at' => $r['starts_at'],
                     'href'        => SLATE_URL . '/member/book',
                     'icon'        => 'calendar',
@@ -777,7 +777,7 @@ class Booking extends Plugin {
         if ($minDays > 0) {
             $start = strtotime((string)($ctx['starts_at'] ?? ''));
             if ($start && $start < slate_db_time() + $minDays * 86400) {
-                $nextOk = date('l, j F Y', slate_db_time() + $minDays * 86400);
+                $nextOk = I18n::localDate('l, j F Y', slate_db_time() + $minDays * 86400);
                 return [
                     'ok'    => false,
                     'error' => 'This session requires a preparation period of at least '

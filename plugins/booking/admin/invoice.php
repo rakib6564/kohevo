@@ -233,7 +233,7 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
         <h1 class="inv-title">Invoice</h1>
         <div class="inv-meta">
           <div><strong><?= e($invoiceNo) ?></strong></div>
-          <div><?= e(date('j F Y', strtotime($appt['created_at']))) ?></div>
+          <div><?= e(I18n::localDate('j F Y', strtotime($appt['created_at']))) ?></div>
         </div>
       </div>
     </div>

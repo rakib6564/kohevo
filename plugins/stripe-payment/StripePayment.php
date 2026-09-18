@@ -157,7 +157,7 @@ class StripePayment extends Plugin {
                             'title'        => $email !== '' ? $email : __('stripe_guest', 'Guest'),
                             'sub'          => ucfirst(str_replace('_', ' ', (string)$c['status'])),
                             'amount'       => slate_format_price_plain($netCents, $c['currency']),
-                            'time'         => $c['created_at'] ? date('M j', strtotime($c['created_at'])) : '',
+                            'time'         => $c['created_at'] ? I18n::localDate('M j', strtotime($c['created_at'])) : '',
                             'href'         => $chargesUrl,
                         ]);
                     endforeach; ?>

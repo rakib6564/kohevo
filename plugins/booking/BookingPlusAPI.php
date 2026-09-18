@@ -203,7 +203,7 @@ SQL;
                 '{{service}}'      => e((string)($ctx['service_name']   ?? '')),
                 '{{provider}}'     => e((string)($ctx['provider_name']  ?? '')),
                 '{{when}}'         => e(slate_format_datetime($ts, 'l, j F Y')),
-                '{{date}}'         => e(date('j M Y', $ts)),
+                '{{date}}'         => e(I18n::localDate('j M Y', $ts)),
                 '{{time}}'         => e(slate_format_time($ts)),
                 '{{ref}}'          => e((string)($ctx['ref']            ?? '')),
                 '{{prep_url}}'     => e((string)($ctx['prep_url']       ?? '')),

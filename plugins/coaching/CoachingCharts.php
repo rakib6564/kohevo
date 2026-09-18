@@ -256,7 +256,7 @@ class CoachingCharts {
         foreach ($labels as $i => $lbl) {
             if ($i % $labelEvery !== 0 && $i !== $n - 1) continue;
             [$px] = explode(',', $pts[$i]);
-            $svg .= '<text x="' . $px . '" y="' . ($padT + $ih + 16) . '" font-size="10" fill="' . $palette['axis'] . '" text-anchor="middle">' . e(date('j M', strtotime($lbl))) . '</text>';
+            $svg .= '<text x="' . $px . '" y="' . ($padT + $ih + 16) . '" font-size="10" fill="' . $palette['axis'] . '" text-anchor="middle">' . e(I18n::localDate('j M', strtotime($lbl))) . '</text>';
         }
         $svg .= '</svg>';
         return $svg;
@@ -404,7 +404,7 @@ class CoachingCharts {
                 if ($val <= 0) continue;
                 $segH = ($val / $maxY) * $ih;
                 $y = $cursor - $segH;
-                $svg .= '<rect x="' . round($cx - $barW/2, 1) . '" y="' . round($y,1) . '" width="' . round($barW,1) . '" height="' . round($segH,1) . '" fill="' . $colors[$key] . '"><title>' . e(date('j M', strtotime($day))) . ' · ' . e($label) . ': ' . $val . '</title></rect>';
+                $svg .= '<rect x="' . round($cx - $barW/2, 1) . '" y="' . round($y,1) . '" width="' . round($barW,1) . '" height="' . round($segH,1) . '" fill="' . $colors[$key] . '"><title>' . e(I18n::localDate('j M', strtotime($day))) . ' · ' . e($label) . ': ' . $val . '</title></rect>';
                 $cursor = $y;
             }
             $i++;
@@ -415,7 +415,7 @@ class CoachingCharts {
         foreach ($days as $i => $day) {
             if ($i % $labelEvery !== 0 && $i !== $n - 1) continue;
             $cx = $padL + $stepX * $i + $stepX / 2;
-            $svg .= '<text x="' . round($cx,1) . '" y="' . ($padT + $ih + 16) . '" font-size="10" fill="' . $palette['axis'] . '" text-anchor="middle">' . e(date('j M', strtotime($day))) . '</text>';
+            $svg .= '<text x="' . round($cx,1) . '" y="' . ($padT + $ih + 16) . '" font-size="10" fill="' . $palette['axis'] . '" text-anchor="middle">' . e(I18n::localDate('j M', strtotime($day))) . '</text>';
         }
 
         // Legend.
