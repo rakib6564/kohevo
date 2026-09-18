@@ -179,7 +179,8 @@ class I18n
         $full_wd  = self::translate(strtolower($wdEn[$w]), $wdEn[$w]);
         $short_wd = mb_substr($full_wd, 0, 3);
         $full_mo  = self::translate('month_' . $m, $moEn[$m]);
-        $short_mo = mb_substr($full_mo, 0, 3);
+        // A language without month_short_N keys falls back to the first three letters.
+        $short_mo = self::translate('month_short_' . $m, mb_substr($full_mo, 0, 3));
 
         $out = '';
         $len = strlen($format);

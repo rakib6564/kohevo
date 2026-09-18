@@ -194,4 +194,19 @@ return [
     'month_10'          => 'octobre',
     'month_11'          => 'novembre',
     'month_12'          => 'décembre',
+
+    // Short months (date token M). Standard French abbreviations: the
+    // first three letters would make juin and juillet both "jui".
+    'month_short_1'     => 'janv.',
+    'month_short_2'     => 'févr.',
+    'month_short_3'     => 'mars',
+    'month_short_4'     => 'avr.',
+    'month_short_5'     => 'mai',
+    'month_short_6'     => 'juin',
+    'month_short_7'     => 'juil.',
+    'month_short_8'     => 'août',
+    'month_short_9'     => 'sept.',
+    'month_short_10'    => 'oct.',
+    'month_short_11'    => 'nov.',
+    'month_short_12'    => 'déc.',
 ];
