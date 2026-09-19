@@ -339,4 +339,14 @@ return [
     'membership_pending'         => 'En attente',
     'membership_session_quota'   => 'Quota de séances',
     'membership_session_quota_hint' => 'Nombre de séances incluses dans ce forfait. 0 = illimité. Affiché sur le tableau de bord membre comme « utilisées / quota ».',
+
+    // Backfilled: keys missing from this file (fell back to English)
+    'dashboard' => 'Tableau de bord',
+    'membership_activated_msg' => 'Adhésion activée manuellement.',
+    'membership_currency_moved' => 'La devise par défaut est définie une seule fois pour tout le site sous %s.',
+    'membership_nav_overview' => 'Aperçu de l\'adhésion',
+    'membership_none_short' => 'Aucun forfait',
+    'membership_overview' => 'Aperçu',
+    'settings_general_link' => 'Réglages → Général',
+    'view_all' => 'Tout afficher',
 ];

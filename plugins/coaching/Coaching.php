@@ -27,6 +27,7 @@ class Coaching extends Plugin {
         // Admin surface.
         Hook::addFilter('admin_nav_items',            [$this, 'addAdminNav']);
         Hook::addFilter('admin_dashboard_widgets',    [$this, 'addAdminDashboardWidget']);
+        Hook::addFilter('i18n_lang_paths',            [$this, 'addLangPath']);
 
         // Customer surface.
         Hook::addFilter('customer_nav_items',         [$this, 'addCustomerNav']);
@@ -68,6 +69,13 @@ class Coaching extends Plugin {
                 $this->enqueueStyle('customer.css');
             }
         }
+    }
+
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
     }
 
     public function runCron(): void {

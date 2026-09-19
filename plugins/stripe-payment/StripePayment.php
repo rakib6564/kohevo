@@ -54,6 +54,7 @@ class StripePayment extends Plugin {
         Hook::addFilter('admin_nav_items', [$this, 'addAdminNav']);
         Hook::addFilter('admin_dashboard_widgets', [$this, 'addDashboardWidget']);
         Hook::addFilter('shop_payment_providers', [$this, 'registerProviders']);
+        Hook::addFilter('i18n_lang_paths', [$this, 'addLangPath']);
 
         // MCP AI Gateway integration (read-only — no refunds, no key changes)
         require_once __DIR__ . '/StripePaymentMcpHandler.php';
@@ -172,6 +173,13 @@ class StripePayment extends Plugin {
     }
 
     // ── Provider registration ─────────────────────────────────
+
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
+    }
 
     public function registerProviders(array $providers): array {
         $secretKey      = (string)$this->setting('secret_key', '');

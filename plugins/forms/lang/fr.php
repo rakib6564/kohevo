@@ -16,4 +16,20 @@ return [
     'forms_save_pdf'                => 'Enregistrer en PDF',
     'forms_submission_limit_reached'=> 'Ce formulaire a atteint sa limite de soumissions et n\'accepte plus de réponses.',
     'forms_not_found'                => 'Introuvable',
+
+    // Backfilled: keys missing from this file (fell back to English)
+    'dashboard' => 'Tableau de bord',
+    'forms' => 'Formulaires',
+    'forms_anon' => 'Anonyme',
+    'forms_block' => 'Formulaire',
+    'forms_contacts' => 'Contacts',
+    'forms_edit' => 'Modifier le formulaire',
+    'forms_form' => 'Formulaire',
+    'forms_new' => 'Nouveau formulaire',
+    'forms_no_subs' => 'Aucune soumission pour le moment',
+    'forms_spam_log' => 'Journal des spams',
+    'forms_submissions' => 'Soumissions',
+    'forms_subs_7d' => 'Soumissions · 7 j',
+    'forms_unread' => 'Non lu',
+    'view_all' => 'Tout afficher',
 ];

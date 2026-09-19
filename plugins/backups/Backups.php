@@ -18,8 +18,16 @@ class Backups extends Plugin {
 
     public function boot(): void {
         Hook::addFilter('admin_nav_items', [$this, 'addAdminNav']);
+        Hook::addFilter('i18n_lang_paths', [$this, 'addLangPath']);
         Hook::addAction('daily_cron',      [BackupRunner::class, 'runDailyCron']);
         Hook::addAction('frequent_cron',   [BackupRunner::class, 'runFrequentCron']);
+    }
+
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
     }
 
     public function addAdminNav(array $items): array {

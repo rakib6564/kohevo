@@ -38,11 +38,19 @@ class MediaLibrary extends Plugin {
         // Report legacy shop/branding references to the core library so
         // files referenced by products/variants/logo show as "in use".
         Hook::addFilter('media_usage', [self::class, 'legacyUsageFilter']);
+        Hook::addFilter('i18n_lang_paths', [$this, 'addLangPath']);
 
         // Dashboard widget intentionally disabled — the dashboard surfaces the
         // operational widgets (Forms, etc.) instead of a media file list. The
         // Media library remains fully available from its own nav page.
         // Hook::addFilter('admin_dashboard_widgets', [$this, 'addDashboardWidget']);
+    }
+
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
     }
 
     /** Hook: union shop/branding string references into the usage map. */

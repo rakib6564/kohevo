@@ -400,19 +400,24 @@ if (!function_exists('slate_admin_group_label')) {
         // checking __($key) first would pull in that unrelated string
         // instead of the label this sidebar section actually wants.
         static $defaults = [
-            'platform'      => 'Platform',
-            'overview'      => 'Overview',
-            'editor'        => 'Editor',
-            'content'       => 'Content',
-            'booking'       => 'Booking engine',
-            'settings'      => 'Site settings',
-            'system'        => 'Tools & connection',
-            'plugins'       => 'Plugins',
-            'shop'          => 'Shop',
-            'media'         => 'Media',
-            'mcp-ai-hub'    => 'MCP & AI Hub',
+            'platform'      => ['Platform',            'Plateforme'],
+            'overview'      => ['Overview',             'Aperçu'],
+            'editor'        => ['Editor',                'Éditeur'],
+            'content'       => ['Content',               'Contenu'],
+            'booking'       => ['Booking engine',        'Moteur de réservation'],
+            'settings'      => ['Site settings',         'Réglages du site'],
+            'system'        => ['Tools & connection',    'Outils et connexions'],
+            'plugins'       => ['Plugins',                'Extensions'],
+            'shop'          => ['Shop',                   'Boutique'],
+            'media'         => ['Media',                  'Médias'],
+            'mcp-ai-hub'    => ['MCP & AI Hub',          'MCP et hub IA'],
+            'nutrition-app' => ['Coaching',               'Coaching'],
+            'form-builder'  => ['Forms',                  'Formulaires'],
         ];
-        if (isset($defaults[$key])) return strtoupper($defaults[$key]);
+        if (isset($defaults[$key])) {
+            $locale = class_exists('I18n') ? I18n::currentLocale() : 'en';
+            return strtoupper($defaults[$key][$locale === 'fr' ? 1 : 0]);
+        }
 
         // Otherwise let a plugin translate its own group key.
         $translated = __($key, '');

@@ -27,6 +27,7 @@ class McpGateway extends Plugin {
         Hook::addFilter('api_v1_routes',      [$this, 'addApiRoutes']);
         Hook::addFilter('api_v1_authenticate',[$this, 'authenticateApiV1Token'], 10, 2);
         Hook::addFilter('public_routes',      [$this, 'addPublicRoutes']);
+        Hook::addFilter('i18n_lang_paths',    [$this, 'addLangPath']);
         Hook::addAction('customer_head',      [$this, 'renderCustomerWidget']);
 
         // Phase 1 core tools (settings, media, notifications, audit, debug,
@@ -64,6 +65,13 @@ class McpGateway extends Plugin {
             'methods' => ['POST', 'OPTIONS'],
         ];
         return $routes;
+    }
+
+    public function addLangPath(array $paths): array {
+        foreach (['fr', 'en'] as $loc) {
+            $paths[$loc][] = $this->dir('lang');
+        }
+        return $paths;
     }
 
     /** Floating chat widget markup, injected on every customer-facing page (login/register/portal). */
