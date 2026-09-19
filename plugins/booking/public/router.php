@@ -556,11 +556,11 @@ function bookpub_render_step1(bool $embed): void {
 
 function bookpub_render_step2(array $service, bool $embed): void {
     $providers = BookingAPI::getProvidersForService((int)$service['id']);
-    bookpub_layout_start($service['name'], $embed);
+    bookpub_layout_start(BookingAPI::serviceName($service), $embed);
     bookpub_stepper(2, $embed);
     echo '<a class="book-back" href="' . e(bookpub_qs([], $embed)) . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
     echo '<h1>' . e(__('booking_choose_a_provider', 'Choose a provider')) . '</h1><p class="book-sub">'
-       . sprintf(e(__('booking_for_service', 'For %s.')), '<strong>' . e($service['name']) . '</strong>') . '</p>';
+       . sprintf(e(__('booking_for_service', 'For %s.')), '<strong>' . e(BookingAPI::serviceName($service)) . '</strong>') . '</p>';
     if (!$providers) {
         echo '<div class="alert alert-warning">' . e(__('booking_no_providers', 'No providers are available for this service yet.')) . '</div>';
     } else {
@@ -693,13 +693,13 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
     $selections   = $multiEnabled ? bookpub_parse_multi_selections((string)($_GET['sel'] ?? ''), $multiMax) : [];
     $dateFormId   = 'book-date-form';
 
-    bookpub_layout_start($service['name'] . ' — ' . $provider['name'], $embed);
+    bookpub_layout_start(BookingAPI::serviceName($service) . ' — ' . $provider['name'], $embed);
     bookpub_stepper(3, $embed);
     echo '<a class="book-back" href="' . e(bookpub_qs(['service' => (int)$service['id']], $embed)) . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
     echo '<h1>' . e(__('booking_pick_a_time', 'Pick a time')) . '</h1>';
     echo '<p class="book-sub">' . sprintf(
         e(__('booking_with_provider_duration', '%s with %s · %d min')),
-        '<strong>' . e($service['name']) . '</strong>', e($provider['name']), BookingAPI::effectiveDuration($service, (int)$provider['id'])
+        '<strong>' . e(BookingAPI::serviceName($service)) . '</strong>', e($provider['name']), BookingAPI::effectiveDuration($service, (int)$provider['id'])
     ) . '</p>';
     if ($multiEnabled) {
         echo '<p class="book-sub text-sm text-muted">' . sprintf(
@@ -935,7 +935,7 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
     $membershipBlocked = is_array($gate) && array_key_exists('ok', $gate) && $gate['ok'] === false;
     $membershipError   = $membershipBlocked ? (string)($gate['error'] ?? '') : '';
 
-    bookpub_layout_start(__('booking_confirm_page_title', 'Confirm') . ' — ' . $service['name'], $embed);
+    bookpub_layout_start(__('booking_confirm_page_title', 'Confirm') . ' — ' . BookingAPI::serviceName($service), $embed);
     bookpub_stepper(4, $embed);
     if ($isMulti) {
         echo '<a class="book-back" href="'
@@ -949,7 +949,7 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
     }
     echo '<h1>' . e(__('booking_confirm_your_booking', 'Confirm your booking')) . '</h1>';
     echo '<div class="book-summary">';
-    echo   '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value">' . e($service['name']) . '</span></div>';
+    echo   '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value">' . e(BookingAPI::serviceName($service)) . '</span></div>';
     echo   '<div><span class="kv-label">' . e(__('booking_with', 'With')) . '</span><span class="kv-value">' . e($provider['name']) . '</span></div>';
     if ($isMulti) {
         echo '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value">'
@@ -1296,11 +1296,12 @@ function bookpub_render_payment(array $appt, bool $embed): void {
         && !(strtolower((string)($appt['currency'] ?? 'usd')) === 'eur'
             && $sset('method_bancontact'));
 
-    bookpub_layout_start(__('booking_payment_page_title', 'Payment') . ' — ' . (string)($service['name'] ?? __('booking_default_title', 'Booking')), $embed);
+    $serviceName = BookingAPI::serviceName((array)$service);
+    bookpub_layout_start(__('booking_payment_page_title', 'Payment') . ' — ' . ($serviceName !== '' ? $serviceName : __('booking_default_title', 'Booking')), $embed);
     echo '<h1>' . e(__('booking_secure_payment', 'Secure payment')) . '</h1>';
 
     echo '<div class="book-summary">';
-    echo   '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value">' . e((string)($service['name'] ?? '')) . '</span></div>';
+    echo   '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value">' . e($serviceName) . '</span></div>';
     if ($provider) {
         echo '<div><span class="kv-label">' . e(__('booking_with', 'With')) . '</span><span class="kv-value">' . e((string)$provider['name']) . '</span></div>';
     }

@@ -666,6 +666,15 @@ class Booking extends Plugin {
             $this->modifyColumn('booking_appointments', 'status',
                 "ENUM('pending','awaiting_approval','confirmed','cancelled','no_show','completed') NOT NULL DEFAULT 'confirmed'");
         }
+
+        // v0.9.0 — optional French name/description per service, so the
+        // public catalogue and booking flow can show one language at a time
+        // instead of both baked into a single string (mirrors Membership's
+        // plan name_fr/description_fr — see MembershipAPI::planName()).
+        if (version_compare('0.9.0', $from, '>')) {
+            $this->ensureColumn('booking_services', 'name_fr', 'VARCHAR(160) NULL AFTER name');
+            $this->ensureColumn('booking_services', 'description_fr', 'TEXT NULL AFTER description');
+        }
     }
 
     private function schemaIsCurrent(): bool {
@@ -689,6 +698,10 @@ class Booking extends Plugin {
                   WHERE TABLE_SCHEMA = DATABASE()
                     AND ((TABLE_NAME = 'booking_providers'    AND COLUMN_NAME = 'google_refresh_token')
                       OR (TABLE_NAME = 'booking_appointments' AND COLUMN_NAME = 'google_sync_status'))");
+            $frcol = (int) Database::value(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'booking_services' AND COLUMN_NAME IN ('name_fr', 'description_fr')");
             // 0.7.0 — both status ENUMs must actually contain the new values,
             // not just exist as columns (they already did before this
             // version); a plain column-presence check would stamp the
@@ -698,7 +711,7 @@ class Booking extends Plugin {
                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking_appointments'
                     AND ((COLUMN_NAME = 'status'         AND COLUMN_TYPE LIKE '%awaiting_approval%')
                       OR (COLUMN_NAME = 'payment_status' AND COLUMN_TYPE LIKE '%failed%'))");
-            return $cols >= 4 && $tbl >= 2 && $gcol >= 2 && $enums >= 2;
+            return $cols >= 4 && $tbl >= 2 && $gcol >= 2 && $enums >= 2 && $frcol >= 2;
         } catch (\Throwable $e) {
             return false;
         }

@@ -141,6 +141,20 @@ class BookingAPI {
         );
     }
 
+    /** Locale-aware service name (FR when locale is fr and name_fr is set). */
+    public static function serviceName(array $service): string {
+        $locale = class_exists('I18n') ? I18n::currentLocale() : 'en';
+        if ($locale === 'fr' && !empty($service['name_fr'])) return (string) $service['name_fr'];
+        return (string) ($service['name'] ?? '');
+    }
+
+    /** Locale-aware service description (FR when locale is fr and description_fr is set). */
+    public static function serviceDescription(array $service): string {
+        $locale = class_exists('I18n') ? I18n::currentLocale() : 'en';
+        if ($locale === 'fr' && !empty($service['description_fr'])) return (string) $service['description_fr'];
+        return (string) ($service['description'] ?? '');
+    }
+
     /**
      * Resolve an appointment from its self-service manage token (CORE-1).
      *
@@ -2216,7 +2230,8 @@ class BookingAPI {
         $out = [['v' => '', 'l' => 'Show all services (catalogue)']];
         try {
             foreach (self::getActiveServices() as $s) {
-                $out[] = ['v' => (string)$s['id'], 'l' => ($s['name'] !== '' ? $s['name'] : ('Service #' . $s['id']))];
+                $name = self::serviceName($s);
+                $out[] = ['v' => (string)$s['id'], 'l' => ($name !== '' ? $name : ('Service #' . $s['id']))];
             }
         } catch (\Throwable $e) {
             // schema not ready / no services — just offer the full flow.
@@ -2284,7 +2299,7 @@ class BookingAPI {
                 // — without BookingAPI needing to know they exist.
                 $badges = Hook::applyFilters('booking_service_card_badges', [], $s);
                 $out .= '<a class="book-card-link" href="' . e((string) $href((int)$s['id'])) . '">'
-                      . '<div class="book-card-title">' . e($s['name']) . '</div>'
+                      . '<div class="book-card-title">' . e(self::serviceName($s)) . '</div>'
                       . '<div class="book-card-meta">' . sprintf(e(__('booking_n_min', '%d min')), (int)$s['duration_min']) . ' · ' . $price
                       . (!empty($s['is_online']) ? ' · ' . e(__('booking_online', 'online')) : '') . '</div>';
                 if ($badges) {
@@ -2295,9 +2310,10 @@ class BookingAPI {
                     }
                     $out .= '</div>';
                 }
-                if (!empty($s['description'])) {
+                $desc = self::serviceDescription($s);
+                if ($desc !== '') {
                     $out .= '<div class="book-card-desc">'
-                          . e(mb_strimwidth($s['description'], 0, 140, '…')) . '</div>';
+                          . e(mb_strimwidth($desc, 0, 140, '…')) . '</div>';
                 }
                 $out .= '</a>';
             }

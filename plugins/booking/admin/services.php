@@ -62,8 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row = [
                     'tenant_id'         => $tid,
                     'name'              => mb_substr($name, 0, 160),
+                    'name_fr'           => trim((string)($_POST['name_fr'] ?? '')) !== '' ? mb_substr(trim((string)$_POST['name_fr']), 0, 160) : null,
                     'slug'              => BookingAPI::slugify($name, $id > 0 ? $id : null),
                     'description'       => trim((string)($_POST['description'] ?? '')) ?: null,
+                    'description_fr'    => trim((string)($_POST['description_fr'] ?? '')) ?: null,
                     'confirm_subject'   => trim((string)($_POST['confirm_subject'] ?? '')) ?: null,
                     'confirm_body'      => trim((string)($_POST['confirm_body'] ?? '')) ?: null,
                     'category_id'       => $categoryId ?: null,
@@ -135,7 +137,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php if ($flash): ?><div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['msg']) ?></div><?php endif; ?>
 
 <?php if ($isNew || $editing):
-    $s = $editing ?: ['id'=>0,'name'=>'','description'=>'','confirm_subject'=>'','confirm_body'=>'','category_id'=>null,'location_id'=>null,
+    $s = $editing ?: ['id'=>0,'name'=>'','name_fr'=>'','description'=>'','description_fr'=>'','confirm_subject'=>'','confirm_body'=>'','category_id'=>null,'location_id'=>null,
                       'duration_min'=>30,'slot_interval_min'=>0,'buffer_before_min'=>0,'buffer_min'=>0,
                       'capacity'=>1,'min_advance_min'=>0,'max_advance_days'=>365,'is_online'=>0,
                       'price_cents'=>0,'currency'=>slate_default_currency(),'payment_mode'=>'free','deposit_type'=>'percent',
@@ -184,17 +186,28 @@ require SLATE_ROOT . '/admin/partials/header.php';
         <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => 'General', 'title' => 'Service details']); ?>
             <div class="field-row field-row-2">
                 <div class="field">
-                    <label class="field-label" for="name">Name <span class="field-required">*</span></label>
+                    <label class="field-label" for="name">Name (English) <span class="field-required">*</span></label>
                     <input type="text" id="name" name="name" required maxlength="160" value="<?= e($s['name']) ?>" placeholder="Consultation">
                 </div>
                 <div class="field">
-                    <label class="field-label" for="color">Colour</label>
-                    <input type="color" id="color" name="color" value="<?= e($s['color']) ?>">
+                    <label class="field-label" for="name_fr">Name (French)</label>
+                    <input type="text" id="name_fr" name="name_fr" maxlength="160" value="<?= e($s['name_fr'] ?? '') ?>" placeholder="Consultation">
+                    <div class="field-hint">Shown instead of the English name when a visitor's language is French. Leave blank to always show English.</div>
+                </div>
+            </div>
+            <div class="field-row field-row-2">
+                <div class="field">
+                    <label class="field-label" for="description">Description (English)</label>
+                    <textarea id="description" name="description" maxlength="2000" placeholder="Shown on the public booking page"><?= e($s['description'] ?? '') ?></textarea>
+                </div>
+                <div class="field">
+                    <label class="field-label" for="description_fr">Description (French)</label>
+                    <textarea id="description_fr" name="description_fr" maxlength="2000" placeholder="Affiché sur la page de réservation publique"><?= e($s['description_fr'] ?? '') ?></textarea>
                 </div>
             </div>
             <div class="field" style="margin-bottom:0;">
-                <label class="field-label" for="description">Description</label>
-                <textarea id="description" name="description" maxlength="2000" placeholder="Shown on the public booking page"><?= e($s['description'] ?? '') ?></textarea>
+                <label class="field-label" for="color">Colour</label>
+                <input type="color" id="color" name="color" value="<?= e($s['color']) ?>">
             </div>
         <?php booking_edit_card_close(); ?>
 
