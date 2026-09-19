@@ -28,7 +28,6 @@ $brandSublabel       = Database::setting('brand_sublabel') ?: __('customer_porta
 // admin login uses — Settings → Branding).
 $brandLogoUrls  = slate_logo_urls();
 $brandLogoUrl   = $brandLogoUrls['light'];
-$brandLogoDarkUrl = $brandLogoUrls['dark'];
 $brandHeroPath  = (string)Database::setting('brand_login_image_path');
 $brandHeroUrl   = $brandHeroPath !== '' ? SLATE_URL . '/' . ltrim($brandHeroPath, '/') : '';
 $brandTagline   = trim((string)Database::setting('brand_login_tagline'));
@@ -170,37 +169,13 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
                 rgba(6,8,12,0.20) 0%, rgba(6,8,12,0.10) 30%, rgba(6,8,12,0.78) 100%);
     }
     .auth-hero-top, .auth-hero-bottom { position: relative; z-index: 1; }
-    .auth-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .auth-hero-brand {
-        display: inline-flex; align-items: center; gap: 10px;
-        color: #fff; text-decoration: none;
-        font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: -0.01em;
-        padding: 7px 16px 7px 7px; border-radius: 999px;
-        background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22);
-        backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.22);
-        transition: background 0.15s ease;
-    }
-    .auth-hero-brand:hover { background: rgba(255,255,255,0.22); color: #fff; text-decoration: none; }
-    .auth-hero-brand img {
-        max-height: 32px; max-width: 160px; width: auto; display: block;
-        /* Shown exactly as authored — no filter that would flatten a
-           multi-tone logo into a plain silhouette. */
-    }
-    .auth-hero-mark {
-        width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
-        background: rgba(255,255,255,0.16); backdrop-filter: blur(6px);
-        font-size: 18px; font-weight: 700; border: 1px solid rgba(255,255,255,0.25);
-    }
+    .auth-hero-top { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
     .auth-back {
-        display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px;
-        background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22);
-        backdrop-filter: blur(10px) saturate(180%); -webkit-backdrop-filter: blur(10px) saturate(180%);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
-        color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap;
-        transition: background 0.15s ease;
+        display: inline-flex; align-items: center; gap: 8px;
+        color: rgba(255,255,255,0.85); text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap;
+        transition: color 0.15s ease;
     }
-    .auth-back:hover { background: rgba(255,255,255,0.26); color: #fff; text-decoration: none; }
+    .auth-back:hover { color: #fff; text-decoration: underline; }
     .auth-hero-tagline {
         margin: 0; max-width: 460px; font-family: var(--font-display);
         font-size: clamp(26px, 3vw, 38px); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em;
@@ -369,21 +344,11 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     <div class="auth-split" id="cust-content">
         <aside class="auth-hero" aria-hidden="true">
             <div class="auth-hero-top">
-                <a href="<?= e(SLATE_URL) ?>/" class="auth-hero-brand">
-                    <?php
-                    // This panel's background is always a dark accent-mixed
-                    // gradient (fixed by this page's own design), not the
-                    // visitor's OS theme, so it always wants the dark-mode
-                    // logo variant when one exists.
-                    $heroLogoUrl = $brandLogoDarkUrl !== '' ? $brandLogoDarkUrl : $brandLogoUrl;
-                    ?>
-                    <?php if ($heroLogoUrl !== ''): ?>
-                        <img src="<?= e($heroLogoUrl) ?>" alt="<?= e($siteName) ?>">
-                    <?php else: ?>
-                        <span class="auth-hero-mark"><?= $brandInitial ?></span>
-                        <span><?= e($siteName) ?></span>
-                    <?php endif; ?>
-                </a>
+                <?php
+                // The brand mark is shown once, in the form panel below —
+                // this hero panel is decorative, so it only needs the
+                // "back to website" link, not a second logo.
+                ?>
                 <a href="<?= e(SLATE_URL) ?>/" class="auth-back">
                     <?= __('back_to_website', 'Back to website') ?>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"

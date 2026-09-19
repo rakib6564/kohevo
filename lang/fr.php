@@ -20,6 +20,8 @@ return [
     'admin_login'       => 'Connexion admin',
     'email'             => 'E-mail',
     'password'          => 'Mot de passe',
+    'show'              => 'Afficher',
+    'hide'              => 'Masquer',
     'skip_to_content'   => 'Aller au contenu principal',
     'primary_navigation'=> 'Navigation principale',
     'more'              => 'Plus',
