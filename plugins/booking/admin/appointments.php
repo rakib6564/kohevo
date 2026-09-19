@@ -9,7 +9,7 @@ Auth::require();
 Auth::requirePerm('booking.view');
 BookingAPI::ensureSchema();
 
-$pageTitle  = 'Appointments';
+$pageTitle  = __('booking_appointments', 'Appointments');
 $currentNav = 'booking-appointments';
 
 $tid = current_tenant_id();
@@ -84,86 +84,86 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
     ['label' => __('booking', 'Booking'), 'href' => plugin_url('booking', 'admin/index.php')],
-    ['label' => 'Appointments'],
+    ['label' => __('booking_appointments', 'Appointments')],
 ]); ?>
 
 <div class="page-header">
-    <div><h1>Appointments</h1><p class="page-header-sub"><?= number_format($totalRows) ?> total.</p></div>
+    <div><h1><?= e(__('booking_appointments', 'Appointments')) ?></h1><p class="page-header-sub"><?= e(sprintf(__('booking_n_total', '%s total.'), number_format($totalRows))) ?></p></div>
     <?php if (Auth::can('booking.manage_appointments')): ?>
-        <a href="<?= e(plugin_url('booking', 'admin/new.php')) ?>" class="btn btn-primary">New / walk-in</a>
+        <a href="<?= e(plugin_url('booking', 'admin/new.php')) ?>" class="btn btn-primary"><?= e(__('booking_new_walkin', 'New / walk-in')) ?></a>
     <?php endif; ?>
 </div>
 
 <div class="card tight">
     <form method="get" class="filter-row">
         <div class="field filter-search">
-            <label class="field-label" for="provider_id">Provider</label>
+            <label class="field-label" for="provider_id"><?= e(__('provider', 'Provider')) ?></label>
             <select id="provider_id" name="provider_id">
-                <option value="0">All providers</option>
+                <option value="0"><?= e(__('booking_all_providers', 'All providers')) ?></option>
                 <?php foreach ($providers as $p): ?>
                     <option value="<?= (int)$p['id'] ?>" <?= $providerId === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
         <div class="field">
-            <label class="field-label" for="status">Status</label>
+            <label class="field-label" for="status"><?= e(__('status', 'Status')) ?></label>
             <select id="status" name="status">
-                <option value="">All</option>
-                <option value="pending"    <?= $status==='pending'    ? 'selected':'' ?>>Pending</option>
-                <option value="awaiting_approval" <?= $status==='awaiting_approval' ? 'selected':'' ?>>Awaiting approval</option>
-                <option value="confirmed"  <?= $status==='confirmed'  ? 'selected':'' ?>>Confirmed</option>
-                <option value="cancelled"  <?= $status==='cancelled'  ? 'selected':'' ?>>Cancelled</option>
-                <option value="no_show"    <?= $status==='no_show'    ? 'selected':'' ?>>No show</option>
-                <option value="completed"  <?= $status==='completed'  ? 'selected':'' ?>>Completed</option>
+                <option value=""><?= e(__('booking_all', 'All')) ?></option>
+                <option value="pending"    <?= $status==='pending'    ? 'selected':'' ?>><?= e(__('booking_status_pending', 'Pending')) ?></option>
+                <option value="awaiting_approval" <?= $status==='awaiting_approval' ? 'selected':'' ?>><?= e(__('booking_status_awaiting_approval', 'Awaiting approval')) ?></option>
+                <option value="confirmed"  <?= $status==='confirmed'  ? 'selected':'' ?>><?= e(__('booking_status_confirmed', 'Confirmed')) ?></option>
+                <option value="cancelled"  <?= $status==='cancelled'  ? 'selected':'' ?>><?= e(__('booking_status_cancelled', 'Cancelled')) ?></option>
+                <option value="no_show"    <?= $status==='no_show'    ? 'selected':'' ?>><?= e(__('booking_status_no_show', 'No show')) ?></option>
+                <option value="completed"  <?= $status==='completed'  ? 'selected':'' ?>><?= e(__('booking_status_completed', 'Completed')) ?></option>
             </select>
         </div>
         <div class="field">
-            <label class="field-label" for="from">From</label>
+            <label class="field-label" for="from"><?= e(__('booking_from', 'From')) ?></label>
             <input type="date" id="from" name="from" value="<?= e($from) ?>">
         </div>
         <div class="field">
-            <label class="field-label" for="to">To</label>
+            <label class="field-label" for="to"><?= e(__('booking_to', 'To')) ?></label>
             <input type="date" id="to" name="to" value="<?= e($to) ?>">
         </div>
         <div class="field" style="justify-content:flex-end;">
-            <label class="field-label" for="group_only" style="visibility:hidden;">Group</label>
+            <label class="field-label" for="group_only" style="visibility:hidden;"><?= e(__('booking_group', 'Group')) ?></label>
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;">
                 <input type="checkbox" id="group_only" name="group_only" value="1" <?= $groupOnly ? 'checked' : '' ?>>
-                Group bookings only
+                <?= e(__('booking_group_bookings_only', 'Group bookings only')) ?>
             </label>
         </div>
         <div class="filter-actions">
-            <button class="btn">Filter</button>
-            <a href="?" class="btn btn-ghost">Reset</a>
+            <button class="btn"><?= e(__('filter', 'Filter')) ?></button>
+            <a href="?" class="btn btn-ghost"><?= e(__('reset', 'Reset')) ?></a>
         </div>
     </form>
 </div>
 
 <?php if (!$rows): ?>
-    <div class="card"><div class="empty"><div class="empty-title">No appointments match</div></div></div>
+    <div class="card"><div class="empty"><div class="empty-title"><?= e(__('booking_no_appts_match', 'No appointments match')) ?></div></div></div>
 <?php else: ?>
     <div class="data-list" data-single-open>
         <?php foreach ($rows as $a):
             $statusBadge = [
-                'pending'           => ['Pending', 'warning'],
-                'awaiting_approval' => ['Awaiting approval', 'warning'],
-                'confirmed'         => ['Confirmed', 'active'],
-                'cancelled'         => ['Cancelled', 'inactive'],
-                'no_show'           => ['No show', 'warning'],
-                'completed'         => ['Completed', 'accent'],
+                'pending'           => [__('booking_status_pending', 'Pending'), 'warning'],
+                'awaiting_approval' => [__('booking_status_awaiting_approval', 'Awaiting approval'), 'warning'],
+                'confirmed'         => [__('booking_status_confirmed', 'Confirmed'), 'active'],
+                'cancelled'         => [__('booking_status_cancelled', 'Cancelled'), 'inactive'],
+                'no_show'           => [__('booking_status_no_show', 'No show'), 'warning'],
+                'completed'         => [__('booking_status_completed', 'Completed'), 'accent'],
             ][$a['status']] ?? ['?', ''];
 
             $detail = [
-                'Ref'           => ['label' => 'Ref', 'html' => '<code>' . e($a['ref']) . '</code>'],
-                'When'          => slate_format_datetime($a['starts_at'], 'l, j F Y') . ' – ' . slate_format_time($a['ends_at']),
-                'Service'       => $a['service_name'],
-                'Provider'      => $a['provider_name'],
-                'Customer'      => $a['customer_name'] . ' · ' . $a['customer_email']
+                __('booking_ref', 'Ref')           => ['label' => __('booking_ref', 'Ref'), 'html' => '<code>' . e($a['ref']) . '</code>'],
+                __('booking_when', 'When')          => slate_format_datetime($a['starts_at'], 'l, j F Y') . ' – ' . slate_format_time($a['ends_at']),
+                __('service', 'Service')       => $a['service_name'],
+                __('provider', 'Provider')      => $a['provider_name'],
+                __('booking_customer_singular', 'Customer')      => $a['customer_name'] . ' · ' . $a['customer_email']
                                    . ($a['customer_phone'] ? ' · ' . $a['customer_phone'] : ''),
             ];
-            if (!empty($a['notes'])) $detail['Notes'] = ['label'=>'Notes','value'=>$a['notes'],'muted'=>true];
+            if (!empty($a['notes'])) $detail[__('booking_notes', 'Notes')] = ['label'=>__('booking_notes', 'Notes'),'value'=>$a['notes'],'muted'=>true];
 
-            $actions = '<a href="' . e(plugin_url('booking', 'admin/appointment.php')) . '?id=' . (int)$a['id'] . '" class="btn btn-sm btn-primary">Open</a>';
+            $actions = '<a href="' . e(plugin_url('booking', 'admin/appointment.php')) . '?id=' . (int)$a['id'] . '" class="btn btn-sm btn-primary">' . e(__('open', 'Open')) . '</a>';
 
             // "Group of N" — this row shares a recurrence_group with at
             // least one other appointment (a weekly-repeat series or a
@@ -174,11 +174,10 @@ require SLATE_ROOT . '/admin/partials/header.php';
             $groupCnt  = $groupKey !== null ? ($groupCounts[$groupKey] ?? 0) : 0;
             $metaHtml  = e(slate_format_datetime($a['starts_at'], 'D j M') . ' · ' . $a['provider_name']);
             if ($groupCnt >= 2) {
-                $metaHtml .= ' <span class="badge badge-accent" title="Booked together with '
-                           . ($groupCnt - 1) . ' other time' . ($groupCnt - 1 === 1 ? '' : 's')
-                           . '">Group of ' . $groupCnt . '</span>';
-                $detail['Group'] = ['label' => 'Group', 'html' =>
-                    e($groupCnt) . ' appointments booked together — open this one to see the full list.'];
+                $metaHtml .= ' <span class="badge badge-accent" title="' . e(sprintf(__('booking_booked_together_n', 'Booked together with %d other time(s)'), $groupCnt - 1))
+                           . '">' . e(sprintf(__('booking_group_of_n', 'Group of %d'), $groupCnt)) . '</span>';
+                $detail[__('booking_group', 'Group')] = ['label' => __('booking_group', 'Group'), 'html' =>
+                    e($groupCnt) . ' ' . e(__('booking_group_appts_note', 'appointments booked together — open this one to see the full list.'))];
             }
 
             slate_data_row([
@@ -194,7 +193,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     </div>
     <?php slate_data_list_script(); ?>
     <?php slate_pagination($page, $totalPages, $_GET, [
-        'total' => $totalRows, 'per_page' => $perPage, 'label' => 'appointments',
+        'total' => $totalRows, 'per_page' => $perPage, 'label' => __('booking_appointments', 'appointments'),
     ]); ?>
 <?php endif; ?>
 

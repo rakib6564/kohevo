@@ -11,7 +11,7 @@ Auth::require();
 Auth::requirePerm('booking.manage_payments');
 BookingAPI::ensureSchema();
 
-$pageTitle  = 'Gift cards';
+$pageTitle  = __('booking_giftcards', 'Gift cards');
 $currentNav = 'booking-giftcards';
 $tid = current_tenant_id();
 
@@ -27,7 +27,7 @@ if ($editId > 0) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         $action = $_POST['_action'] ?? '';
         if ($action === 'save') {
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header('Location: ' . plugin_url('booking', 'admin/giftcards.php'));
                     exit;
                 } catch (\Throwable $e) {
-                    $flash = ['type' => 'error', 'msg' => 'That code already exists.'];
+                    $flash = ['type' => 'error', 'msg' => __('booking_giftcard_code_exists', 'That code already exists.')];
                 }
             } else {
                 Database::update('booking_gift_cards', [
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id > 0) {
                 Database::delete('booking_gift_cards', 'id = ? AND tenant_id = ?', [$id, $tid]);
                 AuditLog::record('booking.giftcard_deleted', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Gift card deleted.'];
+                $flash = ['type' => 'success', 'msg' => __('booking_giftcard_deleted', 'Gift card deleted.')];
                 header('Location: ' . plugin_url('booking', 'admin/giftcards.php'));
                 exit;
             }
@@ -81,7 +81,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
     ['label' => __('booking', 'Booking'), 'href' => plugin_url('booking', 'admin/index.php')],
-    ['label' => 'Gift cards'],
+    ['label' => __('booking_giftcards', 'Gift cards')],
 ]); ?>
 
 <?php if ($flash): ?><div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['msg']) ?></div><?php endif; ?>
@@ -94,7 +94,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php booking_editor_css(); ?>
 
 <?php booking_edit_open([
-    'title_fallback' => 'New gift card',
+    'title_fallback' => __('booking_new_giftcard', 'New gift card'),
 ]); ?>
 
     <form method="post">
@@ -104,43 +104,43 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
         <?php booking_edit_backlink([
             'back_href'  => plugin_url('booking', 'admin/giftcards.php'),
-            'back_label' => 'All gift cards',
+            'back_label' => __('booking_all_giftcards', 'All gift cards'),
         ]); ?>
 
         <?php booking_edit_hero([
             'icon'         => 'gift',
             'initials'     => $gInitials,
-            'title'        => $editing ? $editing['code'] : 'New gift card',
+            'title'        => $editing ? $editing['code'] : __('booking_new_giftcard', 'New gift card'),
             'ref'          => $editing ? (int)$editing['id'] : null,
             'active'       => !empty($g['is_active']) && !$gDepleted,
             'toggle_name'  => 'is_active',
             'toggle_id'    => 'is_active',
-            'toggle_title' => 'Active (redeemable)',
-            'status_on'    => 'Active · redeemable',
-            'status_off'   => $gDepleted ? 'Empty' : 'Inactive',
+            'toggle_title' => __('booking_giftcard_toggle_active', 'Active (redeemable)'),
+            'status_on'    => __('booking_giftcard_status_active', 'Active · redeemable'),
+            'status_off'   => $gDepleted ? __('booking_empty', 'Empty') : __('inactive', 'Inactive'),
             'stats'        => $editing ? [
-                ['Balance', slate_format_price((int)$g['balance_cents'], $g['currency'])],
-                ['Initial', slate_format_price((int)$g['initial_cents'], $g['currency'])],
-                ['Created', !empty($g['created_at']) ? '<small>' . e(I18n::localDate('j M Y', strtotime($g['created_at']))) . '</small>' : '—'],
+                [__('booking_balance', 'Balance'), slate_format_price((int)$g['balance_cents'], $g['currency'])],
+                [__('booking_initial', 'Initial'), slate_format_price((int)$g['initial_cents'], $g['currency'])],
+                [__('booking_created', 'Created'), !empty($g['created_at']) ? '<small>' . e(I18n::localDate('j M Y', strtotime($g['created_at']))) . '</small>' : '—'],
             ] : [],
         ]); ?>
 
-        <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => 'General', 'title' => $editing ? 'Balance' : 'Gift card details']); ?>
+        <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => __('booking_general', 'General'), 'title' => $editing ? __('booking_balance', 'Balance') : __('booking_giftcard_details', 'Gift card details')]); ?>
             <?php if (!$editing): ?>
                 <div class="field-row field-row-2" style="margin-bottom:0;">
                     <div class="field" style="margin-bottom:0;">
-                        <label class="field-label" for="name">Code <span class="text-muted text-xs">(blank = auto)</span></label>
-                        <input type="text" id="name" name="code" maxlength="60" value="" placeholder="GC-XXXXXXXX" style="text-transform:uppercase;">
+                        <label class="field-label" for="name"><?= e(__('booking_code', 'Code')) ?> <span class="text-muted text-xs">(<?= e(__('booking_blank_auto', 'blank = auto')) ?>)</span></label>
+                        <input type="text" id="name" name="code" maxlength="60" value="" placeholder="<?= e(__('booking_giftcard_code_ph', 'GC-XXXXXXXX')) ?>" style="text-transform:uppercase;">
                     </div>
                     <div class="field" style="margin-bottom:0;">
-                        <label class="field-label" for="initial">Initial amount <span class="text-muted text-xs">(<?= e(slate_default_currency()) ?>)</span> <span class="field-required">*</span></label>
+                        <label class="field-label" for="initial"><?= e(__('booking_initial_amount', 'Initial amount')) ?> <span class="text-muted text-xs">(<?= e(slate_default_currency()) ?>)</span> <span class="field-required">*</span></label>
                         <input type="number" id="initial" name="initial" min="0" step="0.01" required value="">
                     </div>
                 </div>
             <?php else: ?>
-                <?php booking_edit_card_note('The code and initial amount are fixed once issued. Adjust the remaining balance below.'); ?>
+                <?php booking_edit_card_note(__('booking_giftcard_fixed_note', 'The code and initial amount are fixed once issued. Adjust the remaining balance below.')); ?>
                 <div class="field" style="margin-bottom:0;max-width:240px;">
-                    <label class="field-label" for="balance">Balance (<?= e($g['currency']) ?>)</label>
+                    <label class="field-label" for="balance"><?= e(sprintf(__('booking_balance_currency', 'Balance (%s)'), $g['currency'])) ?></label>
                     <input type="number" id="balance" name="balance" min="0" step="0.01" value="<?= e(number_format(((int)$g['balance_cents'])/100, 2, '.', '')) ?>">
                 </div>
             <?php endif; ?>
@@ -148,8 +148,8 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
         <?php booking_edit_actionbar([
             'buttons_html' =>
-                '<button type="submit" class="btn btn-primary">' . ($editing ? 'Save changes' : 'Create gift card') . '</button>'
-              . '<a href="' . e(plugin_url('booking', 'admin/giftcards.php')) . '" class="btn btn-ghost">Cancel</a>',
+                '<button type="submit" class="btn btn-primary">' . ($editing ? e(__('save_changes', 'Save changes')) : e(__('booking_create_giftcard', 'Create gift card'))) . '</button>'
+              . '<a href="' . e(plugin_url('booking', 'admin/giftcards.php')) . '" class="btn btn-ghost">' . e(__('cancel', 'Cancel')) . '</a>',
         ]); ?>
 
     </form>
@@ -159,31 +159,31 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <?php else: ?>
     <div class="page-header">
-        <div><h1>Gift cards</h1></div>
-        <a href="?new=1" class="btn btn-primary">New gift card</a>
+        <div><h1><?= e(__('booking_giftcards', 'Gift cards')) ?></h1></div>
+        <a href="?new=1" class="btn btn-primary"><?= e(__('booking_new_giftcard', 'New gift card')) ?></a>
     </div>
 
     <?php if (!$cards): ?>
-    <div class="card"><div class="empty"><div class="empty-title">No gift cards yet</div></div></div>
+    <div class="card"><div class="empty"><div class="empty-title"><?= e(__('booking_no_giftcards', 'No gift cards yet')) ?></div></div></div>
     <?php else: ?>
     <div class="data-list" data-single-open>
         <?php foreach ($cards as $g):
             $depleted = (int)$g['balance_cents'] <= 0;
-            $actions = '<a href="?edit=' . (int)$g['id'] . '" class="btn btn-sm">Edit</a> '
-                     . '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'Delete this gift card?\')">'
+            $actions = '<a href="?edit=' . (int)$g['id'] . '" class="btn btn-sm">' . e(__('edit', 'Edit')) . '</a> '
+                     . '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'' . e(__('booking_confirm_delete_giftcard', 'Delete this gift card?')) . '\')">'
                      . csrf_field()
                      . '<input type="hidden" name="_action" value="delete"><input type="hidden" name="id" value="' . (int)$g['id'] . '">'
-                     . '<button class="btn btn-sm btn-danger">Delete</button></form>';
+                     . '<button class="btn btn-sm btn-danger">' . e(__('delete', 'Delete')) . '</button></form>';
             slate_data_row([
                 'avatar'       => mb_substr($g['code'], 0, 1),
                 'avatar_color' => ($g['is_active'] && !$depleted) ? 'accent' : 'muted',
                 'title'        => $g['code'],
-                'meta'         => slate_format_price_plain((int)$g['balance_cents'], $g['currency']) . ' of ' . number_format($g['initial_cents']/100, 2),
-                'badge'        => $depleted ? ['Empty', 'inactive'] : ($g['is_active'] ? ['Active', 'active'] : ['Inactive', 'inactive']),
+                'meta'         => sprintf(__('booking_giftcard_meta', '%s of %s'), slate_format_price_plain((int)$g['balance_cents'], $g['currency']), number_format($g['initial_cents']/100, 2)),
+                'badge'        => $depleted ? [__('booking_empty', 'Empty'), 'inactive'] : ($g['is_active'] ? [__('active', 'Active'), 'active'] : [__('inactive', 'Inactive'), 'inactive']),
                 'detail'       => [
-                    'Balance' => slate_format_price_plain((int)$g['balance_cents'], $g['currency']),
-                    'Initial' => slate_format_price_plain((int)$g['initial_cents'], $g['currency']),
-                    'Created' => I18n::localDate('j M Y', strtotime($g['created_at'])),
+                    __('booking_balance', 'Balance') => slate_format_price_plain((int)$g['balance_cents'], $g['currency']),
+                    __('booking_initial', 'Initial') => slate_format_price_plain((int)$g['initial_cents'], $g['currency']),
+                    __('booking_created', 'Created') => I18n::localDate('j M Y', strtotime($g['created_at'])),
                 ],
                 'actions'      => $actions,
             ]);

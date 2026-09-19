@@ -158,13 +158,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <div class="page-header">
     <div>
-        <h1>Booking</h1>
-        <p class="page-header-sub">Today and the week ahead.</p>
+        <h1><?= __('booking', 'Booking') ?></h1>
+        <p class="page-header-sub"><?= __('booking_today_week_ahead', 'Today and the week ahead.') ?></p>
     </div>
     <div class="toolbar">
-        <a href="<?= e(plugin_url('booking', 'admin/services.php'))  ?>" class="btn">Services</a>
-        <a href="<?= e(plugin_url('booking', 'admin/providers.php')) ?>" class="btn">Providers</a>
-        <a href="<?= e(SLATE_URL) ?>/book" target="_blank" class="btn btn-primary">Open public widget ↗</a>
+        <a href="<?= e(plugin_url('booking', 'admin/services.php'))  ?>" class="btn"><?= __('booking_services', 'Services') ?></a>
+        <a href="<?= e(plugin_url('booking', 'admin/providers.php')) ?>" class="btn"><?= __('booking_providers', 'Providers') ?></a>
+        <a href="<?= e(SLATE_URL) ?>/book" target="_blank" class="btn btn-primary"><?= __('booking_open_public_widget', 'Open public widget ↗') ?></a>
     </div>
 </div>
 
@@ -200,11 +200,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
     <div class="page-main">
         <div class="card">
             <div class="card-header">
-                <h2>Today (<?= count($todayList) ?>)</h2>
-                <a href="<?= e(plugin_url('booking', 'admin/appointments.php')) ?>" class="btn btn-sm">All</a>
+                <h2><?= __('booking_today', 'Today') ?> (<?= count($todayList) ?>)</h2>
+                <a href="<?= e(plugin_url('booking', 'admin/appointments.php')) ?>" class="btn btn-sm"><?= __('all', 'All') ?></a>
             </div>
             <?php if (!$todayList): ?>
-                <div class="empty"><div class="empty-title">Nothing today</div></div>
+                <div class="empty"><div class="empty-title"><?= __('booking_nothing_today', 'Nothing today') ?></div></div>
             <?php else: ?>
                 <div class="dlist">
                     <?php foreach ($todayList as $a):
@@ -213,7 +213,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                             'avatar_html'  => slate_avatar_overlay_html(mb_substr($name, 0, 2), (string)($a['customer_email'] ?? '')),
                             'avatar_color' => $statusColors[$a['status']] ?? 'muted',
                             'title'        => $name,
-                            'sub'          => $a['service_name'] . ' · with ' . $a['provider_name'],
+                            'sub'          => sprintf(__('booking_service_with_provider', '%s · with %s'), $a['service_name'], $a['provider_name']),
                             'amount'       => $a['starts_at'] ? slate_format_time($a['starts_at']) : '',
                             'time'         => $a['starts_at'] ? I18n::localDate('M j', strtotime($a['starts_at'])) : '',
                             'href'         => plugin_url('booking', 'admin/appointment.php') . '?id=' . (int)$a['id'],
@@ -224,9 +224,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
         </div>
 
         <div class="card">
-            <div class="card-header"><h2>Next 7 days (<?= count($weekList) ?>)</h2></div>
+            <div class="card-header"><h2><?= __('booking_next_7', 'Next 7 days') ?> (<?= count($weekList) ?>)</h2></div>
             <?php if (!$weekList): ?>
-                <div class="empty"><div class="empty-title">Nothing booked yet</div></div>
+                <div class="empty"><div class="empty-title"><?= __('booking_nothing_booked_yet', 'Nothing booked yet') ?></div></div>
             <?php else: ?>
                 <div class="dlist">
                     <?php foreach ($weekList as $a):
@@ -248,19 +248,19 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
     <aside class="page-aside">
         <div class="aside-card">
-            <div class="aside-card-title">Public booking</div>
-            <p class="text-sm text-muted" style="margin:0 0 var(--space-3);">Customers book at <code>/book</code>. Embed it on any site with an iframe.</p>
+            <div class="aside-card-title"><?= __('booking_public_booking', 'Public booking') ?></div>
+            <p class="text-sm text-muted" style="margin:0 0 var(--space-3);"><?= sprintf(__('booking_public_booking_desc', 'Customers book at %s. Embed it on any site with an iframe.'), '<code>/book</code>') ?></p>
             <pre class="snippet">&lt;iframe src="<?= e(SLATE_URL) ?>/book?embed=1"
   style="width:100%;border:0;min-height:640px"&gt;
 &lt;/iframe&gt;</pre>
         </div>
         <div class="aside-card">
-            <div class="aside-card-title">Setup checklist</div>
+            <div class="aside-card-title"><?= __('booking_setup_checklist', 'Setup checklist') ?></div>
             <ul class="kv-list">
-                <li class="kv-row"><span class="kv-label">1. Add services</span><span class="kv-value"><a href="<?= e(plugin_url('booking', 'admin/services.php')) ?>">→</a></span></li>
-                <li class="kv-row"><span class="kv-label">2. Add providers</span><span class="kv-value"><a href="<?= e(plugin_url('booking', 'admin/providers.php')) ?>">→</a></span></li>
-                <li class="kv-row"><span class="kv-label">3. Set weekly hours</span><span class="kv-value">on provider edit</span></li>
-                <li class="kv-row"><span class="kv-label">4. Link services to providers</span><span class="kv-value">on provider edit</span></li>
+                <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_add_services', '1. Add services') ?></span><span class="kv-value"><a href="<?= e(plugin_url('booking', 'admin/services.php')) ?>">→</a></span></li>
+                <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_add_providers', '2. Add providers') ?></span><span class="kv-value"><a href="<?= e(plugin_url('booking', 'admin/providers.php')) ?>">→</a></span></li>
+                <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_set_hours', '3. Set weekly hours') ?></span><span class="kv-value"><?= __('booking_on_provider_edit', 'on provider edit') ?></span></li>
+                <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_link_services', '4. Link services to providers') ?></span><span class="kv-value"><?= __('booking_on_provider_edit', 'on provider edit') ?></span></li>
             </ul>
         </div>
     </aside>

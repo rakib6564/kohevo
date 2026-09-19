@@ -10,14 +10,14 @@ Auth::requirePerm('booking.manage_providers');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    exit('Method not allowed.');
+    exit(__('booking_method_not_allowed', 'Method not allowed.'));
 }
 
 $providerId = (int)($_POST['provider_id'] ?? 0);
 $tid = current_tenant_id();
 
 if (!csrf_verify()) {
-    header('Location: ' . plugin_url('booking', 'admin/providers.php') . '?edit=' . $providerId . '&gcal_error=' . urlencode('Security check failed.'));
+    header('Location: ' . plugin_url('booking', 'admin/providers.php') . '?edit=' . $providerId . '&gcal_error=' . urlencode(__('csrf_failed', 'Security check failed.')));
     exit;
 }
 

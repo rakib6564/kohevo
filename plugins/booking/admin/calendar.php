@@ -19,7 +19,7 @@ Auth::require();
 Auth::requirePerm('booking.view');
 BookingAPI::ensureSchema();
 
-$pageTitle  = 'Calendar';
+$pageTitle  = __('booking_calendar', 'Calendar');
 $currentNav = 'booking-calendar';
 
 $tid     = current_tenant_id();
@@ -32,17 +32,17 @@ $canDrag = Auth::can('booking.manage_appointments');
 if (($_GET['ajax'] ?? '') === 'reschedule' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
     if (!$canDrag) {
-        echo json_encode(['ok' => false, 'error' => 'You do not have permission to reschedule appointments.']);
+        echo json_encode(['ok' => false, 'error' => __('booking_no_perm_reschedule', 'You do not have permission to reschedule appointments.')]);
         exit;
     }
     if (!csrf_verify()) {
-        echo json_encode(['ok' => false, 'error' => 'Security check failed — please reload the page and try again.']);
+        echo json_encode(['ok' => false, 'error' => __('booking_csrf_failed_reload', 'Security check failed — please reload the page and try again.')]);
         exit;
     }
     $apptId   = (int)($_POST['id'] ?? 0);
     $newStart = (string)($_POST['starts_at'] ?? '');
     if ($apptId <= 0 || $newStart === '') {
-        echo json_encode(['ok' => false, 'error' => 'Missing appointment or time.']);
+        echo json_encode(['ok' => false, 'error' => __('booking_missing_appt_or_time', 'Missing appointment or time.')]);
         exit;
     }
     echo json_encode(BookingAPI::rescheduleAppointment($apptId, $newStart, true));
@@ -158,13 +158,21 @@ $pxPerHour     = 56;
 $gridHeight    = ($gridEndHour - $gridStartHour) * $pxPerHour;
 
 $statusLabels = [
-    'pending' => 'Pending', 'awaiting_approval' => 'Awaiting approval', 'confirmed' => 'Confirmed',
-    'cancelled' => 'Cancelled', 'no_show' => 'No show', 'completed' => 'Completed',
+    'pending' => __('booking_status_pending', 'Pending'),
+    'awaiting_approval' => __('booking_status_awaiting_approval', 'Awaiting approval'),
+    'confirmed' => __('booking_status_confirmed', 'Confirmed'),
+    'cancelled' => __('booking_status_cancelled', 'Cancelled'),
+    'no_show' => __('booking_status_no_show', 'No show'),
+    'completed' => __('booking_status_completed', 'Completed'),
 ];
 $payLabels = [
-    'none' => 'Unpaid', 'pending' => 'Payment pending', 'deposit_paid' => 'Deposit paid',
-    'paid' => 'Paid', 'refunded' => 'Refunded', 'partially_refunded' => 'Partially refunded',
-    'failed' => 'Payment failed',
+    'none' => __('booking_unpaid', 'Unpaid'),
+    'pending' => __('booking_payment_pending', 'Payment pending'),
+    'deposit_paid' => __('booking_deposit_paid', 'Deposit paid'),
+    'paid' => __('booking_paid', 'Paid'),
+    'refunded' => __('booking_refunded', 'Refunded'),
+    'partially_refunded' => __('booking_partially_refunded', 'Partially refunded'),
+    'failed' => __('booking_payment_failed_label', 'Payment failed'),
 ];
 
 // Build a query string preserving the current view + filters, with
@@ -191,7 +199,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
     ['label' => __('booking', 'Booking'), 'href' => plugin_url('booking', 'admin/index.php')],
-    ['label' => 'Calendar'],
+    ['label' => __('booking_calendar_page_title', 'Calendar')],
 ]); ?>
 
 <style>
@@ -294,51 +302,51 @@ require SLATE_ROOT . '/admin/partials/header.php';
 </style>
 
 <div class="page-header">
-    <div><h1>Calendar</h1><p class="page-header-sub"><?= e($view === 'week' ? $weekLabel : $monthLabel) ?></p></div>
+    <div><h1><?= e(__('booking_calendar_page_title', 'Calendar')) ?></h1><p class="page-header-sub"><?= e($view === 'week' ? $weekLabel : $monthLabel) ?></p></div>
     <?php if (Auth::can('booking.manage_appointments')): ?>
-        <a href="<?= e(plugin_url('booking', 'admin/new.php')) ?>" class="btn btn-primary">New / walk-in</a>
+        <a href="<?= e(plugin_url('booking', 'admin/new.php')) ?>" class="btn btn-primary"><?= e(__('booking_new_walkin', 'New / walk-in')) ?></a>
     <?php endif; ?>
 </div>
 
 <div class="bk-cal-toolbar">
     <div class="bk-cal-views">
-        <a class="bk-cal-view-tab<?= $view === 'month' ? ' is-active' : '' ?>" href="<?= e($baseQs(['view' => 'month'])) ?>">Month</a>
-        <a class="bk-cal-view-tab<?= $view === 'week' ? ' is-active' : '' ?>" href="<?= e($baseQs(['view' => 'week'])) ?>">Week</a>
+        <a class="bk-cal-view-tab<?= $view === 'month' ? ' is-active' : '' ?>" href="<?= e($baseQs(['view' => 'month'])) ?>"><?= e(__('booking_month', 'Month')) ?></a>
+        <a class="bk-cal-view-tab<?= $view === 'week' ? ' is-active' : '' ?>" href="<?= e($baseQs(['view' => 'week'])) ?>"><?= e(__('booking_week', 'Week')) ?></a>
     </div>
 
     <?php if ($view === 'month'): ?>
         <div class="bk-cal-nav">
-            <a class="btn btn-sm" href="<?= e($baseQs(['month' => $prevMonth])) ?>" aria-label="Previous month">&larr;</a>
+            <a class="btn btn-sm" href="<?= e($baseQs(['month' => $prevMonth])) ?>" aria-label="<?= e(__('booking_prev_month', 'Previous month')) ?>">&larr;</a>
             <span class="bk-cal-month"><?= e($monthLabel) ?></span>
-            <a class="btn btn-sm" href="<?= e($baseQs(['month' => $nextMonth])) ?>" aria-label="Next month">&rarr;</a>
-            <a class="btn btn-sm btn-ghost" href="<?= e($baseQs(['month' => date('Y-m')])) ?>">Today</a>
+            <a class="btn btn-sm" href="<?= e($baseQs(['month' => $nextMonth])) ?>" aria-label="<?= e(__('booking_next_month', 'Next month')) ?>">&rarr;</a>
+            <a class="btn btn-sm btn-ghost" href="<?= e($baseQs(['month' => date('Y-m')])) ?>"><?= e(__('booking_today', 'Today')) ?></a>
         </div>
     <?php else: ?>
         <div class="bk-cal-nav">
-            <a class="btn btn-sm" href="<?= e($baseQs(['week' => $prevWeek])) ?>" aria-label="Previous week">&larr;</a>
+            <a class="btn btn-sm" href="<?= e($baseQs(['week' => $prevWeek])) ?>" aria-label="<?= e(__('booking_prev_week', 'Previous week')) ?>">&larr;</a>
             <span class="bk-cal-month"><?= e($weekLabel) ?></span>
-            <a class="btn btn-sm" href="<?= e($baseQs(['week' => $nextWeek])) ?>" aria-label="Next week">&rarr;</a>
-            <a class="btn btn-sm btn-ghost" href="<?= e($baseQs(['week' => date('Y-m-d')])) ?>">Today</a>
+            <a class="btn btn-sm" href="<?= e($baseQs(['week' => $nextWeek])) ?>" aria-label="<?= e(__('booking_next_week', 'Next week')) ?>">&rarr;</a>
+            <a class="btn btn-sm btn-ghost" href="<?= e($baseQs(['week' => date('Y-m-d')])) ?>"><?= e(__('booking_today', 'Today')) ?></a>
         </div>
     <?php endif; ?>
 
     <div class="bk-cal-toolbar-actions">
         <button type="button" id="bkCalFilterToggle" class="btn btn-sm bk-cal-filter-btn">
-            Filters
+            <?= e(__('booking_filters', 'Filters')) ?>
             <?php if ($activeFilterCount > 0): ?><span class="bk-cal-filter-badge"><?= (int)$activeFilterCount ?></span><?php endif; ?>
         </button>
 
         <div id="bkCalFilterPanel" class="bk-cal-filterpanel<?= $activeFilterCount > 0 ? '' : '' ?>">
-            <h3>Advanced filters</h3>
+            <h3><?= e(__('booking_advanced_filters', 'Advanced filters')) ?></h3>
             <form method="get">
                 <input type="hidden" name="view" value="<?= e($view) ?>">
                 <input type="hidden" name="month" value="<?= e($monthParam) ?>">
                 <input type="hidden" name="week" value="<?= e($weekParam) ?>">
 
                 <div class="field">
-                    <label class="field-label" for="f_provider_id">Provider</label>
+                    <label class="field-label" for="f_provider_id"><?= e(__('provider', 'Provider')) ?></label>
                     <select id="f_provider_id" name="provider_id">
-                        <option value="0">All providers</option>
+                        <option value="0"><?= e(__('booking_all_providers', 'All providers')) ?></option>
                         <?php foreach ($providers as $p): ?>
                             <option value="<?= (int)$p['id'] ?>" <?= $providerId === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
                         <?php endforeach; ?>
@@ -346,9 +354,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="f_service_id">Service</label>
+                    <label class="field-label" for="f_service_id"><?= e(__('service', 'Service')) ?></label>
                     <select id="f_service_id" name="service_id">
-                        <option value="0">All services</option>
+                        <option value="0"><?= e(__('booking_all_services', 'All services')) ?></option>
                         <?php foreach ($services as $s): ?>
                             <option value="<?= (int)$s['id'] ?>" <?= $serviceId === (int)$s['id'] ? 'selected' : '' ?>><?= e($s['name']) ?></option>
                         <?php endforeach; ?>
@@ -356,9 +364,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="f_status">Status</label>
+                    <label class="field-label" for="f_status"><?= e(__('status', 'Status')) ?></label>
                     <select id="f_status" name="status">
-                        <option value="">Any status</option>
+                        <option value=""><?= e(__('booking_any_status', 'Any status')) ?></option>
                         <?php foreach ($statusLabels as $val => $lbl): ?>
                             <option value="<?= e($val) ?>" <?= $status === $val ? 'selected' : '' ?>><?= e($lbl) ?></option>
                         <?php endforeach; ?>
@@ -366,9 +374,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="f_payment_status">Payment</label>
+                    <label class="field-label" for="f_payment_status"><?= e(__('booking_payment_label', 'Payment')) ?></label>
                     <select id="f_payment_status" name="payment_status">
-                        <option value="">Any payment status</option>
+                        <option value=""><?= e(__('booking_any_payment_status', 'Any payment status')) ?></option>
                         <?php foreach ($payLabels as $val => $lbl): ?>
                             <option value="<?= e($val) ?>" <?= $paymentStatus === $val ? 'selected' : '' ?>><?= e($lbl) ?></option>
                         <?php endforeach; ?>
@@ -376,13 +384,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="f_q">Search</label>
-                    <input type="text" id="f_q" name="q" value="<?= e($q) ?>" placeholder="Customer name, email or ref">
+                    <label class="field-label" for="f_q"><?= e(__('search', 'Search')) ?></label>
+                    <input type="text" id="f_q" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('booking_search_customer_ph', 'Customer name, email or ref')) ?>">
                 </div>
 
                 <div class="bk-cal-filter-footer">
-                    <a href="<?= e($clearFiltersQs) ?>" class="btn btn-sm btn-ghost">Clear all</a>
-                    <button type="submit" class="btn btn-sm btn-primary">Apply filters</button>
+                    <a href="<?= e($clearFiltersQs) ?>" class="btn btn-sm btn-ghost"><?= e(__('booking_clear_all', 'Clear all')) ?></a>
+                    <button type="submit" class="btn btn-sm btn-primary"><?= e(__('booking_apply_filters', 'Apply filters')) ?></button>
                 </div>
             </form>
         </div>
@@ -392,9 +400,15 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php if ($view === 'month'): ?>
 
 <div class="bk-cal-grid">
-    <?php foreach (['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $dow): ?>
-        <div class="bk-cal-dow"><?= e($dow) ?></div>
-    <?php endforeach; ?>
+    <?php
+    $dowCursor = clone $weekStart;
+    for ($i = 0; $i < 7; $i++):
+    ?>
+        <div class="bk-cal-dow"><?= e(I18n::localDate('D', $dowCursor->getTimestamp())) ?></div>
+    <?php
+        $dowCursor->modify('+1 day');
+    endfor;
+    ?>
 
     <?php
     $cursor = clone $rangeStart;
@@ -408,7 +422,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                   . ($providerId > 0 ? '&provider_id=' . $providerId : '');
     ?>
         <div class="<?= $cls ?>" data-date="<?= e($key) ?>">
-            <a class="bk-cal-daynum" href="<?= e($dayList) ?>" title="View this day"><?= (int)$cursor->format('j') ?></a>
+            <a class="bk-cal-daynum" href="<?= e($dayList) ?>" title="<?= e(__('booking_view_this_day', 'View this day')) ?>"><?= (int)$cursor->format('j') ?></a>
             <?php foreach (array_slice($dayAppts, 0, $maxChips) as $a):
                 $color    = preg_match('/^#[0-9a-fA-F]{3,8}$/', (string)$a['provider_color']) ? $a['provider_color'] : 'var(--accent)';
                 $draggable = $canDrag && $a['status'] !== 'cancelled';
@@ -431,7 +445,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </a>
             <?php endforeach; ?>
             <?php if (count($dayAppts) > $maxChips): ?>
-                <a class="bk-cal-more" href="<?= e($dayList) ?>">+<?= count($dayAppts) - $maxChips ?> more</a>
+                <a class="bk-cal-more" href="<?= e($dayList) ?>">+<?= e(sprintf(__('booking_n_more', '%d more'), count($dayAppts) - $maxChips)) ?></a>
             <?php endif; ?>
         </div>
     <?php
@@ -441,9 +455,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
 </div>
 
 <div class="bk-cal-legend">
-    <span><span class="bk-cal-dot" style="background:var(--accent);"></span> Chip colour = provider</span>
-    <span><span class="bk-cal-dot" style="background:var(--border);"></span> Faded / struck = cancelled</span>
-    <?php if ($canDrag): ?><span>Drag a chip onto another day to reschedule it</span><?php endif; ?>
+    <span><span class="bk-cal-dot" style="background:var(--accent);"></span> <?= e(__('booking_legend_chip_colour', 'Chip colour = provider')) ?></span>
+    <span><span class="bk-cal-dot" style="background:var(--border);"></span> <?= e(__('booking_legend_faded_cancelled', 'Faded / struck = cancelled')) ?></span>
+    <?php if ($canDrag): ?><span><?= e(__('booking_legend_drag_chip', 'Drag a chip onto another day to reschedule it')) ?></span><?php endif; ?>
 </div>
 
 <?php else: /* ── Week time-grid ── */ ?>
@@ -470,7 +484,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
         <div class="bk-week-gutter" style="height:<?= (int)$gridHeight ?>px;">
             <?php for ($h = $gridStartHour; $h <= $gridEndHour; $h++): ?>
                 <span class="bk-week-hour-label" style="top:<?= (int)(($h - $gridStartHour) * $pxPerHour) ?>px;">
-                    <?= e(date('g A', mktime($h, 0))) ?>
+                    <?= e(slate_format_time(mktime($h, 0))) ?>
                 </span>
             <?php endfor; ?>
         </div>
@@ -524,9 +538,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
 </div>
 
 <div class="bk-cal-legend">
-    <span><span class="bk-cal-dot" style="background:var(--accent);"></span> Block colour = provider</span>
-    <span><span class="bk-cal-dot" style="background:#ef4444;"></span> Red line = now</span>
-    <?php if ($canDrag): ?><span>Drag a block to a new time or day to reschedule it (snaps to 15 min)</span><?php endif; ?>
+    <span><span class="bk-cal-dot" style="background:var(--accent);"></span> <?= e(__('booking_legend_block_colour', 'Block colour = provider')) ?></span>
+    <span><span class="bk-cal-dot" style="background:#ef4444;"></span> <?= e(__('booking_legend_red_line_now', 'Red line = now')) ?></span>
+    <?php if ($canDrag): ?><span><?= e(__('booking_legend_drag_block', 'Drag a block to a new time or day to reschedule it (snaps to 15 min)')) ?></span><?php endif; ?>
 </div>
 
 <?php endif; ?>
@@ -534,6 +548,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <script>
 (function () {
     var CSRF = (document.querySelector('meta[name="csrf"]') || {}).content || '';
+    var i18n = <?= json_encode([
+        'rescheduled'   => __('booking_toast_rescheduled', 'Appointment rescheduled.'),
+        'couldNotResch' => __('booking_toast_could_not_reschedule', 'Could not reschedule that appointment.'),
+        'networkError'  => __('booking_toast_network_error', 'Network error — please try again.'),
+    ], JSON_UNESCAPED_UNICODE) ?>;
 
     function toast(msg, kind) {
         var t = document.createElement('div');
@@ -555,13 +574,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
             body: body
         }).then(function (r) { return r.json(); }).then(function (data) {
             if (data && data.ok) {
-                toast('Appointment rescheduled.');
+                toast(i18n.rescheduled);
                 setTimeout(function () { window.location.reload(); }, 350);
             } else {
-                toast((data && data.error) || 'Could not reschedule that appointment.', 'error');
+                toast((data && data.error) || i18n.couldNotResch, 'error');
             }
         }).catch(function () {
-            toast('Network error — please try again.', 'error');
+            toast(i18n.networkError, 'error');
         });
     }
 

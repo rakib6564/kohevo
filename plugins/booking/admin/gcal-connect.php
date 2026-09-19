@@ -20,11 +20,11 @@ $provider = $providerId > 0
 
 if (!$provider) {
     http_response_code(404);
-    exit('Provider not found.');
+    exit(__('booking_provider_not_found', 'Provider not found.'));
 }
 
 if (!GoogleCalendarSync::isConfigured()) {
-    header('Location: ' . plugin_url('booking', 'admin/providers.php') . '?edit=' . $providerId . '&gcal_error=' . urlencode('Add a Google Client ID/Secret in Booking settings first.'));
+    header('Location: ' . plugin_url('booking', 'admin/providers.php') . '?edit=' . $providerId . '&gcal_error=' . urlencode(__('booking_gcal_missing_credentials', 'Add a Google Client ID/Secret in Booking settings first.')));
     exit;
 }
 

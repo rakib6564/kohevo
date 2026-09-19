@@ -10,7 +10,7 @@ Auth::require();
 Auth::requirePerm('booking.manage_services');
 BookingAPI::ensureSchema();
 
-$pageTitle  = 'Service categories';
+$pageTitle  = __('booking_categories_page_title', 'Service categories');
 $currentNav = 'booking-categories';
 $tid = current_tenant_id();
 
@@ -42,14 +42,14 @@ $catSlug = function (string $name, ?int $excludeId) use ($tid): string {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         $action = $_POST['_action'] ?? '';
         if ($action === 'save') {
             $id   = (int)($_POST['id'] ?? 0);
             $name = trim((string)($_POST['name'] ?? ''));
             if ($name === '') {
-                $flash = ['type' => 'error', 'msg' => 'Name is required.'];
+                $flash = ['type' => 'error', 'msg' => __('booking_name_required', 'Name is required.')];
             } else {
                 $row = [
                     'tenant_id'  => $tid,
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::query("UPDATE booking_services SET category_id = NULL WHERE category_id = ? AND tenant_id = ?", [$id, $tid]);
                 Database::delete('booking_categories', 'id = ? AND tenant_id = ?', [$id, $tid]);
                 AuditLog::record('booking.category_deleted', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Category deleted.'];
+                $flash = ['type' => 'success', 'msg' => __('booking_category_deleted', 'Category deleted.')];
                 header('Location: ' . plugin_url('booking', 'admin/categories.php'));
                 exit;
             }
@@ -95,7 +95,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
     ['label' => __('booking', 'Booking'), 'href' => plugin_url('booking', 'admin/index.php')],
-    ['label' => 'Categories'],
+    ['label' => __('booking_categories', 'Categories')],
 ]); ?>
 
 <?php if ($flash): ?><div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['msg']) ?></div><?php endif; ?>
@@ -109,7 +109,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php booking_editor_css(); ?>
 
 <?php booking_edit_open([
-    'title_fallback' => 'New category',
+    'title_fallback' => __('booking_new_category', 'New category'),
 ]); ?>
 
     <form method="post">
@@ -119,45 +119,45 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
         <?php booking_edit_backlink([
             'back_href'  => plugin_url('booking', 'admin/categories.php'),
-            'back_label' => 'All categories',
+            'back_label' => __('booking_all_categories', 'All categories'),
         ]); ?>
 
         <?php booking_edit_hero([
             'icon'         => 'folder',
             'initials'     => $cInitials,
-            'title'        => $editing ? $editing['name'] : 'New category',
+            'title'        => $editing ? $editing['name'] : __('booking_new_category', 'New category'),
             'ref'          => $editing ? (int)$editing['id'] : null,
             'active'       => !empty($c['is_active']),
             'toggle_name'  => 'is_active',
             'toggle_id'    => 'is_active',
-            'toggle_title' => 'Active (shown on the widget)',
-            'status_on'    => 'Active',
-            'status_off'   => 'Inactive',
+            'toggle_title' => __('booking_category_active_toggle', 'Active (shown on the widget)'),
+            'status_on'    => __('active', 'Active'),
+            'status_off'   => __('inactive', 'Inactive'),
             'stats'        => $editing ? [
-                ['Services', (string)$cSvcCount],
-                ['Order',    (string)(int)$c['sort_order']],
-                ['Slug',     '<small style="font-family:var(--font-mono);">' . e((string)($c['slug'] ?? '')) . '</small>'],
+                [__('booking_services', 'Services'), (string)$cSvcCount],
+                [__('booking_order', 'Order'),    (string)(int)$c['sort_order']],
+                [__('booking_slug', 'Slug'),     '<small style="font-family:var(--font-mono);">' . e((string)($c['slug'] ?? '')) . '</small>'],
             ] : [],
         ]); ?>
 
-        <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => 'General', 'title' => 'Category details']); ?>
+        <?php booking_edit_card_open(['icon' => 'tag', 'eyebrow' => __('booking_general', 'General'), 'title' => __('booking_category_details', 'Category details')]); ?>
             <div class="field-row field-row-2">
                 <div class="field">
-                    <label class="field-label" for="name">Name <span class="field-required">*</span></label>
-                    <input type="text" id="name" name="name" required maxlength="160" value="<?= e($c['name']) ?>" placeholder="Haircuts">
+                    <label class="field-label" for="name"><?= e(__('name', 'Name')) ?> <span class="field-required">*</span></label>
+                    <input type="text" id="name" name="name" required maxlength="160" value="<?= e($c['name']) ?>" placeholder="<?= e(__('booking_category_name_ph', 'Haircuts')) ?>">
                 </div>
                 <div class="field" style="margin-bottom:0;">
-                    <label class="field-label" for="sort_order">Sort order</label>
+                    <label class="field-label" for="sort_order"><?= e(__('booking_sort_order', 'Sort order')) ?></label>
                     <input type="number" id="sort_order" name="sort_order" step="1" value="<?= (int)$c['sort_order'] ?>">
                 </div>
             </div>
-            <?php booking_edit_card_note('The URL slug is generated from the name and kept unique automatically.'); ?>
+            <?php booking_edit_card_note(__('booking_slug_auto_note', 'The URL slug is generated from the name and kept unique automatically.')); ?>
         <?php booking_edit_card_close(); ?>
 
         <?php booking_edit_actionbar([
             'buttons_html' =>
-                '<button type="submit" class="btn btn-primary">' . ($editing ? 'Save changes' : 'Create category') . '</button>'
-              . '<a href="' . e(plugin_url('booking', 'admin/categories.php')) . '" class="btn btn-ghost">Cancel</a>',
+                '<button type="submit" class="btn btn-primary">' . ($editing ? e(__('booking_save_changes', 'Save changes')) : e(__('booking_create_category', 'Create category'))) . '</button>'
+              . '<a href="' . e(plugin_url('booking', 'admin/categories.php')) . '" class="btn btn-ghost">' . e(__('cancel', 'Cancel')) . '</a>',
         ]); ?>
 
     </form>
@@ -167,28 +167,28 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <?php else: ?>
     <div class="page-header">
-        <div><h1>Service categories</h1></div>
-        <a href="?new=1" class="btn btn-primary">New category</a>
+        <div><h1><?= e(__('booking_categories_page_title', 'Service categories')) ?></h1></div>
+        <a href="?new=1" class="btn btn-primary"><?= e(__('booking_new_category', 'New category')) ?></a>
     </div>
 
     <?php if (!$categories): ?>
-    <div class="card"><div class="empty"><div class="empty-title">No categories yet</div><p class="text-sm">Group your services to organise the booking widget.</p></div></div>
+    <div class="card"><div class="empty"><div class="empty-title"><?= e(__('booking_no_categories', 'No categories yet')) ?></div><p class="text-sm"><?= e(__('booking_no_categories_sub', 'Group your services to organise the booking widget.')) ?></p></div></div>
     <?php else: ?>
     <div class="data-list" data-single-open>
         <?php foreach ($categories as $c):
-            $actions = '<a href="?edit=' . (int)$c['id'] . '" class="btn btn-sm">Edit</a> '
-                     . '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'Delete this category?\')">'
+            $actions = '<a href="?edit=' . (int)$c['id'] . '" class="btn btn-sm">' . e(__('edit', 'Edit')) . '</a> '
+                     . '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'' . e(__('booking_confirm_delete_category', 'Delete this category?')) . '\')">'
                      . csrf_field()
                      . '<input type="hidden" name="_action" value="delete"><input type="hidden" name="id" value="' . (int)$c['id'] . '">'
-                     . '<button class="btn btn-sm btn-danger">Delete</button></form>';
+                     . '<button class="btn btn-sm btn-danger">' . e(__('delete', 'Delete')) . '</button></form>';
             slate_data_row([
                 'avatar'       => mb_substr($c['name'], 0, 1),
                 'avatar_color' => $c['is_active'] ? 'info' : 'muted',
                 'title'        => $c['name'],
-                'meta'         => $c['service_count'] . ' service(s) · order ' . (int)$c['sort_order'],
-                'badge'        => $c['is_active'] ? ['Active', 'active'] : ['Inactive', 'inactive'],
-                'detail'       => ['Services' => $c['service_count'], 'Sort order' => (int)$c['sort_order'],
-                                   'Slug' => ['label'=>'Slug','html'=>'<code>' . e($c['slug']) . '</code>']],
+                'meta'         => sprintf(__('booking_n_services_order', '%1$s service(s) · order %2$d'), $c['service_count'], (int)$c['sort_order']),
+                'badge'        => $c['is_active'] ? [__('active', 'Active'), 'active'] : [__('inactive', 'Inactive'), 'inactive'],
+                'detail'       => [__('booking_services', 'Services') => $c['service_count'], __('booking_sort_order', 'Sort order') => (int)$c['sort_order'],
+                                   __('booking_slug', 'Slug') => ['label'=>__('booking_slug', 'Slug'),'html'=>'<code>' . e($c['slug']) . '</code>']],
                 'actions'      => $actions,
             ]);
         endforeach; ?>

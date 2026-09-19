@@ -32,7 +32,7 @@ if ($token !== '') {
     );
 }
 
-if (!$appt) { http_response_code(404); echo 'Invoice not found.'; exit; }
+if (!$appt) { http_response_code(404); echo __('booking_invoice_not_found', 'Invoice not found.'); exit; }
 
 // Assign an invoice number on first view.
 $invoiceNo = (string)($appt['invoice_no'] ?? '');
@@ -101,7 +101,7 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
 <!DOCTYPE html><html lang="<?= e(I18n::currentLocale()) ?>"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Invoice <?= e($invoiceNo) ?> — <?= e($bizName) ?></title>
+<title><?= e(__('booking_invoice_title', 'Invoice')) ?> <?= e($invoiceNo) ?> — <?= e($bizName) ?></title>
 <style>
   :root {
     --accent: <?= e($accent) ?>;
@@ -210,7 +210,7 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
     <div class="toolbar-row no-print">
       <button type="button" class="btn-print" onclick="window.print()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        Print / Save PDF
+        <?= e(__('booking_invoice_print_save_pdf', 'Print / Save PDF')) ?>
       </button>
     </div>
 
@@ -230,7 +230,7 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
         </div>
       </div>
       <div class="inv-title-block">
-        <h1 class="inv-title">Invoice</h1>
+        <h1 class="inv-title"><?= e(__('booking_invoice_title', 'Invoice')) ?></h1>
         <div class="inv-meta">
           <div><strong><?= e($invoiceNo) ?></strong></div>
           <div><?= e(I18n::localDate('j F Y', strtotime($appt['created_at']))) ?></div>
@@ -242,15 +242,15 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
 
     <div class="parties">
       <div>
-        <div class="party-label">Billed to</div>
+        <div class="party-label"><?= e(__('booking_invoice_billed_to', 'Billed to')) ?></div>
         <div class="party-name"><?= e($appt['customer_name']) ?></div>
         <div class="party-sub"><?= e($appt['customer_email']) ?></div>
       </div>
       <div class="party-right">
-        <div class="party-label">Appointment</div>
+        <div class="party-label"><?= e(__('booking_invoice_appointment_label', 'Appointment')) ?></div>
         <div class="party-name"><?= e(slate_format_datetime($appt['starts_at'], 'l, j F Y')) ?></div>
         <div class="party-sub">
-          Ref <?= e($appt['ref']) ?>
+          <?= e(__('booking_invoice_ref_label', 'Ref')) ?> <?= e($appt['ref']) ?>
           &nbsp;·&nbsp;
           <span class="pill"><?= e($statusLabel) ?></span>
         </div>
@@ -258,19 +258,19 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
     </div>
 
     <table class="items">
-      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead>
+      <thead><tr><th><?= e(__('booking_invoice_item', 'Item')) ?></th><th class="num"><?= e(__('booking_invoice_qty', 'Qty')) ?></th><th class="num"><?= e(__('booking_invoice_amount', 'Amount')) ?></th></tr></thead>
       <tbody>
         <tr>
           <td>
             <span class="item-name"><?= e($appt['service_name']) ?></span>
-            <span class="item-sub"> with <?= e($appt['provider_name']) ?></span>
+            <span class="item-sub"> <?= e(__('booking_invoice_with', 'with')) ?> <?= e($appt['provider_name']) ?></span>
           </td>
           <td class="num"><?= $party ?></td>
           <td class="num"><?= e($money((int)$appt['price_cents'] + $discount - array_sum(array_map(fn($a)=>(int)($a['price_cents'] ?? 0), $addons)))) ?></td>
         </tr>
         <?php foreach ($addons as $a): ?>
           <tr>
-            <td><span class="item-sub">+ <?= e($a['name'] ?? 'Add-on') ?></span></td>
+            <td><span class="item-sub">+ <?= e($a['name'] ?? __('booking_invoice_addon_default', 'Add-on')) ?></span></td>
             <td class="num">1</td>
             <td class="num"><?= e($money((int)($a['price_cents'] ?? 0))) ?></td>
           </tr>
@@ -280,19 +280,19 @@ $statusLabel = ucwords(str_replace('_', ' ', $payStatus));
 
     <div class="totals-wrap">
       <table class="totals">
-        <tr class="muted-row"><td>Subtotal</td><td class="num"><?= e($money($subtotal)) ?></td></tr>
-        <?php if ($discount > 0): ?><tr class="muted-row"><td>Discount<?= !empty($appt['coupon_code']) ? ' (' . e($appt['coupon_code']) . ')' : '' ?></td><td class="num">&minus; <?= e($money($discount)) ?></td></tr><?php endif; ?>
-        <?php if ($tax > 0): ?><tr class="muted-row"><td>Tax</td><td class="num"><?= e($money($tax)) ?></td></tr><?php endif; ?>
-        <tr class="grand"><td>Total</td><td class="num"><?= e($money($total)) ?></td></tr>
-        <?php if ((int)($appt['gift_applied_cents'] ?? 0) > 0): ?><tr class="muted-row"><td>Gift card</td><td class="num">&minus; <?= e($money((int)$appt['gift_applied_cents'])) ?></td></tr><?php endif; ?>
-        <?php if ((int)$appt['paid_cents'] > 0): ?><tr class="muted-row"><td>Paid</td><td class="num">&minus; <?= e($money((int)$appt['paid_cents'])) ?></td></tr><?php endif; ?>
-        <tr class="balance"><td>Balance due</td><td class="num"><?= e($money($balance)) ?></td></tr>
+        <tr class="muted-row"><td><?= e(__('booking_invoice_subtotal', 'Subtotal')) ?></td><td class="num"><?= e($money($subtotal)) ?></td></tr>
+        <?php if ($discount > 0): ?><tr class="muted-row"><td><?= e(__('booking_invoice_discount', 'Discount')) ?><?= !empty($appt['coupon_code']) ? ' (' . e($appt['coupon_code']) . ')' : '' ?></td><td class="num">&minus; <?= e($money($discount)) ?></td></tr><?php endif; ?>
+        <?php if ($tax > 0): ?><tr class="muted-row"><td><?= e(__('booking_invoice_tax', 'Tax')) ?></td><td class="num"><?= e($money($tax)) ?></td></tr><?php endif; ?>
+        <tr class="grand"><td><?= e(__('booking_invoice_total', 'Total')) ?></td><td class="num"><?= e($money($total)) ?></td></tr>
+        <?php if ((int)($appt['gift_applied_cents'] ?? 0) > 0): ?><tr class="muted-row"><td><?= e(__('booking_gift_card', 'Gift card')) ?></td><td class="num">&minus; <?= e($money((int)$appt['gift_applied_cents'])) ?></td></tr><?php endif; ?>
+        <?php if ((int)$appt['paid_cents'] > 0): ?><tr class="muted-row"><td><?= e(__('booking_invoice_paid', 'Paid')) ?></td><td class="num">&minus; <?= e($money((int)$appt['paid_cents'])) ?></td></tr><?php endif; ?>
+        <tr class="balance"><td><?= e(__('booking_invoice_balance_due', 'Balance due')) ?></td><td class="num"><?= e($money($balance)) ?></td></tr>
       </table>
     </div>
 
     <div class="footnote">
-      <strong>Thank you for your business.</strong>
-      <?php if ($bizEmail): ?> Questions about this invoice? Reach us at <?= e($bizEmail) ?>.<?php endif; ?>
+      <strong><?= e(__('booking_invoice_thank_you', 'Thank you for your business.')) ?></strong>
+      <?php if ($bizEmail): ?> <?= e(sprintf(__('booking_invoice_questions', 'Questions about this invoice? Reach us at %s.'), $bizEmail)) ?><?php endif; ?>
     </div>
   </div>
 </div>

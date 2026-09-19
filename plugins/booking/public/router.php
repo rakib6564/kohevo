@@ -220,6 +220,22 @@ if (!$service || empty($service['is_active'])) {
 }
 
 if ($providerId === 0) {
+    // Skip the provider-pick step when the admin has opted in and this
+    // service only has one assigned provider — there's no real choice to
+    // make. A redirect (not a silent render) keeps the URL itself in sync
+    // with app state (provider= actually present) for back-button/
+    // refresh/bookmark, same as the HSR-prereq gate above.
+    if (bookpub_book_setting('auto_skip_single_provider', false)) {
+        $onlyProviders = BookingAPI::getProvidersForService((int)$service['id']);
+        if (count($onlyProviders) === 1) {
+            header('Location: ' . bookpub_qs(
+                ['service' => (int)$service['id'], 'provider' => (int)$onlyProviders[0]['id'],
+                 'date' => $date, 'slot' => $slot, 'party' => $party],
+                $embed
+            ));
+            exit;
+        }
+    }
     bookpub_render_step2($service, $embed);
     return;
 }

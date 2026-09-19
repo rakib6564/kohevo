@@ -24,8 +24,8 @@ slate_public_entry('booking');
 // nothing is loaded or written on the way to refusing.
 if (!PluginLoader::isCapabilityEnabled('booking', 'client_messaging')) {
     http_response_code(503);
-    bookingplus_render_page('Not available',
-        '<p>This page isn\'t available right now. Please reply to your confirmation email instead.</p>');
+    bookingplus_render_page(__('booking_msg_not_available_title', 'Not available'),
+        '<p>' . e(__('booking_msg_not_available_body', 'This page isn\'t available right now. Please reply to your confirmation email instead.')) . '</p>');
     exit;
 }
 
@@ -37,8 +37,8 @@ BookingPlusAPI::ensureSchema();
 $token = trim((string)($_GET['t'] ?? $_POST['t'] ?? ''));
 if ($token === '' || !preg_match('/^[a-zA-Z0-9]{16,64}$/', $token)) {
     http_response_code(400);
-    bookingplus_render_page('Invalid link',
-        '<p>This link is missing or malformed. Please open the link from the email we sent you after booking, or reply to that email directly.</p>');
+    bookingplus_render_page(__('booking_msg_invalid_link_title', 'Invalid link'),
+        '<p>' . e(__('booking_msg_invalid_link_body', 'This link is missing or malformed. Please open the link from the email we sent you after booking, or reply to that email directly.')) . '</p>');
     exit;
 }
 
@@ -56,8 +56,8 @@ if ($appt !== null && strtotime((string) $appt['starts_at']) < slate_db_time() -
 
 if (!$appt) {
     http_response_code(404);
-    bookingplus_render_page('Booking not found',
-        '<p>We couldn\'t find a booking for that link. If your session has already passed, please just reply to the confirmation email instead.</p>');
+    bookingplus_render_page(__('booking_msg_booking_not_found_title', 'Booking not found'),
+        '<p>' . e(__('booking_msg_booking_not_found_body', 'We couldn\'t find a booking for that link. If your session has already passed, please just reply to the confirmation email instead.')) . '</p>');
     exit;
 }
 
@@ -65,13 +65,13 @@ if (!$appt) {
 $flash = null;
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit'])) {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed. Please try again.'];
+        $flash = ['type' => 'error', 'msg' => __('booking_security_check_failed_retry', 'Security check failed. Please try again.')];
     } else {
         $message = trim((string)($_POST['message'] ?? ''));
         if ($message === '') {
-            $flash = ['type' => 'error', 'msg' => 'Please write a message before sending.'];
+            $flash = ['type' => 'error', 'msg' => __('booking_msg_write_before_sending', 'Please write a message before sending.')];
         } elseif (mb_strlen($message) > 5000) {
-            $flash = ['type' => 'error', 'msg' => 'Message is a little long — please shorten it to 5000 characters.'];
+            $flash = ['type' => 'error', 'msg' => __('booking_msg_too_long', 'Message is a little long — please shorten it to 5000 characters.')];
         } else {
             try {
                 // CORE-1: DB clock — therapist_notified_at is compared
@@ -93,11 +93,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit'])) {
                         'icon' => 'message-circle',
                     ]);
                 }
-                $flash = ['type' => 'success', 'msg' => 'Sent — thank you. I\'ll get back to you within '
-                       . BookingPlusAPI::globalNudgeHours() . ' hours.'];
+                $flash = ['type' => 'success', 'msg' => sprintf(
+                    __('booking_msg_sent_success_fmt', 'Sent — thank you. I\'ll get back to you within %s hours.'),
+                    BookingPlusAPI::globalNudgeHours()
+                )];
             } catch (\Throwable $e) {
                 slate_log('BookingPlus message submit failed: ' . $e->getMessage(), 'error');
-                $flash = ['type' => 'error', 'msg' => 'Something went wrong on our end. Please try again in a moment, or reply to the confirmation email.'];
+                $flash = ['type' => 'error', 'msg' => __('booking_msg_send_failed', 'Something went wrong on our end. Please try again in a moment, or reply to the confirmation email.')];
             }
         }
     }
@@ -115,10 +117,10 @@ $whenStr = I18n::localDate('l, j F Y, H:i', strtotime($appt['starts_at']));
 ob_start(); ?>
 <div class="bp-card">
     <div class="bp-hero">
-        <div class="bp-eyebrow">Your booking</div>
-        <h1><?= e($appt['service_name']) ?></h1>
-        <p class="bp-meta"><?= e($whenStr) ?> · with <?= e($appt['provider_name']) ?></p>
-        <p class="bp-meta">Reference <code><?= e($appt['ref']) ?></code></p>
+        <div class="bp-eyebrow"><?= e(__('booking_your_booking_title', 'Your booking')) ?></div>
+        <h1><?= e(bookingplus_message_service_name($appt)) ?></h1>
+        <p class="bp-meta"><?= e($whenStr) ?> · <?= e(__('booking_msg_with', 'with')) ?> <?= e($appt['provider_name']) ?></p>
+        <p class="bp-meta"><?= e(__('booking_reference_label', 'Reference')) ?> <code><?= e($appt['ref']) ?></code></p>
     </div>
 
     <?php if ($flash): ?>
@@ -129,11 +131,11 @@ ob_start(); ?>
 
     <?php if ($alreadyReplied): ?>
         <div class="bp-alert bp-alert-info">
-            Your message has already been received and replied to. If you have more to add, please reply to that email.
+            <?= e(__('booking_msg_already_replied', 'Your message has already been received and replied to. If you have more to add, please reply to that email.')) ?>
         </div>
     <?php elseif ($alreadySent && ($flash['type'] ?? '') !== 'success'): ?>
         <p class="bp-note">
-            You already sent me a message for this session. If you'd like to add more, feel free to send another below.
+            <?= e(__('booking_msg_already_sent', 'You already sent me a message for this session. If you\'d like to add more, feel free to send another below.')) ?>
         </p>
     <?php endif; ?>
 
@@ -143,29 +145,43 @@ ob_start(); ?>
             <input type="hidden" name="t" value="<?= e($token) ?>">
             <input type="hidden" name="submit" value="1">
 
-            <label for="message" class="bp-label">Anything you'd like me to know before we meet?</label>
-            <p class="bp-hint">Optional — a few sentences about what brings you here, questions, concerns. I read every one.</p>
+            <label for="message" class="bp-label"><?= e(__('booking_msg_label', 'Anything you\'d like me to know before we meet?')) ?></label>
+            <p class="bp-hint"><?= e(__('booking_msg_hint', 'Optional — a few sentences about what brings you here, questions, concerns. I read every one.')) ?></p>
 
             <textarea id="message" name="message" rows="8" required maxlength="5000"
-                      placeholder="Type here…"><?= e((string)($_POST['message'] ?? '')) ?></textarea>
+                      placeholder="<?= e(__('booking_msg_placeholder', 'Type here…')) ?>"><?= e((string)($_POST['message'] ?? '')) ?></textarea>
 
             <div class="bp-actions">
-                <button type="submit" class="bp-btn bp-btn-primary">Send message</button>
+                <button type="submit" class="bp-btn bp-btn-primary"><?= e(__('help_send_message', 'Send message')) ?></button>
             </div>
         </form>
     <?php else: ?>
         <div class="bp-actions" style="margin-top:1.5rem;">
-            <a href="<?= e(SLATE_URL) ?>" class="bp-btn bp-btn-ghost">Back to the site</a>
+            <a href="<?= e(SLATE_URL) ?>" class="bp-btn bp-btn-ghost"><?= e(__('booking_back_to_site', 'Back to the site')) ?></a>
         </div>
     <?php endif; ?>
 </div>
 
 <?php
 $html = ob_get_clean();
-bookingplus_render_page('A message about your booking', $html);
+bookingplus_render_page(__('booking_msg_page_title', 'A message about your booking'), $html);
 
 
 // ── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Locale-aware service name for the visitor-facing display on this page.
+ * Same fix as bookpub_service_name() in router.php: this page must show
+ * the service name in the browsing visitor's own locale, not a fixed
+ * admin locale. findByManageToken() already selects s.name_fr AS
+ * service_name_fr, so no query change is needed here.
+ */
+function bookingplus_message_service_name(array $appt): string {
+    return BookingAPI::serviceName([
+        'name'    => $appt['service_name'] ?? '',
+        'name_fr' => $appt['service_name_fr'] ?? null,
+    ]);
+}
 
 function bookingplus_notify_therapist(array $appt, string $message): void {
     $siteName = Database::setting('site_name') ?: 'Kohevo';

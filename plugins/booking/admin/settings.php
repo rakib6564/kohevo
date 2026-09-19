@@ -11,13 +11,13 @@ Auth::require();
 Auth::requirePerm('booking.manage_settings');
 BookingAPI::ensureSchema();
 
-$pageTitle  = 'Booking settings';
+$pageTitle  = __('booking_settings', 'Booking settings');
 $currentNav = 'booking-settings';
 
 $flash = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         // Normalise reminder leads to a clean CSV of positive minutes.
         $leads = [];
@@ -43,6 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         Database::setSetting('booking.show_gift_card',  !empty($_POST['show_gift_card']) ? '1' : '0');
         Database::setSetting('booking.show_repeat',     !empty($_POST['show_repeat'])    ? '1' : '0');
         Database::setSetting('booking.show_capacity',   !empty($_POST['show_capacity'])  ? '1' : '0');
+
+        // Skip the provider-selection step when a service has exactly one
+        // assigned provider — there's no real choice to make. Off by
+        // default since it changes existing behaviour (see
+        // multislot_enabled below for the same off-by-default idiom).
+        Database::setSetting('booking.auto_skip_single_provider', !empty($_POST['auto_skip_single_provider']) ? '1' : '0');
 
         // Multi-slot booking — lets a customer add several distinct
         // date/time picks (any dates, not necessarily weekly-spaced) to one
@@ -94,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         Hook::doAction('booking_settings_save', $_POST);
 
         AuditLog::record('booking.settings_updated', 'booking');
-        $flash = ['type' => 'success', 'msg' => 'Settings saved.'];
+        $flash = ['type' => 'success', 'msg' => __('settings_saved', 'Settings saved.')];
     }
 }
 
@@ -110,10 +116,10 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
     ['label' => __('booking', 'Booking'), 'href' => plugin_url('booking', 'admin/index.php')],
-    ['label' => 'Settings'],
+    ['label' => __('settings', 'Settings')],
 ]); ?>
 
-<div class="page-header"><div><h1>Booking settings</h1></div></div>
+<div class="page-header"><div><h1><?= __('booking_settings', 'Booking settings') ?></h1></div></div>
 
 <?php if ($flash): ?><div class="alert alert-<?= e($flash['type']) ?>"><?= e($flash['msg']) ?></div><?php endif; ?>
 
@@ -121,15 +127,15 @@ require SLATE_ROOT . '/admin/partials/header.php';
     <?= csrf_field() ?>
 
     <div class="card">
-        <div class="card-header"><h2>Booking widget</h2></div>
-        <p class="text-sm text-muted">Show or hide optional sections on the public booking form's confirm step.</p>
+        <div class="card-header"><h2><?= __('booking_settings_widget_title', 'Booking widget') ?></h2></div>
+        <p class="text-sm text-muted"><?= __('booking_settings_widget_desc', "Show or hide optional sections on the public booking form's confirm step.") ?></p>
         <div class="field">
             <label class="switch-label">
                 <span class="switch">
                     <input type="checkbox" name="show_coupon" value="1" <?= $g('show_coupon', '1') !== '0' ? 'checked' : '' ?>>
                     <span class="switch-track"></span>
                 </span>
-                <span>Show <strong>coupon code</strong> field</span>
+                <span><?= __('booking_settings_show_coupon_field', 'Show <strong>coupon code</strong> field') ?></span>
             </label>
         </div>
         <div class="field">
@@ -138,7 +144,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <input type="checkbox" name="show_gift_card" value="1" <?= $g('show_gift_card', '1') !== '0' ? 'checked' : '' ?>>
                     <span class="switch-track"></span>
                 </span>
-                <span>Show <strong>gift card</strong> field</span>
+                <span><?= __('booking_settings_show_gift_card_field', 'Show <strong>gift card</strong> field') ?></span>
             </label>
         </div>
         <div class="field">
@@ -147,9 +153,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <input type="checkbox" name="show_repeat" value="1" <?= $g('show_repeat', '1') !== '0' ? 'checked' : '' ?>>
                     <span class="switch-track"></span>
                 </span>
-                <span>Show <strong>Repeat</strong> (weekly recurring) options</span>
+                <span><?= __('booking_settings_show_repeat_field', 'Show <strong>Repeat</strong> (weekly recurring) options') ?></span>
             </label>
-            <div class="field-hint">When off, every booking is one-time.</div>
+            <div class="field-hint"><?= __('booking_settings_repeat_hint', 'When off, every booking is one-time.') ?></div>
         </div>
         <div class="field">
             <label class="switch-label">
@@ -157,65 +163,75 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <input type="checkbox" name="show_capacity" value="1" <?= $g('show_capacity', '1') !== '0' ? 'checked' : '' ?>>
                     <span class="switch-track"></span>
                 </span>
-                <span>Show <strong>spots left</strong> on each time slot</span>
+                <span><?= __('booking_settings_show_capacity_field', 'Show <strong>spots left</strong> on each time slot') ?></span>
             </label>
-            <div class="field-hint">Only shown for services with a group capacity above 1 — e.g. "3 spots left".</div>
+            <div class="field-hint"><?= __('booking_settings_capacity_hint', 'Only shown for services with a group capacity above 1 — e.g. "3 spots left".') ?></div>
+        </div>
+        <div class="field">
+            <label class="switch-label">
+                <span class="switch">
+                    <input type="checkbox" name="auto_skip_single_provider" value="1" <?= $g('auto_skip_single_provider', '0') !== '0' ? 'checked' : '' ?>>
+                    <span class="switch-track"></span>
+                </span>
+                <span><?= __('booking_settings_auto_skip_single_provider_field', 'Skip the <strong>provider selection</strong> step when a service has only one provider') ?></span>
+            </label>
+            <div class="field-hint"><?= __('booking_settings_auto_skip_single_provider_hint', 'When on, and a service has exactly one assigned provider, the customer goes straight from service selection to date/time.') ?></div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>Multi-slot booking</h2></div>
-        <p class="text-sm text-muted">Let a customer pick several different times — any dates, not just the same day each week — and submit them together as one booking, instead of repeating the whole flow per appointment.</p>
+        <div class="card-header"><h2><?= __('booking_settings_multislot_title', 'Multi-slot booking') ?></h2></div>
+        <p class="text-sm text-muted"><?= __('booking_settings_multislot_desc', 'Let a customer pick several different times — any dates, not just the same day each week — and submit them together as one booking, instead of repeating the whole flow per appointment.') ?></p>
         <div class="field">
             <label class="switch-label">
                 <span class="switch">
                     <input type="checkbox" name="multislot_enabled" value="1" <?= $g('multislot_enabled', '0') !== '0' ? 'checked' : '' ?>>
                     <span class="switch-track"></span>
                 </span>
-                <span>Allow customers to <strong>select multiple times</strong> in one booking</span>
+                <span><?= __('booking_settings_multislot_allow', 'Allow customers to <strong>select multiple times</strong> in one booking') ?></span>
             </label>
-            <div class="field-hint">When on, tapping a time on the public widget adds it to a running list instead of continuing right away — the customer reviews their picks and confirms them all at once.</div>
+            <div class="field-hint"><?= __('booking_settings_multislot_hint', 'When on, tapping a time on the public widget adds it to a running list instead of continuing right away — the customer reviews their picks and confirms them all at once.') ?></div>
         </div>
         <div class="field" style="max-width:220px;">
-            <label class="field-label" for="multislot_max">Maximum times per booking</label>
+            <label class="field-label" for="multislot_max"><?= __('booking_settings_multislot_max_label', 'Maximum times per booking') ?></label>
             <input type="number" id="multislot_max" name="multislot_max" min="2" max="20"
                    value="<?= (int)$g('multislot_max', '4') ?>">
-            <div class="field-hint">Enforced on submission regardless of what the widget shows.</div>
+            <div class="field-hint"><?= __('booking_settings_multislot_max_hint', 'Enforced on submission regardless of what the widget shows.') ?></div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>Booking confirmations</h2></div>
-        <p class="text-sm text-muted">A booking that needs online payment always confirms once payment succeeds, same as today. This setting controls the other case — a free or on-site booking, which currently confirms itself the instant it's submitted.</p>
+        <div class="card-header"><h2><?= __('booking_settings_confirmations_title', 'Booking confirmations') ?></h2></div>
+        <p class="text-sm text-muted"><?= __('booking_settings_confirmations_desc', "A booking that needs online payment always confirms once payment succeeds, same as today. This setting controls the other case — a free or on-site booking, which currently confirms itself the instant it's submitted.") ?></p>
         <div class="field">
             <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
                 <input type="radio" name="confirmation_mode" value="auto" <?= $g('confirmation_mode', 'auto') !== 'manual' ? 'checked' : '' ?> style="margin-top:3px;">
-                <span><strong>Auto-confirm</strong> — a booking that doesn't need payment is confirmed immediately (current behaviour).</span>
+                <span><?= __('booking_settings_confirm_auto_label', "<strong>Auto-confirm</strong> — a booking that doesn't need payment is confirmed immediately (current behaviour).") ?></span>
             </label>
         </div>
         <div class="field">
             <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
                 <input type="radio" name="confirmation_mode" value="manual" <?= $g('confirmation_mode', 'auto') === 'manual' ? 'checked' : '' ?> style="margin-top:3px;">
-                <span><strong>Require manual approval</strong> — it's held as "Awaiting approval" and the slot stays reserved until a staff member approves or declines it from the appointment page. The customer is emailed either way.</span>
+                <span><?= __('booking_settings_confirm_manual_label', '<strong>Require manual approval</strong> — it\'s held as "Awaiting approval" and the slot stays reserved until a staff member approves or declines it from the appointment page. The customer is emailed either way.') ?></span>
             </label>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>Customer self-service</h2></div>
-        <p class="text-sm text-muted">Controls what a customer can do themselves from their booking-confirmation "manage" link, without contacting you. Staff changes made from the admin are never affected by these settings.</p>
+        <div class="card-header"><h2><?= __('booking_settings_self_service_title', 'Customer self-service') ?></h2></div>
+        <p class="text-sm text-muted"><?= __('booking_settings_self_service_desc', 'Controls what a customer can do themselves from their booking-confirmation "manage" link, without contacting you. Staff changes made from the admin are never affected by these settings.') ?></p>
 
         <div class="field-row field-row-2">
             <div class="field" style="display:flex;align-items:flex-end;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="checkbox" name="self_cancel_enabled" value="1" <?= $g('self_cancel_enabled', '1') !== '0' ? 'checked' : '' ?>>
-                    <span>Allow customers to cancel online</span>
+                    <span><?= __('booking_settings_self_cancel_label', 'Allow customers to cancel online') ?></span>
                 </label>
             </div>
             <div class="field">
-                <label class="field-label" for="cancel_min_notice_hours">Minimum notice to cancel (hours)</label>
+                <label class="field-label" for="cancel_min_notice_hours"><?= __('booking_settings_cancel_notice_label', 'Minimum notice to cancel (hours)') ?></label>
                 <input type="number" id="cancel_min_notice_hours" name="cancel_min_notice_hours" min="0" step="1" value="<?= e($g('cancel_min_notice_hours', '0')) ?>">
-                <div class="field-hint">0 = no minimum. e.g. 24 = 1 day before, 48 = 2 days before.</div>
+                <div class="field-hint"><?= __('booking_settings_cancel_notice_hint', '0 = no minimum. e.g. 24 = 1 day before, 48 = 2 days before.') ?></div>
             </div>
         </div>
 
@@ -223,93 +239,93 @@ require SLATE_ROOT . '/admin/partials/header.php';
             <div class="field" style="display:flex;align-items:flex-end;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="checkbox" name="self_reschedule_enabled" value="1" <?= $g('self_reschedule_enabled', '1') !== '0' ? 'checked' : '' ?>>
-                    <span>Allow customers to reschedule online</span>
+                    <span><?= __('booking_settings_self_reschedule_label', 'Allow customers to reschedule online') ?></span>
                 </label>
             </div>
             <div class="field">
-                <label class="field-label" for="reschedule_min_notice_hours">Minimum notice to reschedule (hours)</label>
+                <label class="field-label" for="reschedule_min_notice_hours"><?= __('booking_settings_reschedule_notice_label', 'Minimum notice to reschedule (hours)') ?></label>
                 <input type="number" id="reschedule_min_notice_hours" name="reschedule_min_notice_hours" min="0" step="1" value="<?= e($g('reschedule_min_notice_hours', '0')) ?>">
-                <div class="field-hint">0 = no minimum.</div>
+                <div class="field-hint"><?= __('booking_settings_reschedule_notice_hint', '0 = no minimum.') ?></div>
             </div>
         </div>
 
         <div class="field">
-            <label class="field-label" for="max_reschedules">Maximum self-reschedules per booking</label>
+            <label class="field-label" for="max_reschedules"><?= __('booking_settings_max_reschedules_label', 'Maximum self-reschedules per booking') ?></label>
             <input type="number" id="max_reschedules" name="max_reschedules" min="0" step="1" value="<?= e($g('max_reschedules', '0')) ?>" style="max-width:160px;">
-            <div class="field-hint">0 = unlimited. Once a booking hits this count, the customer is told to contact you directly to move it again.</div>
+            <div class="field-hint"><?= __('booking_settings_max_reschedules_hint', '0 = unlimited. Once a booking hits this count, the customer is told to contact you directly to move it again.') ?></div>
         </div>
 
-        <div class="field-hint" style="margin-top:4px;">A booking that's already been cancelled, completed, marked no-show, or has already started can never be changed online, regardless of these settings.</div>
+        <div class="field-hint" style="margin-top:4px;"><?= __('booking_settings_no_change_hint', "A booking that's already been cancelled, completed, marked no-show, or has already started can never be changed online, regardless of these settings.") ?></div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>Reminders &amp; follow-ups</h2></div>
+        <div class="card-header"><h2><?= __('booking_settings_reminders_title', 'Reminders &amp; follow-ups') ?></h2></div>
         <div class="field">
-            <label class="field-label" for="reminder_leads">Reminder lead times (minutes, comma-separated)</label>
+            <label class="field-label" for="reminder_leads"><?= __('booking_settings_reminder_leads_label', 'Reminder lead times (minutes, comma-separated)') ?></label>
             <input type="text" id="reminder_leads" name="reminder_leads" value="<?= e($g('reminder_leads', '1440,60')) ?>" placeholder="1440,60">
-            <div class="field-hint">e.g. <code>1440,60</code> = 24 hours and 1 hour before. Sent by email (and SMS/WhatsApp if enabled).</div>
+            <div class="field-hint"><?= __('booking_settings_reminder_leads_hint', 'e.g. <code>1440,60</code> = 24 hours and 1 hour before. Sent by email (and SMS/WhatsApp if enabled).') ?></div>
         </div>
         <div class="field-row field-row-2">
             <div class="field" style="display:flex;align-items:flex-end;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="checkbox" name="followup_enabled" value="1" <?= $g('followup_enabled') === '1' ? 'checked' : '' ?>>
-                    <span>Send a follow-up / feedback email after the appointment</span>
+                    <span><?= __('booking_settings_followup_label', 'Send a follow-up / feedback email after the appointment') ?></span>
                 </label>
             </div>
             <div class="field">
-                <label class="field-label" for="followup_delay_hours">Follow-up delay (hours after end)</label>
+                <label class="field-label" for="followup_delay_hours"><?= __('booking_settings_followup_delay_label', 'Follow-up delay (hours after end)') ?></label>
                 <input type="number" id="followup_delay_hours" name="followup_delay_hours" min="1" step="1" value="<?= e($g('followup_delay_hours', '24')) ?>">
             </div>
         </div>
         <div class="field">
-            <label class="field-label" for="loyalty_points_per_booking">Loyalty points per completed appointment</label>
+            <label class="field-label" for="loyalty_points_per_booking"><?= __('booking_settings_loyalty_label', 'Loyalty points per completed appointment') ?></label>
             <input type="number" id="loyalty_points_per_booking" name="loyalty_points_per_booking" min="0" step="1" value="<?= e($g('loyalty_points_per_booking', '0')) ?>">
-            <div class="field-hint">Awarded automatically when an appointment is marked completed. 0 disables loyalty.</div>
+            <div class="field-hint"><?= __('booking_settings_loyalty_hint', 'Awarded automatically when an appointment is marked completed. 0 disables loyalty.') ?></div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>SMS &amp; WhatsApp (Twilio)</h2></div>
-        <p class="text-sm text-muted">Customers with a phone number receive text/WhatsApp confirmations and reminders when enabled.</p>
+        <div class="card-header"><h2><?= __('booking_settings_sms_whatsapp_title', 'SMS &amp; WhatsApp (Twilio)') ?></h2></div>
+        <p class="text-sm text-muted"><?= __('booking_settings_twilio_desc', 'Customers with a phone number receive text/WhatsApp confirmations and reminders when enabled.') ?></p>
         <div class="field-row field-row-2">
             <div class="field" style="display:flex;align-items:flex-end;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="checkbox" name="sms_enabled" value="1" <?= $g('sms_enabled') === '1' ? 'checked' : '' ?>>
-                    <span>Enable SMS reminders</span>
+                    <span><?= __('booking_settings_sms_enable_label', 'Enable SMS reminders') ?></span>
                 </label>
             </div>
             <div class="field" style="display:flex;align-items:flex-end;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="checkbox" name="whatsapp_enabled" value="1" <?= $g('whatsapp_enabled') === '1' ? 'checked' : '' ?>>
-                    <span>Enable WhatsApp messages</span>
+                    <span><?= __('booking_settings_whatsapp_enable_label', 'Enable WhatsApp messages') ?></span>
                 </label>
             </div>
         </div>
         <div class="field-row field-row-2">
             <div class="field">
-                <label class="field-label" for="twilio_sid">Twilio Account SID</label>
+                <label class="field-label" for="twilio_sid"><?= __('booking_settings_twilio_sid_label', 'Twilio Account SID') ?></label>
                 <input type="text" id="twilio_sid" name="twilio_sid" value="<?= e($g('twilio_sid')) ?>" autocomplete="off">
             </div>
             <div class="field">
-                <label class="field-label" for="twilio_token">Auth Token <?php if ($hasToken): ?><span class="text-muted text-xs">(set — leave blank to keep)</span><?php endif; ?></label>
+                <label class="field-label" for="twilio_token"><?= __('booking_settings_twilio_token_label', 'Auth Token') ?> <?php if ($hasToken): ?><span class="text-muted text-xs"><?= __('booking_settings_secret_set_hint', '(set — leave blank to keep)') ?></span><?php endif; ?></label>
                 <input type="password" id="twilio_token" name="twilio_token" value="" autocomplete="new-password" placeholder="<?= $hasToken ? '••••••••' : '' ?>">
             </div>
         </div>
         <div class="field-row field-row-2">
             <div class="field">
-                <label class="field-label" for="twilio_sms_from">SMS sender (E.164)</label>
+                <label class="field-label" for="twilio_sms_from"><?= __('booking_settings_sms_sender_label', 'SMS sender (E.164)') ?></label>
                 <input type="text" id="twilio_sms_from" name="twilio_sms_from" value="<?= e($g('twilio_sms_from')) ?>" placeholder="+15555550123">
             </div>
             <div class="field">
-                <label class="field-label" for="twilio_whatsapp_from">WhatsApp sender</label>
+                <label class="field-label" for="twilio_whatsapp_from"><?= __('booking_settings_whatsapp_sender_label', 'WhatsApp sender') ?></label>
                 <input type="text" id="twilio_whatsapp_from" name="twilio_whatsapp_from" value="<?= e($g('twilio_whatsapp_from')) ?>" placeholder="+15555550123">
             </div>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header"><h2>Google Calendar (2-way sync)</h2></div>
-        <p class="text-sm text-muted">Each provider connects their own Google Calendar from their profile (Providers → edit → Google Calendar). Once connected, bookings push to their calendar automatically, and events they create or change directly in Google — including time blocked off for other things — flow back into Slate so double-booking is avoided.</p>
+        <div class="card-header"><h2><?= __('booking_settings_gcal_title', 'Google Calendar (2-way sync)') ?></h2></div>
+        <p class="text-sm text-muted"><?= __('booking_settings_gcal_desc', 'Each provider connects their own Google Calendar from their profile (Providers → edit → Google Calendar). Once connected, bookings push to their calendar automatically, and events they create or change directly in Google — including time blocked off for other things — flow back into Slate so double-booking is avoided.') ?></p>
 
         <div class="field">
             <label class="switch-label">
@@ -317,39 +333,39 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     <input type="checkbox" name="google_enabled" value="1" <?= $g('google_enabled') === '1' ? 'checked' : '' ?>>
                     <span class="switch-track"></span>
                 </span>
-                <span>Enable Google Calendar sync</span>
+                <span><?= __('booking_settings_gcal_enable_label', 'Enable Google Calendar sync') ?></span>
             </label>
         </div>
 
         <div class="field-row field-row-2">
             <div class="field">
-                <label class="field-label" for="google_client_id">OAuth Client ID</label>
+                <label class="field-label" for="google_client_id"><?= __('booking_settings_gcal_client_id_label', 'OAuth Client ID') ?></label>
                 <input type="text" id="google_client_id" name="google_client_id" value="<?= e($g('google_client_id')) ?>" autocomplete="off" placeholder="xxxxx.apps.googleusercontent.com">
             </div>
             <div class="field">
-                <label class="field-label" for="google_client_secret">OAuth Client Secret <?php if ($hasGoogleSecret): ?><span class="text-muted text-xs">(set — leave blank to keep)</span><?php endif; ?></label>
+                <label class="field-label" for="google_client_secret"><?= __('booking_settings_gcal_client_secret_label', 'OAuth Client Secret') ?> <?php if ($hasGoogleSecret): ?><span class="text-muted text-xs"><?= __('booking_settings_secret_set_hint', '(set — leave blank to keep)') ?></span><?php endif; ?></label>
                 <input type="password" id="google_client_secret" name="google_client_secret" value="" autocomplete="new-password" placeholder="<?= $hasGoogleSecret ? '••••••••' : '' ?>">
             </div>
         </div>
 
         <div class="field">
-            <label class="field-label">Authorized redirect URI</label>
+            <label class="field-label"><?= __('booking_settings_gcal_redirect_label', 'Authorized redirect URI') ?></label>
             <input type="text" readonly value="<?= e($googleRedirectUri) ?>" onclick="this.select()" style="font-family:monospace;font-size:12.5px;">
-            <div class="field-hint">Add this exact URL under "Authorized redirect URIs" for your OAuth client in the Google Cloud Console.</div>
+            <div class="field-hint"><?= __('booking_settings_gcal_redirect_hint', 'Add this exact URL under "Authorized redirect URIs" for your OAuth client in the Google Cloud Console.') ?></div>
         </div>
         <div class="field">
-            <label class="field-label">Push-notification webhook URL</label>
+            <label class="field-label"><?= __('booking_settings_gcal_webhook_label', 'Push-notification webhook URL') ?></label>
             <input type="text" readonly value="<?= e($googleWebhookUrl) ?>" onclick="this.select()" style="font-family:monospace;font-size:12.5px;">
-            <div class="field-hint">Registered automatically per provider once connected — nothing to configure here. Requires a public HTTPS domain; on a local/HTTP install, sync still runs on the regular cron schedule instead of instantly.</div>
+            <div class="field-hint"><?= __('booking_settings_gcal_webhook_hint', 'Registered automatically per provider once connected — nothing to configure here. Requires a public HTTPS domain; on a local/HTTP install, sync still runs on the regular cron schedule instead of instantly.') ?></div>
         </div>
 
         <div class="field-hint">
-            Setup: create a project in the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>, enable the <strong>Google Calendar API</strong>, create an OAuth 2.0 Client ID (type: Web application) with the redirect URI above, and paste its Client ID/Secret here. Then open each provider's profile to connect their calendar.
+            <?= __('booking_settings_gcal_setup_hint', 'Setup: create a project in the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>, enable the <strong>Google Calendar API</strong>, create an OAuth 2.0 Client ID (type: Web application) with the redirect URI above, and paste its Client ID/Secret here. Then open each provider\'s profile to connect their calendar.') ?>
         </div>
     </div>
 
     <div class="flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">Save settings</button>
+        <button type="submit" class="btn btn-primary"><?= __('booking_settings_save_button', 'Save settings') ?></button>
     </div>
 <?= Hook::applyFilters('booking_settings_cards', '') ?>
 
@@ -367,14 +383,18 @@ $gLastSync = (string) Database::setting('booking.google_last_cron_at');
 ?>
 <?php if ($g('google_enabled') === '1'): ?>
 <div class="card">
-    <div class="card-header"><h2>Sync status</h2></div>
+    <div class="card-header"><h2><?= __('booking_settings_sync_status_title', 'Sync status') ?></h2></div>
     <p class="text-sm text-muted">
-        <?= $gConnectedCount ?> provider<?= $gConnectedCount === 1 ? '' : 's' ?> connected.
-        <?= $gLastSync !== '' ? 'Last automatic sync: ' . e(I18n::localDate('M j, Y H:i', strtotime($gLastSync))) . ' UTC.' : 'No automatic sync has run yet — it runs on the site\'s regular cron schedule.' ?>
+        <?= $gConnectedCount === 1
+            ? sprintf(__('booking_settings_providers_connected_one', '%d provider connected.'), $gConnectedCount)
+            : sprintf(__('booking_settings_providers_connected_other', '%d providers connected.'), $gConnectedCount) ?>
+        <?= $gLastSync !== ''
+            ? sprintf(__('booking_settings_last_sync_fmt', 'Last automatic sync: %s UTC.'), e(I18n::localDate('M j, Y H:i', strtotime($gLastSync))))
+            : __('booking_settings_no_sync_yet', "No automatic sync has run yet — it runs on the site's regular cron schedule.") ?>
     </p>
     <form method="post" action="<?= e(SLATE_URL) ?>/plugins/booking/admin/gcal-sync-now.php">
         <?= csrf_field() ?>
-        <button type="submit" class="btn btn-sm">Sync now</button>
+        <button type="submit" class="btn btn-sm"><?= __('booking_settings_sync_now_button', 'Sync now') ?></button>
     </form>
 </div>
 <?php endif; ?>

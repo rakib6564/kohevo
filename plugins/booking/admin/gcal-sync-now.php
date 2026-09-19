@@ -12,11 +12,11 @@ Auth::requirePerm('booking.manage_settings');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    exit('Method not allowed.');
+    exit(__('booking_method_not_allowed', 'Method not allowed.'));
 }
 
 if (!csrf_verify()) {
-    header('Location: ' . plugin_url('booking', 'admin/settings.php') . '?gcal_error=' . urlencode('Security check failed.'));
+    header('Location: ' . plugin_url('booking', 'admin/settings.php') . '?gcal_error=' . urlencode(__('csrf_failed', 'Security check failed.')));
     exit;
 }
 
