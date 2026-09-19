@@ -28,7 +28,7 @@ Auth::requirePerm('stripe.manage_settings');
 
 require_once dirname(__DIR__) . '/StripeAPI.php';
 
-$pageTitle  = 'Stripe Payment Settings';
+$pageTitle  = __('stripe_settings_page_title', 'Stripe Payment Settings');
 $currentNav = 'shop-stripe';
 
 $flash = null;
@@ -40,10 +40,10 @@ $flash = null;
  */
 function stripe_verify_secret(string $secret): array {
     if ($secret === '') {
-        return ['ok' => false, 'error' => 'Secret key is empty.'];
+        return ['ok' => false, 'error' => __('stripe_settings_secret_key_empty', 'Secret key is empty.')];
     }
     if (!function_exists('curl_init')) {
-        return ['ok' => false, 'error' => 'PHP cURL extension is not available.'];
+        return ['ok' => false, 'error' => __('stripe_settings_curl_unavailable', 'PHP cURL extension is not available.')];
     }
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -59,7 +59,7 @@ function stripe_verify_secret(string $secret): array {
     curl_close($ch);
 
     if ($body === false) {
-        return ['ok' => false, 'error' => 'Could not reach Stripe: ' . $err];
+        return ['ok' => false, 'error' => sprintf(__('stripe_settings_could_not_reach', 'Could not reach Stripe: %s'), $err)];
     }
     $data = json_decode((string)$body, true);
     if ($code === 200 && is_array($data) && isset($data['livemode'])) {
@@ -76,7 +76,7 @@ function stripe_verify_secret(string $secret): array {
         ];
     }
     $msg = $data['error']['message'] ?? "HTTP $code";
-    return ['ok' => false, 'error' => 'Stripe rejected the key: ' . $msg];
+    return ['ok' => false, 'error' => sprintf(__('stripe_settings_key_rejected', 'Stripe rejected the key: %s'), $msg)];
 }
 
 /**
@@ -99,7 +99,7 @@ function stripe_key_account_marker(string $key): string {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } elseif (($_POST['_action'] ?? '') === 'test_connection') {
         // Manual "Run test" button — preserved for backward compat /
         // re-test of the saved key without changing it.
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result['ok']) {
             $upper = strtoupper($result['mode']);
             $flash = ['type' => 'success',
-                'msg' => "Connection successful. Stripe is responding in $upper mode (account: {$result['account_id']})."];
+                'msg' => sprintf(__('stripe_settings_connection_successful', 'Connection successful. Stripe is responding in %s mode (account: %s).'), $upper, $result['account_id'])];
             // Refresh the cache
             Database::setSetting('stripe-payment.verified_at', slate_db_now());
             Database::setSetting('stripe-payment.verified_account', $result['account_id']);
@@ -122,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   'verified_at', 'verified_account', 'verified_mode'] as $k) {
             Database::setSetting('stripe-payment.' . $k, '');
         }
-        $flash = ['type' => 'success', 'msg' => 'Stripe keys cleared.'];
+        $flash = ['type' => 'success', 'msg' => __('stripe_settings_keys_cleared', 'Stripe keys cleared.')];
     } else {
         // Standard save. We do a few things in order:
         //   1. Validate the pk/sk look like Stripe keys at all
@@ -167,27 +167,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($keysChanged && ($newPub !== '' || $newSecret !== '')) {
             // Format checks
             if (!preg_match('/^pk_(test|live)_/', $newPub)) {
-                $verifyError = 'Publishable key must start with pk_test_ or pk_live_.';
+                $verifyError = __('stripe_settings_pub_key_format', 'Publishable key must start with pk_test_ or pk_live_.');
             } elseif (!preg_match('/^sk_(test|live)_/', $newSecret)) {
-                $verifyError = 'Secret key must start with sk_test_ or sk_live_.';
+                $verifyError = __('stripe_settings_secret_key_format', 'Secret key must start with sk_test_ or sk_live_.');
             } else {
                 // Mode-prefix match
                 preg_match('/^pk_(test|live)_/', $newPub, $pm);
                 preg_match('/^sk_(test|live)_/', $newSecret, $sm);
                 if ($pm[1] !== $sm[1]) {
-                    $verifyError = 'Mode mismatch: publishable is ' . $pm[1]
-                        . ' mode, secret is ' . $sm[1] . ' mode. They must match.';
+                    $verifyError = sprintf(__('stripe_settings_mode_mismatch_server', 'Mode mismatch: publishable is %s mode, secret is %s mode. They must match.'), $pm[1], $sm[1]);
                 } elseif ($pm[1] !== $newMode) {
-                    $verifyError = 'The Mode dropdown is "' . $newMode . '" but you pasted '
-                        . $pm[1] . '-mode keys. Pick the mode that matches your keys.';
+                    $verifyError = sprintf(__('stripe_settings_mode_dropdown_mismatch', 'The Mode dropdown is "%s" but you pasted %s-mode keys. Pick the mode that matches your keys.'), $newMode, $pm[1]);
                 } else {
                     // Account-marker match
                     $pMark = stripe_key_account_marker($newPub);
                     $sMark = stripe_key_account_marker($newSecret);
                     if ($pMark !== '' && $sMark !== '' && $pMark !== $sMark) {
-                        $verifyError = 'Account mismatch: publishable belongs to '
-                            . $pMark . ', secret belongs to ' . $sMark
-                            . '. Get both keys from the same Stripe dashboard.';
+                        $verifyError = sprintf(__('stripe_settings_account_mismatch_server', 'Account mismatch: publishable belongs to %s, secret belongs to %s. Get both keys from the same Stripe dashboard.'), $pMark, $sMark);
                     } else {
                         // Server-side verification with Stripe itself.
                         $verifyOk = stripe_verify_secret($newSecret);
@@ -263,10 +259,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AuditLog::record('stripe.settings_changed');
             }
 
-            $msg = 'Settings saved.';
+            $msg = __('settings_saved', 'Settings saved.');
             if ($verifyOk !== null) {
-                $msg .= ' Verified ' . strtoupper($verifyOk['mode'])
-                     . ' account ' . $verifyOk['account_id'] . '.';
+                $msg .= sprintf(__('stripe_settings_verified_suffix', ' Verified %s account %s.'), strtoupper($verifyOk['mode']), $verifyOk['account_id']);
             }
             $flash = ['type' => 'success', 'msg' => $msg];
         }
@@ -314,9 +309,9 @@ require $root . '/admin/partials/header.php';
 
 <div class="page-header">
     <div>
-        <h1>Stripe Payment</h1>
+        <h1><?= e(__('stripe_settings_heading', 'Stripe Payment')) ?></h1>
         <p class="page-header-sub">
-            Connect your Stripe account to accept card payments at checkout.
+            <?= e(__('stripe_settings_page_sub', 'Connect your Stripe account to accept card payments at checkout.')) ?>
         </p>
     </div>
 </div>
@@ -329,33 +324,32 @@ require $root . '/admin/partials/header.php';
 <div class="card" style="margin-bottom: 1rem;">
     <?php if ($verifiedAt !== '' && $verifiedAccount !== ''): ?>
         <div class="flex" style="gap: 14px; align-items: center; flex-wrap: wrap;">
-            <span class="badge badge-success" style="font-size: 11.5px;">✓ Connected</span>
+            <span class="badge badge-success" style="font-size: 11.5px;">✓ <?= e(__('stripe_settings_connected', 'Connected')) ?></span>
             <div>
-                <div style="font-weight: 600;">Account: <code><?= e($verifiedAccount) ?></code></div>
+                <div style="font-weight: 600;"><?= e(__('stripe_settings_account_label', 'Account:')) ?> <code><?= e($verifiedAccount) ?></code></div>
                 <div class="text-muted text-sm">
-                    <?= strtoupper(e($verifiedMode)) ?> mode
-                    · last verified <?= e($verifiedAt) ?>
+                    <?= e(sprintf(__('stripe_settings_mode_and_verified', '%s mode · last verified %s'), strtoupper($verifiedMode), $verifiedAt)) ?>
                 </div>
             </div>
             <div style="flex: 1;"></div>
             <form method="post" style="margin: 0;"
-                  onsubmit="return confirm('Re-test the connection with the saved secret key?');">
+                  onsubmit="return confirm('<?= e(__('stripe_settings_confirm_retest', 'Re-test the connection with the saved secret key?')) ?>');">
                 <?= csrf_field() ?>
                 <input type="hidden" name="_action" value="test_connection">
-                <button type="submit" class="btn btn-sm">Re-test</button>
+                <button type="submit" class="btn btn-sm"><?= e(__('stripe_settings_retest', 'Re-test')) ?></button>
             </form>
             <form method="post" style="margin: 0;"
-                  onsubmit="return confirm('Clear ALL Stripe keys? Customers will no longer see Stripe as a payment option until you reconnect.');">
+                  onsubmit="return confirm('<?= e(__('stripe_settings_confirm_clear_keys', 'Clear ALL Stripe keys? Customers will no longer see Stripe as a payment option until you reconnect.')) ?>');">
                 <?= csrf_field() ?>
                 <input type="hidden" name="_action" value="clear_keys">
-                <button type="submit" class="btn btn-sm btn-ghost">Disconnect</button>
+                <button type="submit" class="btn btn-sm btn-ghost"><?= e(__('stripe_settings_disconnect', 'Disconnect')) ?></button>
             </form>
         </div>
     <?php else: ?>
         <div class="flex" style="gap: 14px; align-items: center; flex-wrap: wrap;">
-            <span class="badge badge-warning" style="font-size: 11.5px;">Not connected</span>
+            <span class="badge badge-warning" style="font-size: 11.5px;"><?= e(__('stripe_settings_not_connected', 'Not connected')) ?></span>
             <div class="text-muted text-sm">
-                Paste your Stripe keys below to enable card payments.
+                <?= e(__('stripe_settings_paste_keys_prompt', 'Paste your Stripe keys below to enable card payments.')) ?>
             </div>
         </div>
     <?php endif; ?>
@@ -365,36 +359,32 @@ require $root . '/admin/partials/header.php';
     <div>
         <!-- ────────── Step 1: Open Stripe dashboard ────────── -->
         <div class="card">
-            <div class="card-header"><h2>1 · Get your keys from Stripe</h2></div>
+            <div class="card-header"><h2><?= e(__('stripe_settings_step1_title', '1 · Get your keys from Stripe')) ?></h2></div>
             <p class="text-muted text-sm" style="margin: 0 0 0.75rem;">
-                Open your Stripe dashboard in a new tab, then come back here
-                and paste below. Stay in the same dashboard tab for the
-                whole process — switching between sandboxes or accounts
-                between copying the two keys is the #1 cause of
-                "key mismatch" errors.
+                <?= e(__('stripe_settings_step1_desc', 'Open your Stripe dashboard in a new tab, then come back here and paste below. Stay in the same dashboard tab for the whole process — switching between sandboxes or accounts between copying the two keys is the #1 cause of "key mismatch" errors.')) ?>
             </p>
             <a href="<?= e($dashboardUrl) ?>" target="_blank" rel="noopener"
                class="btn btn-primary">
-                Open Stripe API Keys ↗
+                <?= e(__('stripe_settings_open_dashboard_btn', 'Open Stripe API Keys ↗')) ?>
             </a>
         </div>
 
         <!-- ────────── Step 2: Paste keys ────────── -->
         <div class="card" style="margin-top: 1rem;">
-            <div class="card-header"><h2>2 · Paste both keys</h2></div>
+            <div class="card-header"><h2><?= e(__('stripe_settings_step2_title', '2 · Paste both keys')) ?></h2></div>
             <form method="post" id="stripe-settings-form">
                 <?= csrf_field() ?>
                 <input type="hidden" name="_action" value="save">
 
                 <div class="field">
                     <label class="field-label" for="paste-blob">
-                        Quick paste (optional shortcut)
+                        <?= e(__('stripe_settings_quick_paste_label', 'Quick paste (optional shortcut)')) ?>
                     </label>
                     <textarea id="paste-blob" rows="3"
-                              placeholder="Paste BOTH keys here (publishable and secret, in any order). We'll detect each and fill in the fields below."
+                              placeholder="<?= e(__('stripe_settings_quick_paste_placeholder', "Paste BOTH keys here (publishable and secret, in any order). We'll detect each and fill in the fields below.")) ?>"
                               style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;"></textarea>
                     <div class="field-hint">
-                        You can also fill the two fields below manually if you prefer.
+                        <?= e(__('stripe_settings_quick_paste_hint', 'You can also fill the two fields below manually if you prefer.')) ?>
                     </div>
                 </div>
 
@@ -402,7 +392,7 @@ require $root . '/admin/partials/header.php';
 
                 <div class="field">
                     <label class="field-label" for="publishable_key">
-                        Publishable key <span class="field-required">*</span>
+                        <?= e(__('stripe_settings_pub_key_label', 'Publishable key')) ?> <span class="field-required">*</span>
                         <span id="pub-marker" class="key-marker" hidden></span>
                     </label>
                     <input type="text" id="publishable_key" name="publishable_key"
@@ -415,7 +405,7 @@ require $root . '/admin/partials/header.php';
 
                 <div class="field">
                     <label class="field-label" for="secret_key">
-                        Secret key <span class="field-required">*</span>
+                        <?= e(__('stripe_settings_secret_key_label', 'Secret key')) ?> <span class="field-required">*</span>
                         <span id="sec-marker" class="key-marker" hidden></span>
                     </label>
                     <input type="password" id="secret_key" name="secret_key"
@@ -427,7 +417,7 @@ require $root . '/admin/partials/header.php';
                     <div class="field-hint">
                         <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                             <input type="checkbox" id="show-secret">
-                            Show secret key
+                            <?= e(__('stripe_settings_show_secret_label', 'Show secret key')) ?>
                         </label>
                     </div>
                 </div>
@@ -444,7 +434,7 @@ require $root . '/admin/partials/header.php';
                 <div style="border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem;">
                     <div class="field">
                         <label class="field-label" for="webhook_secret">
-                            Webhook signing secret
+                            <?= e(__('stripe_settings_webhook_secret_label', 'Webhook signing secret')) ?>
                         </label>
                         <input type="password" id="webhook_secret" name="webhook_secret"
                                value="<?= e($webhookSecret) ?>"
@@ -453,16 +443,15 @@ require $root . '/admin/partials/header.php';
                                spellcheck="false"
                                style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;">
                         <div class="field-hint">
-                            From your Stripe dashboard → Developers → Webhooks
-                            → your endpoint → Signing secret.
-                            <a href="#webhook-setup">Setup instructions ↓</a>
+                            <?= e(__('stripe_settings_webhook_secret_hint', 'From your Stripe dashboard → Developers → Webhooks → your endpoint → Signing secret.')) ?>
+                            <a href="#webhook-setup"><?= e(__('stripe_settings_setup_instructions_link', 'Setup instructions ↓')) ?></a>
                         </div>
                     </div>
                 </div>
 
                 <!-- ────────── Step 4: Provider toggles ────────── -->
                 <div style="border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem;">
-                    <label class="field-label">Payment options to show customers</label>
+                    <label class="field-label"><?= e(__('stripe_settings_payment_options_label', 'Payment options to show customers')) ?></label>
                     <div class="field">
                         <label class="switch-label" style="align-items: flex-start;">
                             <span class="switch" style="margin-top: 1px;">
@@ -470,10 +459,9 @@ require $root . '/admin/partials/header.php';
                                 <span class="switch-track"></span>
                             </span>
                             <span>
-                                <strong>Embedded card form</strong> (recommended)
+                                <strong><?= e(__('stripe_settings_embedded_card_label', 'Embedded card form')) ?></strong> <?= e(__('stripe_settings_recommended_suffix', '(recommended)')) ?>
                                 <div class="text-muted text-sm">
-                                    Card / Apple Pay / Google Pay / Link inline on
-                                    the checkout page. Customer never leaves.
+                                    <?= e(__('stripe_settings_embedded_card_desc', 'Card / Apple Pay / Google Pay / Link inline on the checkout page. Customer never leaves.')) ?>
                                 </div>
                             </span>
                         </label>
@@ -485,10 +473,9 @@ require $root . '/admin/partials/header.php';
                                 <span class="switch-track"></span>
                             </span>
                             <span>
-                                <strong>Hosted Stripe Checkout</strong>
+                                <strong><?= e(__('stripe_settings_hosted_checkout_label', 'Hosted Stripe Checkout')) ?></strong>
                                 <div class="text-muted text-sm">
-                                    Redirect to stripe.com to pay. Simpler PCI
-                                    scope; you give up some checkout-page control.
+                                    <?= e(__('stripe_settings_hosted_checkout_desc', 'Redirect to stripe.com to pay. Simpler PCI scope; you give up some checkout-page control.')) ?>
                                 </div>
                             </span>
                         </label>
@@ -497,7 +484,7 @@ require $root . '/admin/partials/header.php';
 
                 <!-- ────────── Booking widget inline payment ────────── -->
                 <div style="border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem;">
-                    <label class="field-label">Booking widget</label>
+                    <label class="field-label"><?= e(__('stripe_settings_booking_widget_label', 'Booking widget')) ?></label>
                     <div class="field">
                         <label class="switch-label" style="align-items: flex-start;">
                             <span class="switch" style="margin-top: 1px;">
@@ -505,20 +492,16 @@ require $root . '/admin/partials/header.php';
                                 <span class="switch-track"></span>
                             </span>
                             <span>
-                                <strong>Inline embedded card payment</strong> (recommended)
+                                <strong><?= e(__('stripe_settings_inline_payment_label', 'Inline embedded card payment')) ?></strong> <?= e(__('stripe_settings_recommended_suffix', '(recommended)')) ?>
                                 <div class="text-muted text-sm">
-                                    Collect deposits/payments on the booking summary
-                                    step inside the <code>/book</code> widget — the
-                                    customer never leaves for stripe.com. When off,
-                                    paid bookings fall back to hosted Stripe Checkout.
+                                    <?= __('stripe_settings_inline_payment_desc', 'Collect deposits/payments on the booking summary step inside the <code>/book</code> widget — the customer never leaves for stripe.com. When off, paid bookings fall back to hosted Stripe Checkout.') ?>
                                 </div>
                             </span>
                         </label>
                     </div>
-                    <label class="field-label" style="margin-top: 0.5rem;">Wallets &amp; express checkout</label>
+                    <label class="field-label" style="margin-top: 0.5rem;"><?= e(__('stripe_settings_wallets_label', 'Wallets & express checkout')) ?></label>
                     <div class="text-muted text-sm" style="margin-bottom: 0.5rem;">
-                        Shown in the inline form when the customer's device/browser
-                        supports them.
+                        <?= e(__('stripe_settings_wallets_desc', "Shown in the inline form when the customer's device/browser supports them.")) ?>
                     </div>
                     <div class="field">
                         <label class="switch-label">
@@ -547,20 +530,15 @@ require $root . '/admin/partials/header.php';
                             <span>
                                 <strong>Link</strong>
                                 <div class="text-muted text-sm">
-                                    Stripe's one-click checkout. When off, the inline
-                                    form offers card + wallets only.
+                                    <?= e(__('stripe_settings_link_wallet_desc', "Stripe's one-click checkout. When off, the inline form offers card + wallets only.")) ?>
                                 </div>
                             </span>
                         </label>
                     </div>
 
-                    <label class="field-label" style="margin-top: 0.5rem;">Additional payment methods</label>
+                    <label class="field-label" style="margin-top: 0.5rem;"><?= e(__('stripe_settings_additional_methods_label', 'Additional payment methods')) ?></label>
                     <div class="text-muted text-sm" style="margin-bottom: 0.5rem;">
-                        Off by default. Each must also be <strong>activated in your
-                        Stripe dashboard</strong> (Settings → Payment methods) and may
-                        only apply to certain currencies/countries. If a method isn't
-                        active on your account, the inline form safely falls back to
-                        card.
+                        <?= __('stripe_settings_additional_methods_desc', 'Off by default. Each must also be <strong>activated in your Stripe dashboard</strong> (Settings → Payment methods) and may only apply to certain currencies/countries. If a method isn\'t active on your account, the inline form safely falls back to card.') ?>
                     </div>
                     <div class="field">
                         <label class="switch-label">
@@ -568,7 +546,7 @@ require $root . '/admin/partials/header.php';
                                 <input type="checkbox" name="method_us_bank_account" value="1" <?= $methodBank ? 'checked' : '' ?>>
                                 <span class="switch-track"></span>
                             </span>
-                            <span><strong>Bank</strong> (ACH direct debit)</span>
+                            <span><strong><?= e(__('stripe_settings_method_bank_label', 'Bank')) ?></strong> <?= e(__('stripe_settings_method_bank_desc', '(ACH direct debit)')) ?></span>
                         </label>
                     </div>
                     <div class="field">
@@ -577,7 +555,7 @@ require $root . '/admin/partials/header.php';
                                 <input type="checkbox" name="method_klarna" value="1" <?= $methodKlarna ? 'checked' : '' ?>>
                                 <span class="switch-track"></span>
                             </span>
-                            <span><strong>Klarna</strong> (buy now, pay later)</span>
+                            <span><strong>Klarna</strong> <?= e(__('stripe_settings_klarna_desc', '(buy now, pay later)')) ?></span>
                         </label>
                     </div>
                     <div class="field">
@@ -605,10 +583,9 @@ require $root . '/admin/partials/header.php';
                                 <span class="switch-track"></span>
                             </span>
                             <span>
-                                <strong>Bancontact</strong> (Belgium)
+                                <strong>Bancontact</strong> <?= e(__('stripe_settings_bancontact_region', '(Belgium)')) ?>
                                 <div class="text-muted text-sm">
-                                    Available for eligible EUR payments. Activate Bancontact in
-                                    Stripe Dashboard → Settings → Payment methods as well.
+                                    <?= e(__('stripe_settings_bancontact_desc', 'Available for eligible EUR payments. Activate Bancontact in Stripe Dashboard → Settings → Payment methods as well.')) ?>
                                 </div>
                             </span>
                         </label>
@@ -617,19 +594,18 @@ require $root . '/admin/partials/header.php';
 
                 <div class="field">
                     <label class="field-label" for="allowed_countries">
-                        Allowed shipping countries
+                        <?= e(__('stripe_settings_allowed_countries_label', 'Allowed shipping countries')) ?>
                     </label>
                     <input type="text" id="allowed_countries" name="allowed_countries"
                            value="<?= e($allowedCountries) ?>"
                            placeholder="US,CA,GB,AU,BD">
                     <div class="field-hint">
-                        Comma-separated 2-letter ISO codes. Only applies to
-                        the hosted-checkout flow.
+                        <?= e(__('stripe_settings_allowed_countries_hint', 'Comma-separated 2-letter ISO codes. Only applies to the hosted-checkout flow.')) ?>
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary" id="save-btn">
-                    Save and verify
+                    <?= e(__('stripe_settings_save_btn', 'Save and verify')) ?>
                 </button>
             </form>
         </div>
@@ -646,38 +622,38 @@ require $root . '/admin/partials/header.php';
         $ago = static function (string $ts): string {
             if ($ts === '') { return ''; }
             $d = time() - strtotime($ts);
-            if ($d < 60)    { return 'just now'; }
-            if ($d < 3600)  { return floor($d / 60) . ' min ago'; }
-            if ($d < 86400) { return floor($d / 3600) . ' hr ago'; }
-            return floor($d / 86400) . ' days ago';
+            if ($d < 60)    { return __('stripe_settings_ago_just_now', 'just now'); }
+            if ($d < 3600)  { return sprintf(__('stripe_settings_ago_minutes', '%d min ago'), floor($d / 60)); }
+            if ($d < 86400) { return sprintf(__('stripe_settings_ago_hours', '%d hr ago'), floor($d / 3600)); }
+            return sprintf(__('stripe_settings_ago_days', '%d days ago'), floor($d / 86400));
         };
         $tone = ['ok' => 'active', 'rejecting' => 'danger', 'never' => 'warning', 'no_secret' => 'danger'][$wh['state']] ?? 'warning';
         $head = [
-            'ok'        => 'Receiving events',
-            'rejecting' => 'Deliveries are being rejected',
-            'never'     => 'No event has ever arrived',
-            'no_secret' => 'No signing secret set',
+            'ok'        => __('stripe_settings_wh_state_ok', 'Receiving events'),
+            'rejecting' => __('stripe_settings_wh_state_rejecting', 'Deliveries are being rejected'),
+            'never'     => __('stripe_settings_wh_state_never', 'No event has ever arrived'),
+            'no_secret' => __('stripe_settings_wh_state_no_secret', 'No signing secret set'),
         ][$wh['state']];
         $why = [
-            'ok'        => 'Stripe is reaching this site and the signature checks out.',
-            'rejecting' => 'Stripe is reaching this site, but the signature does not match — the signing secret here is probably from a different endpoint or account.',
-            'never'     => 'Either no endpoint is registered in Stripe for this URL, or Stripe cannot reach it. Payments still confirm on return from checkout, but a customer who closes the tab will not be reconciled.',
-            'no_secret' => 'Every delivery is rejected without one. Add the endpoint in Stripe, then paste its whsec_… secret on the left.',
+            'ok'        => __('stripe_settings_wh_why_ok', 'Stripe is reaching this site and the signature checks out.'),
+            'rejecting' => __('stripe_settings_wh_why_rejecting', 'Stripe is reaching this site, but the signature does not match — the signing secret here is probably from a different endpoint or account.'),
+            'never'     => __('stripe_settings_wh_why_never', 'Either no endpoint is registered in Stripe for this URL, or Stripe cannot reach it. Payments still confirm on return from checkout, but a customer who closes the tab will not be reconciled.'),
+            'no_secret' => __('stripe_settings_wh_why_no_secret', 'Every delivery is rejected without one. Add the endpoint in Stripe, then paste its whsec_… secret on the left.'),
         ][$wh['state']];
         ?>
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                <h2>Webhook health</h2>
+                <h2><?= e(__('stripe_settings_webhook_health_title', 'Webhook health')) ?></h2>
                 <span class="badge badge-<?= e($tone) ?>"><?= e($head) ?></span>
             </div>
             <p class="text-muted text-sm" style="margin:0 0 0.75rem;"><?= e($why) ?></p>
             <ul class="kv-list">
                 <li class="kv-row">
-                    <span class="kv-label">Signing secret</span>
-                    <span class="kv-value"><?= $wh['secret'] ? 'Set' : '— not set —' ?></span>
+                    <span class="kv-label"><?= e(__('stripe_settings_signing_secret_label', 'Signing secret')) ?></span>
+                    <span class="kv-value"><?= $wh['secret'] ? e(__('stripe_settings_set', 'Set')) : e(__('stripe_settings_not_set_dash', '— not set —')) ?></span>
                 </li>
                 <li class="kv-row">
-                    <span class="kv-label">Last accepted</span>
+                    <span class="kv-label"><?= e(__('stripe_settings_last_accepted', 'Last accepted')) ?></span>
                     <span class="kv-value">
                         <?php if ($wh['ok_at'] !== ''): ?>
                             <?= e($ago($wh['ok_at'])) ?>
@@ -686,7 +662,7 @@ require $root . '/admin/partials/header.php';
                     </span>
                 </li>
                 <li class="kv-row">
-                    <span class="kv-label">Last rejected</span>
+                    <span class="kv-label"><?= e(__('stripe_settings_last_rejected', 'Last rejected')) ?></span>
                     <span class="kv-value">
                         <?php if ($wh['fail_at'] !== ''): ?>
                             <?= e($ago($wh['fail_at'])) ?>
@@ -695,7 +671,7 @@ require $root . '/admin/partials/header.php';
                     </span>
                 </li>
                 <li class="kv-row">
-                    <span class="kv-label">Accepted / rejected</span>
+                    <span class="kv-label"><?= e(__('stripe_settings_accepted_rejected_label', 'Accepted / rejected')) ?></span>
                     <span class="kv-value"><?= (int) $wh['ok_count'] ?> / <?= (int) $wh['fail_count'] ?></span>
                 </li>
             </ul>
@@ -703,63 +679,59 @@ require $root . '/admin/partials/header.php';
 
         <!-- ────────── Webhook setup card ────────── -->
         <div class="card" id="webhook-setup">
-            <div class="card-header"><h2>Webhook endpoint</h2></div>
+            <div class="card-header"><h2><?= e(__('stripe_settings_webhook_endpoint_title', 'Webhook endpoint')) ?></h2></div>
             <p class="text-muted text-sm">
-                In your Stripe dashboard → Developers → Webhooks, add this
-                URL, subscribed to events <code>checkout.session.completed</code>
-                and <code>payment_intent.succeeded</code>:
+                <?= __('stripe_settings_webhook_endpoint_desc', 'In your Stripe dashboard → Developers → Webhooks, add this URL, subscribed to events <code>checkout.session.completed</code> and <code>payment_intent.succeeded</code>:') ?>
             </p>
             <code style="display:block; padding:10px; background:var(--surface-sunken);
                          border-radius:6px; word-break:break-all; font-size:12px;">
                 <?= e($webhookUrl) ?>
             </code>
             <p class="text-muted text-sm" style="margin-top: 0.75rem;">
-                After saving the webhook in Stripe, copy the signing secret
-                (<code>whsec_…</code>) it gives you back into the "Webhook
-                signing secret" field on the left.
+                <?= __('stripe_settings_webhook_endpoint_after', 'After saving the webhook in Stripe, copy the signing secret (<code>whsec_…</code>) it gives you back into the "Webhook signing secret" field on the left.') ?>
             </p>
         </div>
 
         <!-- ────────── Test cards ────────── -->
         <div class="card" style="margin-top: 1rem;">
-            <div class="card-header"><h2>Test cards</h2></div>
-            <p class="text-muted text-sm" style="margin:0 0 0.5rem;">In test mode:</p>
+            <div class="card-header"><h2><?= e(__('stripe_settings_test_cards_title', 'Test cards')) ?></h2></div>
+            <p class="text-muted text-sm" style="margin:0 0 0.5rem;"><?= e(__('stripe_settings_test_mode_intro', 'In test mode:')) ?></p>
             <ul style="margin:0; padding-left:1.2rem; font-size:13px; line-height:1.7;">
-                <li><code>4242 4242 4242 4242</code> — succeeds</li>
-                <li><code>4000 0000 0000 9995</code> — insufficient funds</li>
-                <li><code>4000 0027 6000 3184</code> — 3D Secure required</li>
+                <li><code>4242 4242 4242 4242</code> — <?= e(__('stripe_settings_card_succeeds', 'succeeds')) ?></li>
+                <li><code>4000 0000 0000 9995</code> — <?= e(__('stripe_settings_card_insufficient_funds', 'insufficient funds')) ?></li>
+                <li><code>4000 0027 6000 3184</code> — <?= e(__('stripe_settings_card_3ds_required', '3D Secure required')) ?></li>
             </ul>
             <p class="text-muted text-sm" style="margin-top:0.5rem;">
-                Any future expiry, any CVC, any postal code.
+                <?= e(__('stripe_settings_test_card_note', 'Any future expiry, any CVC, any postal code.')) ?>
             </p>
         </div>
 
         <!-- ────────── Status indicators ────────── -->
         <div class="card" style="margin-top: 1rem;">
-            <div class="card-header"><h2>Components</h2></div>
+            <div class="card-header"><h2><?= e(__('stripe_settings_components_title', 'Components')) ?></h2></div>
             <dl style="margin:0;">
-                <dt class="text-muted text-sm">API keys</dt>
+                <dt class="text-muted text-sm"><?= e(__('stripe_settings_api_keys_label', 'API keys')) ?></dt>
                 <dd style="margin:0 0 0.5rem;">
                     <?php if (StripeAPI::isConfigured()): ?>
-                        <span class="badge badge-success">Set</span>
+                        <span class="badge badge-success"><?= e(__('stripe_settings_api_keys_set', 'Set')) ?></span>
                     <?php else: ?>
-                        <span class="badge badge-warning">Missing</span>
+                        <span class="badge badge-warning"><?= e(__('stripe_settings_api_keys_missing', 'Missing')) ?></span>
                     <?php endif; ?>
                 </dd>
-                <dt class="text-muted text-sm">Webhook secret</dt>
+                <dt class="text-muted text-sm"><?= e(__('stripe_settings_webhook_secret_dt', 'Webhook secret')) ?></dt>
                 <dd style="margin:0 0 0.5rem;">
                     <?php if ($webhookSecret !== ''): ?>
-                        <span class="badge badge-success">Set</span>
+                        <span class="badge badge-success"><?= e(__('stripe_settings_webhook_secret_set_badge', 'Set')) ?></span>
                     <?php else: ?>
-                        <span class="badge badge-muted">Not set</span>
+                        <span class="badge badge-muted"><?= e(__('not_set', 'Not set')) ?></span>
                     <?php endif; ?>
                 </dd>
-                <dt class="text-muted text-sm">Shop plugin</dt>
+                <dt class="text-muted text-sm"><?= e(__('stripe_settings_shop_plugin_label', 'Shop plugin')) ?></dt>
                 <dd style="margin:0;">
                     <?php if (PluginLoader::isActive('shop')): ?>
-                        <span class="badge badge-success">Active</span>
+                        <span class="badge badge-success"><?= e(__('stripe_settings_shop_active', 'Active')) ?></span>
                     <?php else: ?>
-                        <span class="badge badge-danger">Inactive — Stripe won't show on checkout</span>
+                        <span class="badge badge-danger"><?= e(__('stripe_settings_shop_inactive_warning', "Inactive — Stripe won't show on checkout")) ?></span>
                     <?php endif; ?>
                 </dd>
             </dl>
@@ -808,6 +780,13 @@ require $root . '/admin/partials/header.php';
 
 <script>
 (function () {
+    var MSG_PUB_FORMAT = <?= json_encode(__('stripe_settings_pub_key_format', 'Publishable key must start with pk_test_ or pk_live_.')) ?>;
+    var MSG_SEC_FORMAT = <?= json_encode(__('stripe_settings_secret_key_format', 'Secret key must start with sk_test_ or sk_live_.')) ?>;
+    var MSG_BOTH_REQUIRED = <?= json_encode(__('stripe_settings_js_both_required', 'Both publishable and secret keys are required.')) ?>;
+    var MSG_MODE_MISMATCH = <?= json_encode(__('stripe_settings_js_mode_mismatch', 'Mode mismatch — your publishable key is for %1$s mode but your secret key is for %2$s mode. Both must be from the same Stripe environment.')) ?>;
+    var MSG_ACCOUNT_MISMATCH = <?= json_encode(__('stripe_settings_js_account_mismatch', 'Account mismatch — your publishable key belongs to account %1$s but your secret key belongs to account %2$s. Open the same Stripe dashboard tab and copy BOTH keys from the same place. Switching between sandboxes mid-copy is the #1 cause of this error.')) ?>;
+    var MSG_KEYS_MATCH = <?= json_encode(__('stripe_settings_js_keys_match', '✓ Keys match: account %1$s, %2$s mode. Click "Save and verify" — we\'ll confirm with Stripe before saving.')) ?>;
+
     var pasteBlob = document.getElementById('paste-blob');
     var pubField  = document.getElementById('publishable_key');
     var secField  = document.getElementById('secret_key');
@@ -882,19 +861,19 @@ require $root . '/admin/partials/header.php';
 
         // Type checks
         if (pubField.value.trim() !== '' && (!p || p.type !== 'pk')) {
-            showBanner('bad', 'Publishable key should start with pk_test_ or pk_live_.');
+            showBanner('bad', MSG_PUB_FORMAT);
             saveBtn.disabled = true;
             return;
         }
         if (secField.value.trim() !== '' && (!s || s.type !== 'sk')) {
-            showBanner('bad', 'Secret key should start with sk_test_ or sk_live_.');
+            showBanner('bad', MSG_SEC_FORMAT);
             saveBtn.disabled = true;
             return;
         }
 
         // Need both before we can compare
         if (!p || !s) {
-            showBanner('bad', 'Both publishable and secret keys are required.');
+            showBanner('bad', MSG_BOTH_REQUIRED);
             saveBtn.disabled = true;
             return;
         }
@@ -902,9 +881,7 @@ require $root . '/admin/partials/header.php';
         // Mode match
         if (p.mode !== s.mode) {
             showBanner('bad',
-                'Mode mismatch — your publishable key is for ' + p.mode
-                + ' mode but your secret key is for ' + s.mode + ' mode. '
-                + 'Both must be from the same Stripe environment.');
+                MSG_MODE_MISMATCH.replace('%1$s', p.mode).replace('%2$s', s.mode));
             saveBtn.disabled = true;
             return;
         }
@@ -912,20 +889,14 @@ require $root . '/admin/partials/header.php';
         // Account match
         if (p.marker !== s.marker) {
             showBanner('bad',
-                'Account mismatch — your publishable key belongs to account '
-                + p.marker + ' but your secret key belongs to account '
-                + s.marker + '. '
-                + 'Open the same Stripe dashboard tab and copy BOTH keys from '
-                + 'the same place. Switching between sandboxes mid-copy is the '
-                + '#1 cause of this error.');
+                MSG_ACCOUNT_MISMATCH.replace('%1$s', p.marker).replace('%2$s', s.marker));
             saveBtn.disabled = true;
             return;
         }
 
         // All good
         showBanner('good',
-            '✓ Keys match: account ' + p.marker + ', ' + p.mode + ' mode. '
-            + 'Click "Save and verify" — we\'ll confirm with Stripe before saving.');
+            MSG_KEYS_MATCH.replace('%1$s', p.marker).replace('%2$s', p.mode));
         saveBtn.disabled = false;
     }
 
