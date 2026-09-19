@@ -1690,7 +1690,8 @@ if (!function_exists('slate_admin_nav_icon')) {
                class="sidebar-brand<?= $brandLogoUrl !== '' ? ' has-logo' : '' ?>">
                 <?php if ($brandLogoUrl !== ''): ?>
                     <span class="sidebar-brand-logo">
-                        <?= slate_logo_picture($brandLogoUrl, $brandLogoDarkUrl, ' alt="' . e($siteName) . '"') ?>
+                        <?php /* The sidebar's own background is a per-tenant setting (sidebar_theme), not the OS theme -- the existing white-tile-on-dark-theme CSS above already keeps the light logo legible either way, so this always renders the light variant. */ ?>
+                        <img src="<?= e($brandLogoUrl) ?>" alt="<?= e($siteName) ?>">
                     </span>
                     <span class="sidebar-brand-tag"><?= e($brandSublabel) ?></span>
                 <?php else: ?>

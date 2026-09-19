@@ -336,8 +336,9 @@ if (!function_exists('slate_portal_shell_open')) {
 <header class="mapp-bar">
     <div class="mapp-bar-in">
         <a href="<?= e($home) ?>" class="mapp-brand" aria-label="<?= e($siteName) ?>">
+            <?php /* Always the light --m-surface bar -- no dark-mode CSS exists for it, so always the light logo. */ ?>
             <?php if ($logoUrl !== ''): ?>
-                <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
+                <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
             <?php else: ?>
                 <span class="mapp-brand-mark"><?= e(mb_strtoupper(mb_substr($siteName, 0, 1))) ?></span>
             <?php endif; ?>

@@ -370,8 +370,15 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
         <aside class="auth-hero" aria-hidden="true">
             <div class="auth-hero-top">
                 <a href="<?= e(SLATE_URL) ?>/" class="auth-hero-brand">
-                    <?php if ($brandLogoUrl !== ''): ?>
-                        <?= slate_logo_picture($brandLogoUrl, $brandLogoDarkUrl, ' alt="' . e($siteName) . '"') ?>
+                    <?php
+                    // This panel's background is always a dark accent-mixed
+                    // gradient (fixed by this page's own design), not the
+                    // visitor's OS theme, so it always wants the dark-mode
+                    // logo variant when one exists.
+                    $heroLogoUrl = $brandLogoDarkUrl !== '' ? $brandLogoDarkUrl : $brandLogoUrl;
+                    ?>
+                    <?php if ($heroLogoUrl !== ''): ?>
+                        <img src="<?= e($heroLogoUrl) ?>" alt="<?= e($siteName) ?>">
                     <?php else: ?>
                         <span class="auth-hero-mark"><?= $brandInitial ?></span>
                         <span><?= e($siteName) ?></span>
@@ -396,8 +403,9 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
         <main class="auth-form-panel">
             <div class="auth-form-inner">
                 <a href="<?= e(SLATE_URL) ?>/customer/" class="auth-brand">
+                    <?php /* Always the light --bg panel -- no dark-mode CSS exists for it, so always the light logo. */ ?>
                     <?php if ($brandLogoUrl !== ''): ?>
-                        <?= slate_logo_picture($brandLogoUrl, $brandLogoDarkUrl, ' alt="' . e($siteName) . '" style="max-height:40px;max-width:180px"') ?>
+                        <img src="<?= e($brandLogoUrl) ?>" alt="<?= e($siteName) ?>" style="max-height:40px;max-width:180px">
                     <?php else: ?>
                         <span class="auth-brand-mark" aria-hidden="true"><?= $brandInitial ?></span>
                         <span class="auth-brand-text">

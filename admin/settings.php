@@ -3746,7 +3746,7 @@ slate_render_settings_tabs($activeTab);
             </div>
 
             <div class="field">
-                <label class="field-label" for="logo_dark"><?= __('logo_dark', 'Logo (dark mode)') ?></label>
+                <label class="field-label" for="logo_dark"><?= __('logo_dark', 'Logo (for dark backgrounds)') ?></label>
                 <?php
                 $logoDarkPreviewUrl = $brandSet['logo_dark_path']
                     ? SLATE_URL . '/' . ltrim($brandSet['logo_dark_path'], '/')
@@ -3769,7 +3769,7 @@ slate_render_settings_tabs($activeTab);
                 <?php endif; ?>
                 <input type="file" id="logo_dark" name="logo_dark" accept="image/png,image/jpeg,image/webp"
                        <?= $canEdit ? '' : 'disabled' ?>>
-                <div class="field-hint"><?= __('logo_dark_hint', 'Optional. Shown instead of the logo above when a visitor\'s device prefers a dark color scheme. PNG, JPEG, or WebP. Max 2 MB.') ?></div>
+                <div class="field-hint"><?= __('logo_dark_hint', 'Optional -- a version of your logo for dark backgrounds (the login page\'s photo panel, the public landing page, error pages, and emails). PNG, JPEG, or WebP. Max 2 MB.') ?></div>
                 <?php if ($mediaLibraryActive): ?>
                     <input type="hidden" id="picked_logo_dark_path" name="picked_logo_dark_path" value="">
                     <button type="button" class="mlp-trigger-btn"

@@ -219,8 +219,9 @@ function slate_portal_topbar(array $opts = []): void {
     <header class="topbar">
         <div class="topbar-inner">
             <a class="brand" href="<?= e($brandHref) ?>">
+                <?php /* This topbar's background is always the light --m-surface token -- no dark-mode CSS exists for it, so always the light logo. */ ?>
                 <?php if ($logoUrl !== ''): ?>
-                    <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
+                    <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
                 <?php else: ?>
                     <span class="brand-mark" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($siteName, 0, 1))) ?></span>
                     <span><?= e($siteName) ?></span>

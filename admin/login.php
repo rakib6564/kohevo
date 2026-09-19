@@ -406,8 +406,16 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     <aside class="auth-hero" aria-hidden="true">
         <div class="auth-hero-top">
             <a href="<?= e($siteHome) ?>/" class="auth-hero-brand">
-                <?php if ($logoUrl !== ''): ?>
-                    <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
+                <?php
+                // This panel's background is always a dark photo/gradient
+                // (fixed by this page's own design, not the visitor's OS
+                // theme), so it always wants the dark-mode logo variant when
+                // one exists -- prefers-color-scheme would wrongly follow
+                // the OS instead of this panel's actual background.
+                $heroLogoUrl = $logoDarkUrl !== '' ? $logoDarkUrl : $logoUrl;
+                ?>
+                <?php if ($heroLogoUrl !== ''): ?>
+                    <img src="<?= e($heroLogoUrl) ?>" alt="<?= e($siteName) ?>">
                 <?php else: ?>
                     <span class="auth-hero-mark"><?= $initial ?></span>
                     <span><?= e($siteName) ?></span>
@@ -434,8 +442,9 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     <main class="auth-form-panel">
         <div class="auth-form-inner">
             <div class="auth-logo">
+                <?php /* Always the light card behind this logo, regardless of OS theme -- always the light logo variant. */ ?>
                 <?php if ($logoUrl !== ''): ?>
-                    <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
+                    <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
                 <?php else: ?>
                     <span class="auth-logo-mark"><?= $initial ?></span>
                     <span class="auth-logo-name"><?= e($siteName) ?></span>

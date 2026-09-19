@@ -87,9 +87,11 @@ $planFeatures = function (array $p) use ($types): array {
 };
 
 /** Render the brand lockup (logo image, or letter mark fallback). */
-$brandMark = function (string $cls = 'mlp-brand') use ($logoUrl, $logoDarkUrl, $siteName): string {
+// Always the light --m-bg page background -- no dark-mode CSS exists for it,
+// so always the light logo variant.
+$brandMark = function (string $cls = 'mlp-brand') use ($logoUrl, $siteName): string {
     $inner = $logoUrl !== ''
-        ? slate_logo_picture($logoUrl, $logoDarkUrl, ' class="mlp-logo" alt="' . e($siteName) . '"')
+        ? '<img class="mlp-logo" src="' . e($logoUrl) . '" alt="' . e($siteName) . '">'
         : '<span class="mlp-logo-mark">' . e(mb_strtoupper(mb_substr($siteName, 0, 1))) . '</span><span class="mlp-logo-name">' . e($siteName) . '</span>';
     return '<a href="' . e(SLATE_URL) . '/" class="' . $cls . '">' . $inner . '</a>';
 };

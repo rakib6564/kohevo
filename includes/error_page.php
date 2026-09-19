@@ -99,7 +99,13 @@ if (!function_exists('slate_render_error')) {
 <body>
     <div class="bg"></div>
     <div class="card">
-        <?= function_exists('slate_logo_picture') ? slate_logo_picture($logo, $logoDark, ' class="logo" alt="' . $e($biz) . '"') : ($logo !== '' ? '<img class="logo" src="' . $e($logo) . '" alt="' . $e($biz) . '">' : '') ?>
+        <?php
+        // Always a dark hero photo or gradient background (this page's own
+        // fixed design), not the visitor's OS theme, so it always wants the
+        // dark-mode logo variant when set.
+        $errLogoUrl = $logoDark !== '' ? $logoDark : $logo;
+        ?>
+        <?php if ($errLogoUrl !== ''): ?><img class="logo" src="<?= $e($errLogoUrl) ?>" alt="<?= $e($biz) ?>"><?php endif; ?>
         <div class="code">Error <?= $status ?></div>
         <h1><?= $e($title) ?></h1>
         <p><?= $e($message) ?></p>

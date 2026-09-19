@@ -253,7 +253,13 @@ function slate_render_landing(): void {
             </a>
         <?php endif; ?>
         <a class="topbrand" href="<?= $e(SLATE_URL) ?>/">
-            <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($bizName) . '"') ?>
+            <?php
+            // The page background is always a dark hero photo + gradient
+            // overlay (this page's own fixed design), not the visitor's OS
+            // theme, so it always wants the dark-mode logo variant when set.
+            $topLogoUrl = $logoDarkUrl !== '' ? $logoDarkUrl : $logoUrl;
+            ?>
+            <?php if ($topLogoUrl !== ''): ?><img src="<?= $e($topLogoUrl) ?>" alt="<?= $e($bizName) ?>"><?php endif; ?>
             <span class="topbrand-name"><?= $e($bizName) ?></span>
         </a>
     </header>
