@@ -15,5 +15,6 @@ $customerPageVariant = $customerPageVariant ?? 'auth';
 <?php else: ?>
     </div>
 <?php endif; ?>
+<?php slate_form_validation_i18n_script(); ?>
 </body>
 </html>

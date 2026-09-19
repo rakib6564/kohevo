@@ -1150,6 +1150,7 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
         <button type="submit" class="btn btn-primary btn-lg btn-block"><?= ($mode === 'full' || $mode === 'deposit') ? __('booking_continue_to_payment', 'Continue to payment') : __('booking_confirm_booking', 'Confirm booking') ?></button>
     </form>
     <?php
+    slate_form_validation_i18n_script();
     bookpub_layout_end($embed);
 }
 

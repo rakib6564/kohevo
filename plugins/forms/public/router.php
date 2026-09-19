@@ -364,6 +364,7 @@ function forms_public_render_form(array $form, array $values, array $errors, boo
     <?= FormsSpamGuard::captchaScript($set['spam']) ?>
     <script src="<?= e(plugin_url('forms', 'assets/js/forms-logic.js')) ?>?v=<?= e(FormsAPI::ASSET_VERSION) ?>" defer></script>
     <?php
+    slate_form_validation_i18n_script();
     forms_public_layout_end($embed);
 }
 

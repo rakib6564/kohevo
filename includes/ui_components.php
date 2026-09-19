@@ -335,6 +335,69 @@ if (!function_exists('slate_data_list_script')) {
 }
 
 /**
+ * Emit translated HTML5 constraint-validation messages for every form on
+ * the page. The browser's own "Please fill in this field" bubble follows
+ * the visitor's browser/OS language, not this site's language switcher —
+ * this replaces it with our own, via setCustomValidity(), so a French
+ * visitor sees a French message regardless of their browser's locale.
+ * Call once per public-facing page with user-submitted forms. Idempotent.
+ */
+if (!function_exists('slate_form_validation_i18n_script')) {
+    function slate_form_validation_i18n_script(): void {
+        if (defined('SLATE_FORM_VALIDATION_JS_EMITTED')) return;
+        define('SLATE_FORM_VALIDATION_JS_EMITTED', true);
+        $msgs = [
+            'required' => __('validation_required', 'Please fill in this field.'),
+            'email'    => __('validation_email', 'Please enter a valid email address.'),
+            'url'      => __('validation_url', 'Please enter a valid URL.'),
+            'generic'  => __('validation_generic', 'Please correct this field.'),
+        ];
+        ?>
+        <script>
+        (function () {
+            if (window.__slateFormValidation) return;
+            window.__slateFormValidation = true;
+            var MSG = <?= json_encode($msgs) ?>;
+
+            function messageFor(el) {
+                var v = el.validity;
+                if (v.valueMissing) return MSG.required;
+                if (v.typeMismatch) {
+                    if (el.type === 'email') return MSG.email;
+                    if (el.type === 'url') return MSG.url;
+                }
+                if (v.tooShort || v.tooLong || v.patternMismatch ||
+                    v.rangeUnderflow || v.rangeOverflow || v.stepMismatch || v.badInput) {
+                    return MSG.generic;
+                }
+                return '';
+            }
+
+            // 'invalid' does not bubble, so listen during the capture phase
+            // on the document instead of wiring every field individually.
+            document.addEventListener('invalid', function (e) {
+                var el = e.target;
+                if (el && typeof el.setCustomValidity === 'function') {
+                    el.setCustomValidity(messageFor(el));
+                }
+            }, true);
+
+            document.addEventListener('input', function (e) {
+                var el = e.target;
+                if (el && typeof el.setCustomValidity === 'function') el.setCustomValidity('');
+            }, true);
+
+            document.addEventListener('change', function (e) {
+                var el = e.target;
+                if (el && typeof el.setCustomValidity === 'function') el.setCustomValidity('');
+            }, true);
+        })();
+        </script>
+        <?php
+    }
+}
+
+/**
  * Open a page layout wrapper.
  *
  *   $variant = 'default'     — single-column main content

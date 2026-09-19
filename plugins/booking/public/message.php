@@ -155,6 +155,7 @@ ob_start(); ?>
                 <button type="submit" class="bp-btn bp-btn-primary"><?= e(__('help_send_message', 'Send message')) ?></button>
             </div>
         </form>
+        <?php slate_form_validation_i18n_script(); ?>
     <?php else: ?>
         <div class="bp-actions" style="margin-top:1.5rem;">
             <a href="<?= e(SLATE_URL) ?>" class="bp-btn bp-btn-ghost"><?= e(__('booking_back_to_site', 'Back to the site')) ?></a>
