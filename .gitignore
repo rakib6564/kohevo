@@ -59,3 +59,6 @@ node_modules/
 # Timestamped editor backups (e.g. foo.php.bak-1788608068)
 *.bak-*
 *.bak.*
+
+# Private business/licensing specs — never source, never public.
+/LICENSE-SYSTEM-MASTER-SPEC/

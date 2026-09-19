@@ -132,6 +132,7 @@ RSYNC_ARGS=(
     --exclude '*.zip'            # local backups/exports, never app code
     --exclude 'auth.php'         # server-side devops agent, not part of this app
     --exclude '.slate_agent_config.json'  # that agent's paired cPanel credentials
+    --exclude 'LICENSE-SYSTEM-MASTER-SPEC/'  # private business/licensing docs, never public
 )
 
 if [ "$DRY" -eq 1 ]; then
