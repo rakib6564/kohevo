@@ -282,8 +282,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Pass $log=false here to avoid double-logging.
                 $ok = Mailer::send(
                     $to,
-                    'Slate SMTP test',
-                    "<p>This is a test message sent from your Slate install.</p>"
+                    'Kohevo SMTP test',
+                    "<p>This is a test message sent from your Kohevo install.</p>"
                   . "<p>If you received it, your email delivery is working.</p>",
                     '',    // toName
                     false  // log — Mailer already records, don't double-log
@@ -485,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::setSetting('brand_accent_color', $accent);
 
                 // Manual override for button/badge text color on the accent
-                // fill — 'auto' (default) keeps Slate's automatic contrast pick.
+                // fill — 'auto' (default) keeps Kohevo's automatic contrast pick.
                 $buttonTextMode = (string)($_POST['button_text_mode'] ?? 'auto');
                 if (!in_array($buttonTextMode, ['auto', 'light', 'dark'], true)) $buttonTextMode = 'auto';
                 Database::setSetting('brand_button_text_mode', $buttonTextMode);
@@ -552,6 +552,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if (isset($_POST['remove_logo']) && $_POST['remove_logo'] === '1') {
                     Database::setSetting('brand_logo_path', '');
+                }
+
+                // ── Dark-mode logo variant (optional) ──────────────
+                // Shown instead of the logo above when the viewer's OS/browser
+                // prefers a dark color scheme (see TenantBranding::logoPicture()).
+                // Falls back to the light logo everywhere when unset.
+                if (!empty($_FILES['logo_dark']) && $_FILES['logo_dark']['error'] === UPLOAD_ERR_OK) {
+                    try {
+                        $result = Uploads::handle('logo_dark', 'branding', [
+                            'allowed_mimes' => ['image/png', 'image/jpeg', 'image/webp'],
+                            'max_bytes'     => 2 * 1024 * 1024,
+                        ]);
+                        if ($result['ok']) {
+                            Database::setSetting('brand_logo_dark_path', $result['path']);
+                            if (class_exists('MediaLibrary')) {
+                                $info = @getimagesize(SLATE_ROOT . $result['path']);
+                                MediaLibrary::register($result['path'], [
+                                    'mime'          => $result['mime']     ?? '',
+                                    'size_bytes'    => $result['size']     ?? 0,
+                                    'width'         => is_array($info) ? ($info[0] ?? null) : null,
+                                    'height'        => is_array($info) ? ($info[1] ?? null) : null,
+                                    'original_name' => $result['original'] ?? '',
+                                ]);
+                            }
+                        } else {
+                            $flash = ['type' => 'error', 'msg' => $result['error'] ?? __('upload_failed', 'Dark logo upload failed.')];
+                        }
+                    } catch (\Throwable $e) {
+                        $flash = ['type' => 'error', 'msg' => __('upload_failed', 'Dark logo upload failed.') . ' ' . $e->getMessage()];
+                    }
+                } elseif (!empty($_POST['picked_logo_dark_path'])) {
+                    $picked = trim((string)$_POST['picked_logo_dark_path']);
+                    if (class_exists('MediaLibrary') && MediaLibrary::isManagedPath($picked)) {
+                        Database::setSetting('brand_logo_dark_path', $picked);
+                    } else {
+                        $flash = ['type' => 'error', 'msg' =>
+                            __('logo_dark_path_invalid', 'Picked dark logo path is not in the media library.')];
+                    }
+                }
+                if (isset($_POST['remove_logo_dark']) && $_POST['remove_logo_dark'] === '1') {
+                    Database::setSetting('brand_logo_dark_path', '');
                 }
 
                 // ── Favicon (browser tab icon) ─────────────────────
@@ -759,7 +800,7 @@ $_safeText = static function ($v, int $max = 500): string {
 };
 
 $genSet = [
-    'site_name'        => $_safeText(Database::setting('site_name'), 120) ?: 'Slate',
+    'site_name'        => $_safeText(Database::setting('site_name'), 120) ?: 'Kohevo',
     'default_language' => preg_replace('/[^a-zA-Z_-]/', '', (string)(Database::setting('default_language') ?? 'en')) ?: 'en',
     'currency'         => slate_default_currency(),
     'currency_position'=> slate_currency_position(),
@@ -826,6 +867,7 @@ $brandSet = [
     'accent_color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string)Database::setting('brand_accent_color'))
                        ? Database::setting('brand_accent_color') : '#2563EB',
     'logo_path'        => $_safeText(Database::setting('brand_logo_path'), 500),
+    'logo_dark_path'   => $_safeText(Database::setting('brand_logo_dark_path'), 500),
     'favicon_path'     => $_safeText(Database::setting('brand_favicon_path'), 500),
     'login_image_path' => $_safeText(Database::setting('brand_login_image_path'), 500),
     'login_tagline'    => $_safeText(Database::setting('brand_login_tagline'), 200),
@@ -2175,7 +2217,7 @@ slate_render_settings_tabs($activeTab);
 
         <?php if (!$_phpmailerInstalled): ?>
             <p class="text-muted text-sm" style="margin-top:12px">
-                <?= __('phpmailer_hint', 'PHPMailer is not installed. Install it via <code>composer require phpmailer/phpmailer</code> in your project root to enable full SMTP support. Without it, Slate falls back to PHP\'s built-in <code>mail()</code> function.') ?>
+                <?= __('phpmailer_hint', 'PHPMailer is not installed. Install it via <code>composer require phpmailer/phpmailer</code> in your project root to enable full SMTP support. Without it, Kohevo falls back to PHP\'s built-in <code>mail()</code> function.') ?>
             </p>
         <?php endif; ?>
     </div>
@@ -2283,7 +2325,7 @@ slate_render_settings_tabs($activeTab);
             ?>
             <div class="field">
                 <label class="field-label" for="smtp_provider"><?= __('mailer_pick', 'Choose your mailer') ?></label>
-                <div class="field-hint" style="margin-bottom:10px"><?= __('mailer_pick_hint', 'Pick how Slate sends mail. The fields below adapt to your choice — no SMTP credentials needed for OAuth and HTTPS-API providers.') ?></div>
+                <div class="field-hint" style="margin-bottom:10px"><?= __('mailer_pick_hint', 'Pick how Kohevo sends mail. The fields below adapt to your choice — no SMTP credentials needed for OAuth and HTTPS-API providers.') ?></div>
 
                 <!-- Visually-hidden select that drives the existing JS
                      contract. Card clicks below sync into it. -->
@@ -2434,7 +2476,7 @@ slate_render_settings_tabs($activeTab);
                     <span><?= __('msgraph_setup_section', 'Microsoft Azure app credentials') ?></span>
                 </div>
                 <div class="field">
-                    <label class="field-label" for="oauth_email"><?= __('mailbox_email', 'Mailbox email (the address Slate will send from)') ?></label>
+                    <label class="field-label" for="oauth_email"><?= __('mailbox_email', 'Mailbox email (the address Kohevo will send from)') ?></label>
                     <input type="email" id="oauth_email" name="oauth_email" maxlength="190"
                            placeholder="you@yourdomain.com" value="<?= e($oauth['email']) ?>" <?= $canEdit ? '' : 'disabled' ?>>
                 </div>
@@ -2509,7 +2551,7 @@ slate_render_settings_tabs($activeTab);
                             <strong><?= __('oauth_connected', 'Connected') ?></strong> —
                             <?= e($oauth['email']) ?> <?= __('via', 'via') ?> <?= e((string)($_pc['label'] ?? $oauth['provider'])) ?>.
                             <div class="text-muted text-sm" style="margin-top:2px">
-                                <?= __('oauth_connected_hint', 'Slate will send through Microsoft Graph using this account. Use “Test delivery” below to send a test message.') ?>
+                                <?= __('oauth_connected_hint', 'Kohevo will send through Microsoft Graph using this account. Use “Test delivery” below to send a test message.') ?>
                             </div>
                         </div>
                     </div>
@@ -2595,7 +2637,7 @@ slate_render_settings_tabs($activeTab);
             <div class="test-delivery-cell">
                 <h3 class="test-delivery-h3"><?= __('send_test', '2. Send test email') ?></h3>
                 <p class="text-muted text-sm" style="margin:0 0 10px">
-                    <?= __('test_email_short', 'Sends a real "Slate SMTP test" message to whatever address you enter — the truest end-to-end check.') ?>
+                    <?= __('test_email_short', 'Sends a real "Kohevo SMTP test" message to whatever address you enter — the truest end-to-end check.') ?>
                 </p>
                 <form method="post" style="margin:0">
                     <?= csrf_field() ?>
@@ -2644,7 +2686,7 @@ slate_render_settings_tabs($activeTab);
         </summary>
 
         <p class="text-muted text-sm" style="margin:4px 0 14px">
-            <?= __('backup_intro', 'If the primary mailer fails (timeouts, rate-limits, outages), <strong>Slate retries the same email through this backup connection</strong>. Both attempts are recorded in the audit log so you can see which path delivered. Backup is SMTP-only — Microsoft Graph / OAuth is not supported as a backup driver.') ?>
+            <?= __('backup_intro', 'If the primary mailer fails (timeouts, rate-limits, outages), <strong>Kohevo retries the same email through this backup connection</strong>. Both attempts are recorded in the audit log so you can see which path delivered. Backup is SMTP-only — Microsoft Graph / OAuth is not supported as a backup driver.') ?>
         </p>
 
         <form method="post">
@@ -3311,7 +3353,7 @@ slate_render_settings_tabs($activeTab);
                 // Per-mailer next-step hint shown after save.
                 if (state.mailer === 'msgraph' && !saved.connected) {
                     wizNextStep.hidden = false;
-                    wizNextStep.innerHTML = '<strong>What happens next:</strong> after saving, the page will reload with a "Connect to Microsoft" button. Click it to grant Slate permission to send mail — that\'s the last step.';
+                    wizNextStep.innerHTML = '<strong>What happens next:</strong> after saving, the page will reload with a "Connect to Microsoft" button. Click it to grant Kohevo permission to send mail — that\'s the last step.';
                 } else if (state.mailer === 'mail') {
                     wizNextStep.hidden = false;
                     wizNextStep.innerHTML = '<strong>Heads up:</strong> PHP <code>mail()</code> delivers without authentication; most receivers route it to spam. Switch to any other mailer for production traffic.';
@@ -3434,7 +3476,7 @@ slate_render_settings_tabs($activeTab);
 
                 <!-- ── Panel 1: pick mailer ───────────────────── -->
                 <div class="wizard-panel is-active" data-panel="1">
-                    <h3 class="wizard-panel-title"><?= __('wizard_p1_title', 'How does Slate send mail?') ?></h3>
+                    <h3 class="wizard-panel-title"><?= __('wizard_p1_title', 'How does Kohevo send mail?') ?></h3>
                     <p class="wizard-panel-intro"><?= __('wizard_p1_intro', 'Choose your provider. We\'ll only ask for the fields you actually need.') ?></p>
 
                     <!-- Mirror of the main mailer card grid, lightweight
@@ -3610,7 +3652,7 @@ slate_render_settings_tabs($activeTab);
                     <option value="light" <?= $brandSet['button_text_mode'] === 'light' ? 'selected' : '' ?>><?= __('button_text_light', 'Light (white)') ?></option>
                     <option value="dark"  <?= $brandSet['button_text_mode'] === 'dark'  ? 'selected' : '' ?>><?= __('button_text_dark',  'Dark (near-black)') ?></option>
                 </select>
-                <div class="field-hint"><?= __('button_text_mode_hint', "Slate automatically picks white or dark text for the best contrast against your accent color. Override it here if the automatic pick isn't the one you want. Reload after saving.") ?></div>
+                <div class="field-hint"><?= __('button_text_mode_hint', "Kohevo automatically picks white or dark text for the best contrast against your accent color. Override it here if the automatic pick isn't the one you want. Reload after saving.") ?></div>
             </div>
 
             <?php if (function_exists('slate_sidebar_themes')): ?>
@@ -3699,6 +3741,42 @@ slate_render_settings_tabs($activeTab);
                             data-mlp-mode="single"
                             style="margin-top:8px;">
                         <?= __('pick_logo_from_library', 'Or pick from media library…') ?>
+                    </button>
+                <?php endif; ?>
+            </div>
+
+            <div class="field">
+                <label class="field-label" for="logo_dark"><?= __('logo_dark', 'Logo (dark mode)') ?></label>
+                <?php
+                $logoDarkPreviewUrl = $brandSet['logo_dark_path']
+                    ? SLATE_URL . '/' . ltrim($brandSet['logo_dark_path'], '/')
+                    : '';
+                ?>
+                <div class="mb-2" style="padding:12px;background:#0E1117;border-radius:var(--radius-sm);text-align:center;min-height:60px;display:flex;align-items:center;justify-content:center">
+                    <img id="picked_logo_dark_path-preview"
+                         src="<?= e($logoDarkPreviewUrl) ?>" alt="Current dark-mode logo"
+                         style="max-height:80px;max-width:240px;<?= $logoDarkPreviewUrl === '' ? 'display:none;' : '' ?>">
+                    <?php if ($logoDarkPreviewUrl === ''): ?>
+                        <span class="text-muted text-sm" style="color:#9CA3AF"><?= __('no_logo_dark', 'No dark-mode logo -- the light logo is used everywhere') ?></span>
+                    <?php endif; ?>
+                </div>
+                <?php if ($brandSet['logo_dark_path']): ?>
+                    <label class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" name="remove_logo_dark" value="1"
+                               style="width:18px;height:18px;accent-color:var(--accent)">
+                        <span><?= __('remove_current_logo_dark', 'Remove dark-mode logo') ?></span>
+                    </label>
+                <?php endif; ?>
+                <input type="file" id="logo_dark" name="logo_dark" accept="image/png,image/jpeg,image/webp"
+                       <?= $canEdit ? '' : 'disabled' ?>>
+                <div class="field-hint"><?= __('logo_dark_hint', 'Optional. Shown instead of the logo above when a visitor\'s device prefers a dark color scheme. PNG, JPEG, or WebP. Max 2 MB.') ?></div>
+                <?php if ($mediaLibraryActive): ?>
+                    <input type="hidden" id="picked_logo_dark_path" name="picked_logo_dark_path" value="">
+                    <button type="button" class="mlp-trigger-btn"
+                            data-mlp-target="picked_logo_dark_path"
+                            data-mlp-mode="single"
+                            style="margin-top:8px;">
+                        <?= __('pick_logo_dark_from_library', 'Or pick from media library…') ?>
                     </button>
                 <?php endif; ?>
             </div>
@@ -4051,7 +4129,7 @@ slate_render_settings_tabs($activeTab);
             <span class="info-row-value"><?= e($sys['php_version']) ?></span>
         </div>
         <div class="info-row">
-            <span class="info-row-label"><?= __('slate_version', 'Slate version') ?></span>
+            <span class="info-row-label"><?= __('slate_version', 'Kohevo version') ?></span>
             <span class="info-row-value"><?= e($sys['slate_version']) ?></span>
         </div>
         <div class="info-row">

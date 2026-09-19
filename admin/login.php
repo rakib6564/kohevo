@@ -54,15 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$siteName  = Database::setting('site_name') ?: 'Slate';
+$siteName  = Database::setting('site_name') ?: 'Kohevo';
 $brandSub  = Database::setting('brand_sublabel') ?: __('admin_login', 'Admin login');
 
 // ── Dynamic branding (admin-managed via Settings → Branding) ──
 $accent = preg_match('/^#[0-9a-fA-F]{6}$/', (string)Database::setting('brand_accent_color'))
     ? Database::setting('brand_accent_color') : '#2563EB';
 
-$logoPath = (string)Database::setting('brand_logo_path');
-$logoUrl  = $logoPath !== '' ? SLATE_URL . '/' . ltrim($logoPath, '/') : '';
+$logoUrls = slate_logo_urls();
+$logoUrl  = $logoUrls['light'];
+$logoDarkUrl = $logoUrls['dark'];
 
 $heroPath = (string)Database::setting('brand_login_image_path');
 $heroUrl  = $heroPath !== '' ? SLATE_URL . '/' . ltrim($heroPath, '/') : '';
@@ -406,7 +407,7 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
         <div class="auth-hero-top">
             <a href="<?= e($siteHome) ?>/" class="auth-hero-brand">
                 <?php if ($logoUrl !== ''): ?>
-                    <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
+                    <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
                 <?php else: ?>
                     <span class="auth-hero-mark"><?= $initial ?></span>
                     <span><?= e($siteName) ?></span>
@@ -434,7 +435,7 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
         <div class="auth-form-inner">
             <div class="auth-logo">
                 <?php if ($logoUrl !== ''): ?>
-                    <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
+                    <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
                 <?php else: ?>
                     <span class="auth-logo-mark"><?= $initial ?></span>
                     <span class="auth-logo-name"><?= e($siteName) ?></span>

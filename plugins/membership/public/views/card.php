@@ -13,7 +13,7 @@ $cust    = Auth::customer();
 $name    = (string)($cust['name'] ?? $cust['email'] ?? 'Member');
 $avatar  = (string)($profile['avatar_path'] ?? '');
 $memberNo = mb_strtoupper(mb_substr($token, 0, 8));
-$siteName = Database::setting('site_name') ?: 'Slate';
+$siteName = Database::setting('site_name') ?: 'Kohevo';
 $status  = MembershipAPI::status($cid);
 $planName = $status['sub'] ? MembershipAPI::planName(['name'=>$status['sub']['plan_name']??'','name_fr'=>$status['sub']['plan_name_fr']??'']) : __('membership_no_membership', 'No membership');
 

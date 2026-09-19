@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && csrf_verify()) {
     $new = preg_replace('/[\x00-\x08\x0B-\x1F\x7F]+/', '', $new) ?? '';
     $new = strip_tags($new);
     $new = trim(preg_replace('/\s+/', ' ', $new) ?? '');
-    if ($new === '') $new = 'Slate';
+    if ($new === '') $new = 'Kohevo';
     $new = mb_substr($new, 0, 120);
     Database::setSetting('site_name', $new);
     if (class_exists('AuditLog')) AuditLog::record('settings.diag_reset', 'site_name');
@@ -62,7 +62,7 @@ $hex    = bin2hex(mb_substr((string)$rawStr, 0, 60));
 $strip  = strip_tags((string)$rawStr);
 
 ?><!doctype html>
-<html><head><meta charset="utf-8"><title>Slate diag</title>
+<html><head><meta charset="utf-8"><title>Kohevo diag</title>
 <style>
 body{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0E1117;color:#D8DAE0;padding:32px;line-height:1.6;font-size:13px}
 h1{font-family:system-ui,sans-serif;color:#fff}
@@ -74,7 +74,7 @@ input[type=text]{width:100%;padding:10px;font:inherit;background:#0E1117;color:#
 button{background:#2563EB;color:#fff;border:0;border-radius:6px;padding:10px 16px;font:inherit;cursor:pointer}
 a{color:#60A5FA}
 </style></head><body>
-<h1>Slate diagnostic — SLATE-DIAG-V3</h1>
+<h1>Kohevo diagnostic — SLATE-DIAG-V3</h1>
 
 <?php if ($flash): ?><div class="box ok"><?= htmlspecialchars($flash, ENT_QUOTES) ?></div><?php endif; ?>
 

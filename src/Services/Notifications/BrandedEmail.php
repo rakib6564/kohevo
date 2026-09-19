@@ -57,9 +57,10 @@ class BrandedEmail
      */
     public static function brand(): array {
         return [
-            'name'      => (string)(\Database::setting('site_name')              ?: 'Slate'),
+            'name'      => (string)(\Database::setting('site_name')              ?: 'Kohevo'),
             'sublabel'  => (string)(\Database::setting('brand_sublabel')         ?: ''),
             'logo_path' => (string)(\Database::setting('brand_logo_path')        ?: ''),
+            'logo_dark_path' => (string)(\Database::setting('brand_logo_dark_path') ?: ''),
             'hero_path' => (string)(\Database::setting('brand_login_image_path') ?: ''),
             'accent'    => (string)(\Database::setting('brand_accent_color')     ?: ''),
             'address'   => (string)(\Database::setting('business_address')       ?: ''),
@@ -109,7 +110,7 @@ class BrandedEmail
     public static function shell(array $opts, string $innerHtml): string {
         [$brand, $accent, $accentDeep, $onAccent] = self::accent($opts);
 
-        $site        = (string)($brand['name'] ?? 'Slate');
+        $site        = (string)($brand['name'] ?? 'Kohevo');
         $title       = (string)($opts['title'] ?? $site);
         $preheader   = (string)($opts['preheader'] ?? '');
         $hdrLabel    = trim((string)($opts['header_label'] ?? ''));
@@ -121,10 +122,23 @@ class BrandedEmail
         // Brand mark: logo image (kept as-is, no background chip, so a
         // transparent/white/colored logo all sit correctly on the accent
         // band), or the site name in the on-accent color when no logo is set.
-        $logoPath = trim((string)($brand['logo_path'] ?? ''));
+        $logoPath     = trim((string)($brand['logo_path'] ?? ''));
+        $logoDarkPath = trim((string)($brand['logo_dark_path'] ?? ''));
         if ($logoPath !== '') {
-            $logoUrl   = preg_match('#^https?://#i', $logoPath) ? $logoPath : $base . '/' . ltrim($logoPath, '/');
-            $brandMark = '<img src="' . e($logoUrl) . '" alt="' . e($site) . '" height="40" style="display:block;border:0;outline:none;max-height:40px;width:auto;">';
+            $logoUrl = preg_match('#^https?://#i', $logoPath) ? $logoPath : $base . '/' . ltrim($logoPath, '/');
+            $imgStyle = 'display:block;border:0;outline:none;max-height:40px;width:auto;';
+            if ($logoDarkPath !== '') {
+                // Most clients that honour prefers-color-scheme support CSS
+                // classes in <style> but not <picture>/srcset swapping, so
+                // both logos ship and the dark-mode media block (see below)
+                // toggles which one is visible — the light one is the
+                // default, so a client with no dark-mode support just shows it.
+                $logoDarkUrl = preg_match('#^https?://#i', $logoDarkPath) ? $logoDarkPath : $base . '/' . ltrim($logoDarkPath, '/');
+                $brandMark = '<img class="fe-logo-light" src="' . e($logoUrl) . '" alt="' . e($site) . '" height="40" style="' . $imgStyle . '">'
+                    . '<img class="fe-logo-dark" src="' . e($logoDarkUrl) . '" alt="' . e($site) . '" height="40" style="' . $imgStyle . 'display:none;">';
+            } else {
+                $brandMark = '<img src="' . e($logoUrl) . '" alt="' . e($site) . '" height="40" style="' . $imgStyle . '">';
+            }
         } else {
             $brandMark = '<span style="font:700 20px/1.2 ' . $sansFont . ';color:' . $onAccent . ';letter-spacing:-0.02em;">' . e($site) . '</span>';
         }
@@ -185,6 +199,7 @@ class BrandedEmail
             . '.fe-sep{border-color:#1e293b!important}'
             . '.fe-foot{background:#0b1120!important;color:#64748b!important;border-color:#1e293b!important}'
             . '.fe-chip{background:#1e293b!important;color:#cbd5e1!important}.fe-chip span{color:#f8fafc!important}'
+            . '.fe-logo-light{display:none!important}.fe-logo-dark{display:block!important}'
             . '}'
             . 'a{color:' . e($accentDeep) . ';}</style>'
             . '</head>'

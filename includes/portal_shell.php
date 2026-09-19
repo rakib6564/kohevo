@@ -165,7 +165,7 @@ if (!function_exists('slate_portal_shell_head')) {
      */
     function slate_portal_shell_head(string $title, string $bodyClass = ''): void
     {
-        $siteName = Database::setting('site_name') ?: 'Slate';
+        $siteName = Database::setting('site_name') ?: 'Kohevo';
 
         $accent = trim((string) Database::setting('brand_accent_color'));
         if (!preg_match('/^#[0-9a-fA-F]{3,8}$/', $accent)) { $accent = '#2563EB'; }
@@ -324,9 +324,10 @@ if (!function_exists('slate_portal_shell_open')) {
         }
         $GLOBALS['slate_portal_subnav_items'] = $subItems;
 
-        $siteName = Database::setting('site_name') ?: 'Slate';
-        $logoRel  = trim((string) Database::setting('brand_logo_path'));
-        $logoUrl  = $logoRel !== '' ? SLATE_URL . '/' . ltrim($logoRel, '/') : '';
+        $siteName = Database::setting('site_name') ?: 'Kohevo';
+        $logoUrls = slate_logo_urls();
+        $logoUrl  = $logoUrls['light'];
+        $logoDarkUrl = $logoUrls['dark'];
         $cust     = class_exists('Auth') ? Auth::customer() : null;
         $name     = (string) ($cust['name'] ?? $cust['email'] ?? '');
         $initial  = mb_strtoupper(mb_substr($name !== '' ? $name : $siteName, 0, 1));
@@ -336,7 +337,7 @@ if (!function_exists('slate_portal_shell_open')) {
     <div class="mapp-bar-in">
         <a href="<?= e($home) ?>" class="mapp-brand" aria-label="<?= e($siteName) ?>">
             <?php if ($logoUrl !== ''): ?>
-                <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
+                <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
             <?php else: ?>
                 <span class="mapp-brand-mark"><?= e(mb_strtoupper(mb_substr($siteName, 0, 1))) ?></span>
             <?php endif; ?>

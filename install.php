@@ -22,11 +22,11 @@ if (file_exists($installMarker)) {
     <!DOCTYPE html>
     <html lang="en"><head>
         <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Slate is already installed</title>
+        <title>Kohevo is already installed</title>
         <?php require_once __DIR__ . '/includes/ui_components.php'; slate_ui_emit_css(); ?>
     </head><body>
     <div style="max-width:520px;margin:60px auto;padding:0 20px">
-        <h1>Slate is already installed</h1>
+        <h1>Kohevo is already installed</h1>
         <div class="alert alert-warning">
             To re-install, delete <code>.installed</code> from the project root
             and visit this page again.
@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
         // Reached only after a partial-failure results screen the user has
         // already seen — finish setup regardless; failed plugins are just
         // never-activated, nothing was left half-applied.
-        file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Slate " . SLATE_VERSION . "\n");
+        file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Kohevo " . SLATE_VERSION . "\n");
         @chmod($installMarker, 0640);
         header('Location: ' . SLATE_URL . '/admin/login.php?installed=1');
         exit;
@@ -195,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
 
     $anyFailed = (bool) array_filter($pluginResults, static fn(array $r): bool => !$r['ok']);
     if (!$anyFailed) {
-        file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Slate " . SLATE_VERSION . "\n");
+        file_put_contents($installMarker, "Installed: " . date('Y-m-d H:i:s') . " | Kohevo " . SLATE_VERSION . "\n");
         @chmod($installMarker, 0640);
         $okCount = count($pluginResults);
         header('Location: ' . SLATE_URL . '/admin/login.php?installed=1' . ($okCount ? '&plugins=' . $okCount : ''));
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#FBF8F2">
-    <title>Install Slate</title>
+    <title>Install Kohevo</title>
     <?php require_once __DIR__ . '/includes/ui_components.php'; slate_ui_emit_css(); ?>
     <?php require __DIR__ . '/includes/a11y_head.php'; ?>
     <style>
@@ -287,8 +287,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
 <body>
 <div class="install-wrap">
     <div class="install-brand">
-        <div class="install-brand-mark" aria-hidden="true">S</div>
-        <h1 class="install-title">Install Slate</h1>
+        <div class="install-brand-mark" aria-hidden="true"><svg viewBox="0 0 198.64 300" width="28" height="28" fill="currentColor"><path d="M86.6 0L42.5 76.4C25 106.7 0 110 0 150L0 300L52 300L52 150L138.6 300L198.64 300L86.04 104.96L146.64 0Z"/></svg></div>
+        <h1 class="install-title">Install Kohevo</h1>
         <p class="install-sub">A lean, modular platform for small businesses.</p>
     </div>
 
@@ -318,7 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
                 <input type="url" id="app_url" name="app_url" required
                        placeholder="https://your-domain.example"
                        value="<?= htmlspecialchars(($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . rtrim(dirname($_SERVER['PHP_SELF']), '/')) ?>">
-                <div class="field-hint">The public URL where Slate will be reached. No trailing slash.</div>
+                <div class="field-hint">The public URL where Kohevo will be reached. No trailing slash.</div>
             </div>
 
             <div class="field-row field-row-2">
@@ -385,7 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
             </div>
 
             <button type="submit" class="btn btn-primary btn-lg btn-block mt-3">
-                Install Slate →
+                Install Kohevo →
             </button>
         </form>
 

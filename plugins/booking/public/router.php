@@ -450,7 +450,7 @@ function bookpub_is_fragment(): bool {
 }
 
 function bookpub_layout_start(string $title, bool $embed): void {
-    $siteName = Database::setting('site_name') ?: 'Slate';
+    $siteName = Database::setting('site_name') ?: 'Kohevo';
     slate_ui_emit_css();
     // Without this the tenant's brand colour never overrides core's default
     // --accent, so every `var(--accent)` in the widget rendered #2563EB blue
@@ -506,7 +506,7 @@ function bookpub_layout_end(bool $embed): void {
 
     if (!$embed) {
         echo '<footer class="book-footer text-sm text-muted text-center">' . e(__('booking_powered_by', 'Powered by')) . ' '
-           . e(Database::setting('site_name') ?: 'Slate') . '</footer>';
+           . e(Database::setting('site_name') ?: 'Kohevo') . '</footer>';
     } else {
         // Embedded in a page (Content Builder "Booking" block, or the
         // classic <iframe src="/book?embed=1">): report our height to the

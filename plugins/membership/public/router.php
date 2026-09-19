@@ -223,7 +223,7 @@ if (!$onboarded && $view !== 'onboarding') {
 // ── App shell (self-contained, mobile-app style) ────────────────────────
 $selfUrl  = SLATE_URL . '/member';
 $cust     = Auth::customer();
-$siteName = Database::setting('site_name') ?: 'Slate';
+$siteName = Database::setting('site_name') ?: 'Kohevo';
 
 // Brand accent + logo come from the SAME core settings the rest of the
 // portal reads (brand_accent_color / brand_logo_path), so a tenant changing
@@ -233,12 +233,9 @@ $siteName = Database::setting('site_name') ?: 'Slate';
 $accent = trim((string) Database::setting('brand_accent_color'));
 if (!preg_match('/^#[0-9a-fA-F]{3,8}$/', $accent)) $accent = '#2563EB';
 
-$logoRel = trim((string) Database::setting('brand_logo_path'));
-$logoUrl = $logoRel !== '' ? SLATE_URL . '/' . ltrim($logoRel, '/') : '';
-// Fall back to ContentBuilder's logo only if core has none set.
-if ($logoUrl === '' && class_exists('ContentBuilderAPI')) {
-    $logoUrl = (string) ContentBuilderAPI::mediaUrl((string) ContentBuilderAPI::getSiteSetting('logo_url', ''));
-}
+$logoUrls = slate_logo_urls();
+$logoUrl  = $logoUrls['light'];
+$logoDarkUrl = $logoUrls['dark'];
 
 $memberName = (string)($cust['name'] ?? $cust['email'] ?? 'Member');
 $initial    = mb_strtoupper(mb_substr($memberName, 0, 1));

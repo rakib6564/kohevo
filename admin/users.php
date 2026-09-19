@@ -383,7 +383,7 @@ $roles = Database::rows("SELECT id, name, slug FROM roles WHERE tenant_id = ? OR
         <div>
             <h1><?= __('users', 'Users') ?></h1>
             <p class="page-header-sub">
-                <?= __('users_subtitle', 'Admin and staff who can log into Slate.') ?>
+                <?= __('users_subtitle', 'Admin and staff who can log into Kohevo.') ?>
             </p>
         </div>
         <?php if ($canEdit): ?>

@@ -115,7 +115,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="page-header">
     <div>
         <h1>Audit log</h1>
-        <p class="page-header-sub">Everything Slate has recorded across the last <?= (int)$days ?> days.</p>
+        <p class="page-header-sub">Everything Kohevo has recorded across the last <?= (int)$days ?> days.</p>
     </div>
 </div>
 

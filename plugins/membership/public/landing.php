@@ -54,18 +54,20 @@ $cust     = Auth::customer();                 // may be null (public page)
 $plans    = MembershipAPI::plans(true);
 $types    = MembershipAPI::planTypes();
 $insFee   = MembershipAPI::insuranceFeeCents();
-$siteName = Database::setting('site_name') ?: 'Slate';
+$siteName = Database::setting('site_name') ?: 'Kohevo';
 $locale   = I18n::currentLocale();
 $self     = SLATE_URL . '/membership';
 
-$logoUrl = '';
-$accent  = '';
+// ContentBuilderAPI (the original source of these settings) is archived out
+// of this build, so class_exists() below was always false and this page's
+// logo/accent/tagline silently ignored the tenant's real Settings -> Branding
+// values. Reads the same brand_* settings every other page uses instead.
+$logoUrls = function_exists('slate_logo_urls') ? slate_logo_urls() : ['light' => '', 'dark' => ''];
+$logoUrl  = $logoUrls['light'];
+$logoDarkUrl = $logoUrls['dark'];
+$accent  = trim((string) Database::setting('brand_accent_color'));
 $tagline = (string) (Database::setting('site_tagline') ?: '');
-if (class_exists('ContentBuilderAPI')) {
-    $logoUrl = (string) ContentBuilderAPI::mediaUrl((string) ContentBuilderAPI::getSiteSetting('logo_url', ''));
-    $accent  = trim((string) ContentBuilderAPI::getSiteSetting('accent_color', ''));
-    if ($tagline === '') $tagline = trim((string) ContentBuilderAPI::getSiteSetting('tagline', ''));
-}
+if ($tagline === '') $tagline = trim((string) Database::setting('brand_login_tagline'));
 if (!preg_match('/^#[0-9a-fA-F]{3,8}$/', $accent)) $accent = '#2563EB';
 $accentDark = mlp_darken($accent, 0.16);
 
@@ -85,9 +87,9 @@ $planFeatures = function (array $p) use ($types): array {
 };
 
 /** Render the brand lockup (logo image, or letter mark fallback). */
-$brandMark = function (string $cls = 'mlp-brand') use ($logoUrl, $siteName): string {
+$brandMark = function (string $cls = 'mlp-brand') use ($logoUrl, $logoDarkUrl, $siteName): string {
     $inner = $logoUrl !== ''
-        ? '<img class="mlp-logo" src="' . e($logoUrl) . '" alt="' . e($siteName) . '">'
+        ? slate_logo_picture($logoUrl, $logoDarkUrl, ' class="mlp-logo" alt="' . e($siteName) . '"')
         : '<span class="mlp-logo-mark">' . e(mb_strtoupper(mb_substr($siteName, 0, 1))) . '</span><span class="mlp-logo-name">' . e($siteName) . '</span>';
     return '<a href="' . e(SLATE_URL) . '/" class="' . $cls . '">' . $inner . '</a>';
 };

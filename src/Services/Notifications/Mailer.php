@@ -197,7 +197,7 @@ class Mailer {
             }
 
             $fromEmail = $cfg['from_email'] ?: 'no-reply@example.com';
-            $fromName  = $cfg['from_name']  ?: 'Slate';
+            $fromName  = $cfg['from_name']  ?: 'Kohevo';
             $mail->setFrom($fromEmail, $fromName);
             // Pass the recipient name only when we have one; PHPMailer
             // accepts an empty string but it produces an awkward
@@ -423,7 +423,7 @@ class Mailer {
             ? mb_encode_mimeheader($clean($subject), 'UTF-8', 'B', "\r\n")
             : $clean($subject);
         $fromMail = $clean((string)($cfg['from_email'] ?: 'no-reply@example.com'));
-        $fromName = $clean((string)($cfg['from_name']  ?: 'Slate'));
+        $fromName = $clean((string)($cfg['from_name']  ?: 'Kohevo'));
 
         $headers  = "MIME-Version: 1.0\r\n";
         $headers .= "From: {$fromName} <{$fromMail}>\r\n";

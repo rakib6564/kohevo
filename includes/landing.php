@@ -62,12 +62,13 @@ function slate_landing_icon(string $kind): string {
 function slate_render_landing(): void {
     $e = static fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
-    $siteName = Database::setting('site_name')     ?: 'Slate';
+    $siteName = Database::setting('site_name')     ?: 'Kohevo';
     $bizName  = Database::setting('business_name')  ?: $siteName;
     $accent   = preg_match('/^#[0-9a-fA-F]{6}$/', (string)Database::setting('brand_accent_color'))
                 ? (string)Database::setting('brand_accent_color') : '#01aced';
-    $logoPath = (string)Database::setting('brand_logo_path');
-    $logoUrl  = $logoPath !== '' ? SLATE_URL . '/' . ltrim($logoPath, '/') : '';
+    $logoUrls = slate_logo_urls();
+    $logoUrl  = $logoUrls['light'];
+    $logoDarkUrl = $logoUrls['dark'];
     $heroPath = (string)Database::setting('brand_login_image_path');
     $heroUrl  = $heroPath !== '' ? SLATE_URL . '/' . ltrim($heroPath, '/') : '';
 
@@ -252,7 +253,7 @@ function slate_render_landing(): void {
             </a>
         <?php endif; ?>
         <a class="topbrand" href="<?= $e(SLATE_URL) ?>/">
-            <?php if ($logoUrl !== ''): ?><img src="<?= $e($logoUrl) ?>" alt="<?= $e($bizName) ?>"><?php endif; ?>
+            <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($bizName) . '"') ?>
             <span class="topbrand-name"><?= $e($bizName) ?></span>
         </a>
     </header>

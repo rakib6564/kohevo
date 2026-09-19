@@ -734,7 +734,7 @@ $csrf = csrf_token();
                 </svg>
             </div>
             <h3><?= __('no_plugins_installed', 'No plugins installed') ?></h3>
-            <p><?= __('no_plugins_intro', 'Slate is a clean shell right now. Upload your first plugin above.') ?></p>
+            <p><?= __('no_plugins_intro', 'Kohevo is a clean shell right now. Upload your first plugin above.') ?></p>
         </div>
     <?php else: ?>
         <div class="plug-toolbar" id="plug-toolbar">

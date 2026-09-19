@@ -970,7 +970,7 @@ class Booking extends Plugin {
 
             $to = trim((string) (Database::setting('booking.notify_admin_email') ?: Database::setting('site_admin_email') ?: ''));
             if ($to === '') return;
-            $siteName = Database::setting('site_name') ?: 'Slate';
+            $siteName = Database::setting('site_name') ?: 'Kohevo';
 
             foreach ($rows as $m) {
                 $subj = $siteName . ' · client message still waiting for your reply';

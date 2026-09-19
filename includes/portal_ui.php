@@ -151,7 +151,7 @@ function slate_icon(string $name, string $class = 'icon'): string {
  * same core treatment without inheriting the auth/dashboard chrome.
  */
 function slate_portal_head(string $title, string $bodyClass = ''): void {
-    $siteName = Database::setting('site_name') ?: 'Slate';
+    $siteName = Database::setting('site_name') ?: 'Kohevo';
 
     // Mobile browser chrome follows the tenant brand. Can't be a CSS var:
     // meta content is read before the cascade exists.
@@ -204,9 +204,10 @@ function slate_portal_topbar(array $opts = []): void {
     if ($done) return;                 // one topbar per request, belt and braces
     $done = true;
 
-    $siteName = Database::setting('site_name') ?: 'Slate';
-    $logoPath = (string) Database::setting('brand_logo_path');
-    $logoUrl  = $logoPath !== '' ? SLATE_URL . '/' . ltrim($logoPath, '/') : '';
+    $siteName = Database::setting('site_name') ?: 'Kohevo';
+    $logoUrls = slate_logo_urls();
+    $logoUrl  = $logoUrls['light'];
+    $logoDarkUrl = $logoUrls['dark'];
     $cust     = class_exists('Auth') ? Auth::customer() : null;
 
     $eyebrow    = (string)($opts['eyebrow'] ?? '');
@@ -219,7 +220,7 @@ function slate_portal_topbar(array $opts = []): void {
         <div class="topbar-inner">
             <a class="brand" href="<?= e($brandHref) ?>">
                 <?php if ($logoUrl !== ''): ?>
-                    <img src="<?= e($logoUrl) ?>" alt="<?= e($siteName) ?>">
+                    <?= slate_logo_picture($logoUrl, $logoDarkUrl, ' alt="' . e($siteName) . '"') ?>
                 <?php else: ?>
                     <span class="brand-mark" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($siteName, 0, 1))) ?></span>
                     <span><?= e($siteName) ?></span>

@@ -232,7 +232,7 @@ function forms_public_layout_start(string $title, bool $embed): void {
             header('Content-Security-Policy: frame-ancestors *');
         }
     }
-    $siteName = Database::setting('site_name') ?: 'Slate';
+    $siteName = Database::setting('site_name') ?: 'Kohevo';
     slate_ui_emit_css();
     // Override core's default --accent with the tenant brand colour, else
     // every `var(--accent)` in the form renders #2563EB blue. Must follow
@@ -282,7 +282,7 @@ function forms_public_layout_start(string $title, bool $embed): void {
 function forms_public_layout_end(bool $embed): void {
     if (!$embed) {
         echo '<footer class="forms-public-footer text-sm text-muted text-center">Powered by '
-           . e(Database::setting('site_name') ?: 'Slate') . '</footer>';
+           . e(Database::setting('site_name') ?: 'Kohevo') . '</footer>';
     } else {
         // Embedded in a page (Content Builder "Form" block): size the host
         // iframe from the INSIDE. Because the embed is same-origin, the form

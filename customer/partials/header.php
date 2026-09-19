@@ -21,13 +21,14 @@ if (!defined('SLATE_ROOT')) exit;
 
 $customerPageVariant = $customerPageVariant ?? 'auth';
 $pageTitle           = $pageTitle           ?? 'Account';
-$siteName            = Database::setting('site_name') ?: 'Slate';
+$siteName            = Database::setting('site_name') ?: 'Kohevo';
 $brandSublabel       = Database::setting('brand_sublabel') ?: __('customer_portal', 'Customer Portal');
 
 // Branding for the two-column 'auth-split' variant (same settings the
 // admin login uses — Settings → Branding).
-$brandLogoPath  = (string)Database::setting('brand_logo_path');
-$brandLogoUrl   = $brandLogoPath !== '' ? SLATE_URL . '/' . ltrim($brandLogoPath, '/') : '';
+$brandLogoUrls  = slate_logo_urls();
+$brandLogoUrl   = $brandLogoUrls['light'];
+$brandLogoDarkUrl = $brandLogoUrls['dark'];
 $brandHeroPath  = (string)Database::setting('brand_login_image_path');
 $brandHeroUrl   = $brandHeroPath !== '' ? SLATE_URL . '/' . ltrim($brandHeroPath, '/') : '';
 $brandTagline   = trim((string)Database::setting('brand_login_tagline'));
@@ -370,7 +371,7 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
             <div class="auth-hero-top">
                 <a href="<?= e(SLATE_URL) ?>/" class="auth-hero-brand">
                     <?php if ($brandLogoUrl !== ''): ?>
-                        <img src="<?= e($brandLogoUrl) ?>" alt="<?= e($siteName) ?>">
+                        <?= slate_logo_picture($brandLogoUrl, $brandLogoDarkUrl, ' alt="' . e($siteName) . '"') ?>
                     <?php else: ?>
                         <span class="auth-hero-mark"><?= $brandInitial ?></span>
                         <span><?= e($siteName) ?></span>
@@ -396,7 +397,7 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
             <div class="auth-form-inner">
                 <a href="<?= e(SLATE_URL) ?>/customer/" class="auth-brand">
                     <?php if ($brandLogoUrl !== ''): ?>
-                        <img src="<?= e($brandLogoUrl) ?>" alt="<?= e($siteName) ?>" style="max-height:40px;max-width:180px">
+                        <?= slate_logo_picture($brandLogoUrl, $brandLogoDarkUrl, ' alt="' . e($siteName) . '" style="max-height:40px;max-width:180px"') ?>
                     <?php else: ?>
                         <span class="auth-brand-mark" aria-hidden="true"><?= $brandInitial ?></span>
                         <span class="auth-brand-text">

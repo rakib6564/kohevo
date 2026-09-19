@@ -21,7 +21,7 @@ if (!function_exists('slate_render_error')) {
 
         $home    = defined('SLATE_URL') ? rtrim((string)SLATE_URL, '/') : '';
         $accent  = '#2563EB';
-        $hero = $logo = $biz = $siteUrl = '';
+        $hero = $logo = $logoDark = $biz = $siteUrl = '';
 
         // Best-effort branding — never let it break the error page itself.
         try {
@@ -32,6 +32,8 @@ if (!function_exists('slate_render_error')) {
                 if ($hp !== '' && $home !== '') $hero = $home . '/' . ltrim($hp, '/');
                 $lp = (string)Database::setting('brand_logo_path');
                 if ($lp !== '' && $home !== '') $logo = $home . '/' . ltrim($lp, '/');
+                $ldp = (string)Database::setting('brand_logo_dark_path');
+                if ($ldp !== '' && $home !== '') $logoDark = $home . '/' . ltrim($ldp, '/');
                 $biz     = (string)(Database::setting('business_name') ?: Database::setting('site_name'));
                 $siteUrl = (string)Database::setting('landing_website_url');
             }
@@ -97,7 +99,7 @@ if (!function_exists('slate_render_error')) {
 <body>
     <div class="bg"></div>
     <div class="card">
-        <?php if ($logo !== ''): ?><img class="logo" src="<?= $e($logo) ?>" alt="<?= $e($biz) ?>"><?php endif; ?>
+        <?= function_exists('slate_logo_picture') ? slate_logo_picture($logo, $logoDark, ' class="logo" alt="' . $e($biz) . '"') : ($logo !== '' ? '<img class="logo" src="' . $e($logo) . '" alt="' . $e($biz) . '">' : '') ?>
         <div class="code">Error <?= $status ?></div>
         <h1><?= $e($title) ?></h1>
         <p><?= $e($message) ?></p>

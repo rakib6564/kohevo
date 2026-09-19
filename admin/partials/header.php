@@ -344,10 +344,11 @@ if (!$currentNav) {
 }
 
 // ── Site identity ────────────────────────────────────────────
-$siteName     = Database::setting('site_name')     ?: 'Slate';
+$siteName     = Database::setting('site_name')     ?: 'Kohevo';
 $brandSublabel = Database::setting('brand_sublabel') ?: __('pro_admin', 'Pro Admin');
-$brandLogoRel  = trim((string) Database::setting('brand_logo_path'));
-$brandLogoUrl  = $brandLogoRel !== '' ? SLATE_URL . '/' . ltrim($brandLogoRel, '/') : '';
+$brandLogoUrls = slate_logo_urls();
+$brandLogoUrl  = $brandLogoUrls['light'];
+$brandLogoDarkUrl = $brandLogoUrls['dark'];
 // On dark sidebar themes the logo sits on a white tile so dark logo artwork
 // stays legible; on the Light theme the logo shows clean (no tile).
 $sidebarThemeKey = (string)(Database::setting('sidebar_theme') ?: 'ink');
@@ -1689,7 +1690,7 @@ if (!function_exists('slate_admin_nav_icon')) {
                class="sidebar-brand<?= $brandLogoUrl !== '' ? ' has-logo' : '' ?>">
                 <?php if ($brandLogoUrl !== ''): ?>
                     <span class="sidebar-brand-logo">
-                        <img src="<?= e($brandLogoUrl) ?>" alt="<?= e($siteName) ?>">
+                        <?= slate_logo_picture($brandLogoUrl, $brandLogoDarkUrl, ' alt="' . e($siteName) . '"') ?>
                     </span>
                     <span class="sidebar-brand-tag"><?= e($brandSublabel) ?></span>
                 <?php else: ?>

@@ -1835,7 +1835,7 @@ class BookingAPI {
      */
 
     public static function sendConfirmation(array $args): bool {
-        $siteName = Database::setting('site_name') ?: 'Slate';
+        $siteName = Database::setting('site_name') ?: 'Kohevo';
         $when     = self::frenchDate(slate_format_datetime($args['starts_at'], 'l, j F Y'));
 
         // Per-service template override (placeholders rendered, then still
@@ -1918,7 +1918,7 @@ class BookingAPI {
         Mailer::send($appt['customer_email'], 'Rappel : ' . $appt['service_name'] . ' dans ' . $when, $body, $appt['customer_name']);
 
         if (!empty($appt['customer_phone'])) {
-            $siteName = Database::setting('site_name') ?: 'Slate';
+            $siteName = Database::setting('site_name') ?: 'Kohevo';
             self::notifySms((string)$appt['customer_phone'],
                 $siteName . ' rappel : ' . $appt['service_name'] . ' ' . $when . ' ('
                 . self::frenchDate(slate_format_datetime($appt['starts_at'], 'j M')) . '). Réf ' . $appt['ref']);
@@ -2035,7 +2035,7 @@ class BookingAPI {
      * of its own beyond the site name / accent color it reads itself.
      */
     private static function brandedEmailShell(string $innerHtml, string $preheader = ''): string {
-        $siteName = (string) (Database::setting('site_name') ?: 'Slate');
+        $siteName = (string) (Database::setting('site_name') ?: 'Kohevo');
         $accent   = self::brandAccent();
         $logoRel  = trim((string) Database::setting('brand_logo_path'));
         $logoUrl  = ($logoRel !== '' && defined('SLATE_URL')) ? SLATE_URL . '/' . ltrim($logoRel, '/') : '';

@@ -1,8 +1,13 @@
-# Nutrition Booking & Management
+# Kohevo — Nutrition Booking & Management
 
-A nutrition practice management application — client bookings, coaching
-programs, food and hydration tracking, memberships and payments — built
-on **Slate**, the modular multi-tenant PHP platform in this repository.
+**Kohevo** is a white-label modular platform — website, clients, bookings,
+sales and business management in a single, personalized environment.
+("Slate" is this repository's internal engineering codename; product/
+brand references outside the codebase should say Kohevo.)
+
+This build configures Kohevo as a nutrition practice management
+application — client bookings, coaching programs, food and hydration
+tracking, memberships and payments.
 
 The spec defines a **strict two-level model**: a one-time nutrition
 assessment never grants access to the programme app.

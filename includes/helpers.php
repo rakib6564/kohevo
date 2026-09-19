@@ -695,3 +695,38 @@ if (!function_exists('slate_avatar_overlay_html')) {
         return e($initials) . '<img src="' . e($imgSrc) . '" alt="" loading="lazy" onerror="this.remove()">';
     }
 }
+
+// ── Dynamic (light/dark) brand logo ──────────────────────────────
+if (!function_exists('slate_logo_urls')) {
+    /** @return array{light:string,dark:string} Resolved absolute URLs, or '' when unset. */
+    function slate_logo_urls(): array {
+        $light = trim((string) Database::setting('brand_logo_path'));
+        $dark  = trim((string) Database::setting('brand_logo_dark_path'));
+        return [
+            'light' => $light !== '' ? SLATE_URL . '/' . ltrim($light, '/') : '',
+            'dark'  => $dark  !== '' ? SLATE_URL . '/' . ltrim($dark, '/')  : '',
+        ];
+    }
+}
+
+if (!function_exists('slate_logo_picture')) {
+    /**
+     * The logo <img>, or a <picture> that swaps to the dark variant under
+     * `prefers-color-scheme: dark` when one is configured. Falls back to a
+     * plain <img> (byte-identical to the old single-logo markup) whenever no
+     * dark variant is set, so every existing call site keeps working
+     * unchanged until a tenant actually uploads one.
+     *
+     * $imgAttrs is raw HTML attribute text (already escaped by the caller,
+     * e.g. ' alt="..." style="..."') appended to the <img> tag.
+     */
+    function slate_logo_picture(string $lightUrl, string $darkUrl, string $imgAttrs = ''): string {
+        if ($lightUrl === '') return '';
+        if ($darkUrl === '') {
+            return '<img src="' . e($lightUrl) . '"' . $imgAttrs . '>';
+        }
+        return '<picture><source srcset="' . e($darkUrl) . '" media="(prefers-color-scheme: dark)">'
+             . '<img src="' . e($lightUrl) . '"' . $imgAttrs . '>'
+             . '</picture>';
+    }
+}

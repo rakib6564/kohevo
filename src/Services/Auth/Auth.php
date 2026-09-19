@@ -882,7 +882,7 @@ class Auth {
         $token = self::issueCustomerToken($customerId, 'verify_email', self::VERIFY_TOKEN_TTL_SECONDS);
 
         $verifyUrl = SLATE_URL . '/customer/verify-email.php?token=' . urlencode($token);
-        $siteName  = \Database::setting('site_name') ?: 'Slate';
+        $siteName  = \Database::setting('site_name') ?: 'Kohevo';
 
         $bodyHtml = '<p>Welcome to ' . e($siteName) . '.</p>'
                   . '<p>Please confirm your email address by clicking the link below. The link is valid for 3 days.</p>'
@@ -939,7 +939,7 @@ class Auth {
         $token = self::issueCustomerToken((int)$cust['id'], 'password_reset', self::RESET_TOKEN_TTL_SECONDS);
 
         $resetUrl = SLATE_URL . '/customer/reset-password.php?token=' . urlencode($token);
-        $siteName = \Database::setting('site_name') ?: 'Slate';
+        $siteName = \Database::setting('site_name') ?: 'Kohevo';
 
         $bodyHtml = '<p>You requested a password reset for your ' . e($siteName) . ' account.</p>'
                   . '<p>Click the link below to set a new password. The link is valid for 2 hours.</p>'

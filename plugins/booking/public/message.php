@@ -168,7 +168,7 @@ bookingplus_render_page('A message about your booking', $html);
 // ── Helpers ─────────────────────────────────────────────────────────
 
 function bookingplus_notify_therapist(array $appt, string $message): void {
-    $siteName = Database::setting('site_name') ?: 'Slate';
+    $siteName = Database::setting('site_name') ?: 'Kohevo';
     $to = trim((string) (
         Database::setting('booking.notify_admin_email')
         ?: Database::setting('site_admin_email')

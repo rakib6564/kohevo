@@ -48,7 +48,7 @@ $addons   = json_decode((string)($appt['addons_json'] ?? '[]'), true) ?: [];
 $party    = max(1, (int)($appt['party_size'] ?? 1));
 
 // ── Brand (same settings the rest of Slate reads — Settings → Branding) ──
-$bizName   = (string)(Database::setting('business_name') ?: Database::setting('site_name') ?: 'Slate');
+$bizName   = (string)(Database::setting('business_name') ?: Database::setting('site_name') ?: 'Kohevo');
 $bizEmail  = (string)(Database::setting('business_email') ?: '');
 $bizPhone  = (string)(Database::setting('business_phone') ?: '');
 $bizAddr   = (string)(Database::setting('business_address') ?: '');

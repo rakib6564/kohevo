@@ -968,7 +968,7 @@ class MembershipAPI {
         $cust = self::customerRow((int)$sub['customer_id']);
         if (empty($cust['email'])) return;
 
-        $site    = Database::setting('site_name') ?: 'Slate';
+        $site    = Database::setting('site_name') ?: 'Kohevo';
         $name    = self::planName($sub);
         $expires = !empty($sub['expires_at']) ? I18n::localDate('j M Y', strtotime($sub['expires_at'])) : '—';
         $subject = sprintf('%s — %s', $site, __('membership_email_active_subject', 'Your membership is active'));
@@ -989,7 +989,7 @@ class MembershipAPI {
         $cust = self::customerRow((int)$sub['customer_id']);
         if (empty($cust['email'])) return;
 
-        $site    = Database::setting('site_name') ?: 'Slate';
+        $site    = Database::setting('site_name') ?: 'Kohevo';
         $subject = sprintf('%s — %s', $site, __('membership_email_cancel_subject', 'Your membership was cancelled'));
         $body = '<p>' . e($cust['name'] ?? '') . ',</p>'
               . '<p>' . __('membership_email_cancel_body', 'Your membership has been cancelled.') . '</p>'

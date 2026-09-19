@@ -29,13 +29,13 @@ return [
     'csrf_failed'       => 'Security check failed. Please try again.',
     'login_required'    => 'Email and password are required.',
     'login_invalid'     => 'Invalid email or password.',
-    'install_success'   => 'Slate is installed. Log in with the account you just created.',
+    'install_success'   => 'Kohevo is installed. Log in with the account you just created.',
 
     // Dashboard
     'good_to_see_you'   => 'Good to see you',
     'dashboard_subtitle'=> 'Here\'s a quick snapshot of your account today.',
-    'welcome'           => 'Welcome to Slate',
-    'dashboard_intro'   => 'Slate is a lean shell. Install plugins to add functionality — booking, products, passes, and more. Each plugin owns its own data and can be deactivated or uninstalled without affecting the others.',
+    'welcome'           => 'Welcome to Kohevo',
+    'dashboard_intro'   => 'Kohevo is a lean shell. Install plugins to add functionality — booking, products, passes, and more. Each plugin owns its own data and can be deactivated or uninstalled without affecting the others.',
     'active_plugins'    => 'Active plugins',
     'installed'         => 'installed',
     'inactive'          => 'inactive',
@@ -58,7 +58,7 @@ return [
     'download_example'  => 'Download example plugin',
     'installed_plugins' => 'Installed plugins',
     'no_plugins_installed' => 'No plugins installed',
-    'no_plugins_intro'  => 'Slate is a clean shell right now. Upload your first plugin above.',
+    'no_plugins_intro'  => 'Kohevo is a clean shell right now. Upload your first plugin above.',
     'activate'          => 'Activate',
     'deactivate'        => 'Deactivate',
     'uninstall'         => 'Uninstall',
@@ -83,7 +83,7 @@ return [
     'active'            => 'active',
 
     // Users page
-    'users_subtitle'    => 'Admin users who can log into Slate.',
+    'users_subtitle'    => 'Admin users who can log into Kohevo.',
     'coming_session_3'  => 'Edit UI: Session 3',
     'role'              => 'Role',
     'last_login'        => 'Last login',
@@ -104,7 +104,7 @@ return [
     'submissions'       => 'Submissions',
 
     // Settings page
-    'settings_subtitle' => 'Configure how Slate looks and behaves.',
+    'settings_subtitle' => 'Configure how Kohevo looks and behaves.',
     'more_session_3'    => 'More settings: Session 3',
     'general'           => 'General',
     'site_name'         => 'Site name',

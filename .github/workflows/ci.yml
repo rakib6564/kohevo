@@ -238,7 +238,7 @@ jobs:
           ON DUPLICATE KEY UPDATE tenant_id = VALUES(tenant_id), role_id = VALUES(role_id), status = VALUES(status);
 
           INSERT INTO settings (tenant_id, setting_key, setting_value)
-          VALUES (1, 'site_name', 'Slate CI')
+          VALUES (1, 'site_name', 'Kohevo CI')
           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
           -- Marker tests/guard.php requires before it will run a DB-backed suite.

@@ -375,9 +375,9 @@ if (Auth::isPlatformSuperAdmin()):
             <?php foreach ($pluginWidgets as $widget) echo $widget; ?>
         <?php else: ?>
             <div class="card">
-                <div class="card-header"><h2><?= __('welcome', 'Welcome to Slate') ?></h2></div>
+                <div class="card-header"><h2><?= __('welcome', 'Welcome to Kohevo') ?></h2></div>
                 <p class="text-muted"><?= __('dashboard_intro',
-                    'Slate is a lean shell. Install plugins to add functionality — booking, products, passes, and more. Each plugin owns its own data and can be deactivated or uninstalled without affecting the others.') ?></p>
+                    'Kohevo is a lean shell. Install plugins to add functionality — booking, products, passes, and more. Each plugin owns its own data and can be deactivated or uninstalled without affecting the others.') ?></p>
                 <div class="mt-4">
                     <a href="<?= e(SLATE_URL) ?>/admin/plugins.php" class="btn btn-primary"><?= __('manage_plugins', 'Manage plugins') ?></a>
                 </div>
