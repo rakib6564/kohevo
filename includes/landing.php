@@ -8,13 +8,18 @@
  * fully editable from the backend with no code change:
  *
  *   landing_eyebrow, landing_title, landing_intro, landing_footer,
- *   landing_website_url, landing_website_label, landing_forms_json
+ *   landing_website_url, landing_website_label, landing_forms_json,
+ *   landing_booking_enabled, landing_booking_label, landing_booking_blurb,
+ *   landing_booking_button, landing_booking_icon
  *
  * The featured cards come from landing_forms_json (a list of {id,label,blurb,
  * icon}); if none are configured yet it falls back to the Powerboat/Sailboat
- * survey forms so a fresh install still looks complete. The hero background
- * reuses the Branding login image. Layout is built to fit one 100vh screen on
- * desktop/tablet and to scroll gracefully on small phones.
+ * survey forms so a fresh install still looks complete. When the Booking
+ * plugin is active and landing_booking_enabled is set, a card linking to the
+ * live booking catalog (/book) is featured first, ahead of the forms cards.
+ * The hero background reuses the Branding login image. Layout is built to fit
+ * one 100vh screen on desktop/tablet and to scroll gracefully on small
+ * phones.
  */
 
 if (!function_exists('slate_render_landing')) {
@@ -113,6 +118,17 @@ function slate_render_landing(): void {
     }
 
     $cards = [];
+    if (class_exists('PluginLoader') && PluginLoader::isActive('booking')
+        && Database::setting('landing_booking_enabled') === '1') {
+        $bookLabel = (string)Database::setting('landing_booking_label') ?: 'Book online';
+        $cards[] = [
+            'label'  => $bookLabel,
+            'blurb'  => (string)Database::setting('landing_booking_blurb'),
+            'icon'   => (string)(Database::setting('landing_booking_icon') ?: 'clipboard'),
+            'button' => (string)Database::setting('landing_booking_button') ?: 'Book now',
+            'url'    => SLATE_URL . '/book',
+        ];
+    }
     if (class_exists('FormsAPI')) {
         foreach ($configured as $c) {
             $form = isset($c['id']) ? FormsAPI::getFormById((int)$c['id'])

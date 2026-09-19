@@ -759,6 +759,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 Database::setSetting('landing_forms_json', json_encode($out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
+                // Optional featured card linking straight to the booking catalog
+                // (/book) — separate from the forms cards above since it isn't
+                // tied to a forms_definitions row. Only meaningful when the
+                // Booking plugin is active; ignored otherwise so a stray POST
+                // can't turn on a link to a route that doesn't exist.
+                if (class_exists('PluginLoader') && PluginLoader::isActive('booking')) {
+                    $bookIcon = (string)($_POST['landing_booking_icon'] ?? 'clipboard');
+                    if (!in_array($bookIcon, $allowedIcons, true)) $bookIcon = 'clipboard';
+                    Database::setSetting('landing_booking_enabled', isset($_POST['landing_booking_enabled']) ? '1' : '0');
+                    Database::setSetting('landing_booking_label',  mb_substr(trim((string)($_POST['landing_booking_label']  ?? '')), 0, 60));
+                    Database::setSetting('landing_booking_blurb',  mb_substr(trim((string)($_POST['landing_booking_blurb']  ?? '')), 0, 160));
+                    Database::setSetting('landing_booking_button', mb_substr(trim((string)($_POST['landing_booking_button'] ?? '')), 0, 40));
+                    Database::setSetting('landing_booking_icon',   $bookIcon);
+                }
+
                 if (!$flash) {
                     AuditLog::record('settings.updated', 'landing');
                     $redirectWithFlash(['type' => 'success', 'msg' => __('settings_saved', 'Settings saved.')], $activeTab);
@@ -853,6 +868,16 @@ $landingFormMap = [];
 foreach ((array)json_decode((string)Database::setting('landing_forms_json'), true) as $lf) {
     if (isset($lf['id'])) $landingFormMap[(int)$lf['id']] = $lf;
 }
+// Featured "book online" card (only offered when the Booking plugin is active).
+$bookingPluginActive = class_exists('PluginLoader') && PluginLoader::isActive('booking');
+$landingBooking = [
+    'enabled' => Database::setting('landing_booking_enabled') === '1',
+    'label'   => $_safeText(Database::setting('landing_booking_label'),  60),
+    'blurb'   => $_safeText(Database::setting('landing_booking_blurb'),  160),
+    'button'  => $_safeText(Database::setting('landing_booking_button'), 40),
+    'icon'    => in_array((string)Database::setting('landing_booking_icon'), ['clipboard','powerboat','sailboat','boat','anchor','compass','star'], true)
+                  ? Database::setting('landing_booking_icon') : 'clipboard',
+];
 // Every published form the admin can choose to feature.
 $publishedForms = (class_exists('FormsAPI') && function_exists('current_tenant_id'))
     ? Database::rows("SELECT id, slug, title FROM forms_definitions WHERE tenant_id = ? AND status = 'published' ORDER BY title", [current_tenant_id()])
@@ -4007,6 +4032,35 @@ slate_render_settings_tabs($activeTab);
             </div>
 
     </div><!-- /content card -->
+
+    <?php if ($bookingPluginActive): ?>
+    <div class="card">
+        <div class="card-header"><h2><?= __('landing_booking', 'Book online') ?></h2></div>
+        <p class="text-muted text-sm mb-3">
+            <?= __('landing_booking_help', 'Feature a card that links straight to your booking catalog.') ?>
+            <a href="<?= e(SLATE_URL) ?>/book" target="_blank" rel="noopener"><?= __('view_booking', 'View booking page ↗') ?></a>
+        </p>
+        <div class="lf-row">
+            <label class="lf-check">
+                <input type="checkbox" name="landing_booking_enabled" value="1" <?= $landingBooking['enabled'] ? 'checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>>
+                <span class="lf-title"><?= __('feature_booking_card', 'Feature the booking catalog on the landing page') ?><small>/book</small></span>
+            </label>
+            <div class="lf-fields">
+                <input type="text" name="landing_booking_label" maxlength="60"
+                       placeholder="<?= __('card_label', 'Card label') ?>" value="<?= e($landingBooking['label']) ?>" <?= $canEdit ? '' : 'disabled' ?>>
+                <input type="text" name="landing_booking_blurb" maxlength="160"
+                       placeholder="<?= __('short_description', 'Short description') ?>" value="<?= e($landingBooking['blurb']) ?>" <?= $canEdit ? '' : 'disabled' ?>>
+                <select name="landing_booking_icon" <?= $canEdit ? '' : 'disabled' ?>>
+                    <?php foreach (['clipboard'=>'Clipboard','powerboat'=>'Powerboat','sailboat'=>'Sailboat','boat'=>'Boat','anchor'=>'Anchor','compass'=>'Compass','star'=>'Star'] as $ik => $il): ?>
+                        <option value="<?= $ik ?>" <?= $landingBooking['icon'] === $ik ? 'selected' : '' ?>><?= $il ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <input type="text" name="landing_booking_button" maxlength="40" style="grid-column:1/-1"
+                       placeholder="<?= __('card_button_ph', 'Button text (blank = “Start ” + card label)') ?>" value="<?= e($landingBooking['button']) ?>" <?= $canEdit ? '' : 'disabled' ?>>
+            </div>
+        </div>
+    </div><!-- /booking card -->
+    <?php endif; ?>
 
     <div class="card">
         <div class="card-header"><h2><?= __('landing_forms', 'Forms shown on the landing page') ?></h2></div>
