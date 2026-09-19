@@ -268,7 +268,7 @@ class Booking extends Plugin {
                 "SELECT COUNT(*) FROM booking_services
                   WHERE tenant_id = ? AND is_active=1", [$tid]);
             $latest = Database::rows(
-                "SELECT a.customer_name, a.customer_email, a.starts_at, a.status, s.name AS service_name
+                "SELECT a.customer_name, a.customer_email, a.starts_at, a.status, s.name AS service_name, s.name_fr AS service_name_fr
                    FROM booking_appointments a
                    LEFT JOIN booking_services s ON s.id = a.service_id
                   WHERE a.tenant_id = ? ORDER BY a.id DESC LIMIT 5", [$tid]);
@@ -381,7 +381,7 @@ class Booking extends Plugin {
 
         try {
             $rows = Database::rows(
-                "SELECT a.*, s.name AS service_name, p.name AS provider_name
+                "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                    FROM booking_appointments a
                    JOIN booking_services  s ON s.id = a.service_id
                    JOIN booking_providers p ON p.id = a.provider_id
@@ -413,7 +413,7 @@ class Booking extends Plugin {
 
         try {
             $upcoming = Database::rows(
-                "SELECT a.*, s.name AS service_name, p.name AS provider_name
+                "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                    FROM booking_appointments a
                    JOIN booking_services  s ON s.id = a.service_id
                    JOIN booking_providers p ON p.id = a.provider_id
@@ -461,7 +461,7 @@ class Booking extends Plugin {
                 // Appointments now within `lead` minutes of starting that
                 // haven't had this lead's reminder yet.
                 $rows = Database::rows(
-                    "SELECT a.*, s.name AS service_name, p.name AS provider_name
+                    "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                        FROM booking_appointments a
                        JOIN booking_services  s ON s.id = a.service_id
                        JOIN booking_providers p ON p.id = a.provider_id
@@ -484,7 +484,7 @@ class Booking extends Plugin {
             if (Database::setting('booking.followup_enabled') === '1') {
                 $delayH = max(1, (int)(Database::setting('booking.followup_delay_hours') ?: 24));
                 $rows = Database::rows(
-                    "SELECT a.*, s.name AS service_name, p.name AS provider_name
+                    "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                        FROM booking_appointments a
                        JOIN booking_services  s ON s.id = a.service_id
                        JOIN booking_providers p ON p.id = a.provider_id
@@ -910,7 +910,7 @@ class Booking extends Plugin {
             if ($body === '') return;
 
             $appt = Database::row(
-                "SELECT a.*, s.name AS service_name, s.payment_mode, p.name AS provider_name
+                "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, s.payment_mode, p.name AS provider_name
                    FROM booking_appointments a
                    JOIN booking_services  s ON s.id = a.service_id
                    JOIN booking_providers p ON p.id = a.provider_id
@@ -967,7 +967,7 @@ class Booking extends Plugin {
             $hours = BookingPlusAPI::globalNudgeHours();
 
             $rows = Database::rows(
-                "SELECT m.*, a.customer_name, a.customer_email, s.name AS service_name
+                "SELECT m.*, a.customer_name, a.customer_email, s.name AS service_name, s.name_fr AS service_name_fr
                    FROM bookingplus_appointment_meta m
                    JOIN booking_appointments a ON a.id = m.appointment_id
                    JOIN booking_services    s ON s.id = a.service_id

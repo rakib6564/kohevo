@@ -1580,6 +1580,14 @@ function bookpub_render_error(string $msg, bool $embed): void {
     bookpub_layout_end($embed);
 }
 
+/** Locale-aware service name for a flat appointment row (service_name/service_name_fr). */
+function bookpub_service_name(array $appt): string {
+    return BookingAPI::serviceName([
+        'name'    => $appt['service_name'] ?? '',
+        'name_fr' => $appt['service_name_fr'] ?? null,
+    ]);
+}
+
 // ─────────────────────────────────────────────────────────────
 //             Self-service manage (cancel / reschedule)
 // ─────────────────────────────────────────────────────────────
@@ -1618,7 +1626,7 @@ function bookpub_manage(bool $embed): void {
             }
             bookpub_layout_start(__('booking_cancelled_title', 'Cancelled'), $embed);
             echo '<div class="book-success"><h1>' . e(__('booking_cancelled_heading', 'Booking cancelled')) . '</h1>'
-               . '<p>' . sprintf(e(__('booking_appt_cancelled_msg', 'Your appointment for %s has been cancelled.')), '<strong>' . e($appt['service_name']) . '</strong>') . '</p></div>';
+               . '<p>' . sprintf(e(__('booking_appt_cancelled_msg', 'Your appointment for %s has been cancelled.')), '<strong>' . e(bookpub_service_name($appt)) . '</strong>') . '</p></div>';
             bookpub_layout_end($embed);
             return;
         }
@@ -1664,7 +1672,7 @@ function bookpub_manage_view(array $appt, bool $embed, string $error): void {
     echo '<p class="book-sub" style="margin-bottom:16px;">' . e(__('booking_manage_sub', 'View details, reschedule your time, or cancel your appointment.')) . '</p>';
 
     echo '<div class="book-summary">';
-    echo '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value"><strong>' . e($appt['service_name']) . '</strong></span></div>';
+    echo '<div><span class="kv-label">' . e(__('booking_service', 'Service')) . '</span><span class="kv-value"><strong>' . e(bookpub_service_name($appt)) . '</strong></span></div>';
     echo '<div><span class="kv-label">' . e(__('booking_with', 'With')) . '</span><span class="kv-value">' . e($appt['provider_name']) . '</span></div>';
     echo '<div><span class="kv-label">' . e(__('booking_when', 'When')) . '</span><span class="kv-value"><strong>' . e(slate_format_datetime($appt['starts_at'], 'l, j F Y')) . '</strong></span></div>';
 
@@ -1886,7 +1894,7 @@ function bookpub_pay_done(bool $embed): void {
         bookpub_layout_start(__('booking_payment_processing_title', 'Payment processing'), $embed);
         echo '<div class="book-success">';
         echo '<h1>' . e(__('booking_almost_there', 'Almost there')) . '</h1>';
-        echo '<p>' . sprintf(e(__('booking_confirming_payment_msg', 'We\'re confirming your payment for %s. This can take a moment — you\'ll get an email once it\'s confirmed.')), '<strong>' . e($appt['service_name']) . '</strong>') . '</p>';
+        echo '<p>' . sprintf(e(__('booking_confirming_payment_msg', 'We\'re confirming your payment for %s. This can take a moment — you\'ll get an email once it\'s confirmed.')), '<strong>' . e(bookpub_service_name($appt)) . '</strong>') . '</p>';
         echo '<p class="text-sm text-muted">' . e(__('booking_reference', 'Reference:')) . ' <code>' . e($appt['ref']) . '</code></p>';
         echo '<p class="mt-3"><a href="' . e(SLATE_URL . '/book/manage?token=' . rawurlencode((string)$appt['manage_token']) . ($embed ? '&embed=1' : '')) . '" class="btn btn-ghost">' . e(__('booking_view_retry_payment', 'View / retry payment')) . '</a></p>';
         echo '</div>';
@@ -1898,7 +1906,7 @@ function bookpub_pay_done(bool $embed): void {
     echo '<div class="book-success">';
     echo '<div class="book-success-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>';
     echo '<h1>' . e(__('booking_thank_you', 'Thank you')) . '</h1>';
-    echo '<p>' . sprintf(e(__('booking_booking_confirmed_msg', 'Your booking for %s is confirmed.')), '<strong>' . e($appt['service_name']) . '</strong>') . '</p>';
+    echo '<p>' . sprintf(e(__('booking_booking_confirmed_msg', 'Your booking for %s is confirmed.')), '<strong>' . e(bookpub_service_name($appt)) . '</strong>') . '</p>';
     echo '<p class="text-sm text-muted">' . e(__('booking_reference', 'Reference:')) . ' <code>' . e($appt['ref']) . '</code></p>';
     echo '<p class="mt-3"><a href="' . e(bookpub_home($embed)) . '" class="btn btn-ghost">' . e(__('booking_something_else', 'Book something else')) . '</a></p>';
     echo '</div>';

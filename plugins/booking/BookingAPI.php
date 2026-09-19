@@ -190,14 +190,14 @@ class BookingAPI {
         // shipped unscoped. Writing the clause inline keeps the guard live
         // here, which is where it matters most.
         if ($withProvider) {
-            $sql = "SELECT a.*, s.name AS service_name, s.currency, p.name AS provider_name
+            $sql = "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, s.currency, p.name AS provider_name
                       FROM booking_appointments a
                       JOIN booking_services  s ON s.id = a.service_id
                       JOIN booking_providers p ON p.id = a.provider_id
                      WHERE a.manage_token = ? AND a.tenant_id = ?
                      LIMIT 1";
         } else {
-            $sql = "SELECT a.*, s.name AS service_name, s.currency
+            $sql = "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, s.currency
                       FROM booking_appointments a
                       JOIN booking_services s ON s.id = a.service_id
                      WHERE a.manage_token = ? AND a.tenant_id = ?
@@ -210,7 +210,7 @@ class BookingAPI {
     public static function getAppointment(int $id): ?array {
         $tid = current_tenant_id();
         return Database::row(
-            "SELECT a.*, s.name AS service_name, p.name AS provider_name
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                FROM booking_appointments a
           LEFT JOIN booking_services  s ON s.id = a.service_id AND s.tenant_id = a.tenant_id
           LEFT JOIN booking_providers p ON p.id = a.provider_id AND p.tenant_id = a.tenant_id
@@ -222,7 +222,7 @@ class BookingAPI {
     public static function getAppointmentByRef(string $ref): ?array {
         $tid = current_tenant_id();
         return Database::row(
-            "SELECT a.*, s.name AS service_name, p.name AS provider_name
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                FROM booking_appointments a
           LEFT JOIN booking_services  s ON s.id = a.service_id AND s.tenant_id = a.tenant_id
           LEFT JOIN booking_providers p ON p.id = a.provider_id AND p.tenant_id = a.tenant_id
@@ -912,7 +912,7 @@ class BookingAPI {
     public static function approveAppointment(int $id): array {
         $tid = current_tenant_id();
         $row = Database::row(
-            "SELECT a.*, s.name AS service_name, s.confirm_subject, s.confirm_body,
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, s.confirm_subject, s.confirm_body,
                     p.name AS provider_name, p.email AS provider_email
                FROM booking_appointments a
                JOIN booking_services  s ON s.id = a.service_id
@@ -984,7 +984,7 @@ class BookingAPI {
     public static function declineAppointment(int $id, string $reason = ''): array {
         $tid = current_tenant_id();
         $row = Database::row(
-            "SELECT a.*, s.name AS service_name, p.name AS provider_name
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                FROM booking_appointments a
                JOIN booking_services  s ON s.id = a.service_id
                JOIN booking_providers p ON p.id = a.provider_id
@@ -1014,7 +1014,7 @@ class BookingAPI {
     public static function cancelAppointment(int $id, string $reason = '', bool $notify = true): bool {
         $tid = current_tenant_id();
         $row = Database::row(
-            "SELECT a.*, s.name AS service_name, p.name AS provider_name
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                FROM booking_appointments a
                JOIN booking_services  s ON s.id = a.service_id
                JOIN booking_providers p ON p.id = a.provider_id
@@ -1046,7 +1046,7 @@ class BookingAPI {
     public static function rescheduleAppointment(int $id, string $newStart, bool $notify = true): array {
         $tid = current_tenant_id();
         $row = Database::row(
-            "SELECT a.*, s.name AS service_name, p.name AS provider_name
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                FROM booking_appointments a
                JOIN booking_services  s ON s.id = a.service_id
                JOIN booking_providers p ON p.id = a.provider_id
@@ -1330,7 +1330,7 @@ class BookingAPI {
     public static function markPaid(int $apptId, int $amountCents, string $stripeRef = ''): bool {
         $tid = current_tenant_id();
         $a = Database::row(
-            "SELECT a.*, s.name AS service_name, s.confirm_subject, s.confirm_body,
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, s.confirm_subject, s.confirm_body,
                     p.name AS provider_name, p.email AS provider_email
                FROM booking_appointments a
                JOIN booking_services  s ON s.id = a.service_id
@@ -1477,7 +1477,7 @@ class BookingAPI {
      */
     private static function handleFailedPayment(int $apptId, array $obj, string $eventType): void {
         $a = Database::row(
-            "SELECT a.*, s.name AS service_name, p.name AS provider_name, p.email AS provider_email
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name, p.email AS provider_email
                FROM booking_appointments a
                JOIN booking_services  s ON s.id = a.service_id  AND s.tenant_id = a.tenant_id
                JOIN booking_providers p ON p.id = a.provider_id AND p.tenant_id = a.tenant_id
@@ -1791,7 +1791,7 @@ class BookingAPI {
     public static function customerHistory(string $email, int $limit = 100): array {
         try {
             return Database::rows(
-                "SELECT a.*, s.name AS service_name, p.name AS provider_name
+                "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                    FROM booking_appointments a
                    JOIN booking_services  s ON s.id = a.service_id
                    JOIN booking_providers p ON p.id = a.provider_id

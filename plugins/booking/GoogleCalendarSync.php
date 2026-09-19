@@ -258,7 +258,7 @@ class GoogleCalendarSync
     private static function pushAppointment(int $apptId): void {
         $tid  = current_tenant_id();
         $appt = Database::row(
-            "SELECT a.*, s.name AS service_name FROM booking_appointments a
+            "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr FROM booking_appointments a
                JOIN booking_services s ON s.id = a.service_id
               WHERE a.id = ? AND a.tenant_id = ?",
             [$apptId, $tid]
