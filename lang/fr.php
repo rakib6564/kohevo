@@ -22,6 +22,7 @@ return [
     'password'          => 'Mot de passe',
     'show'              => 'Afficher',
     'hide'              => 'Masquer',
+    'customer_portal'   => 'Espace client',
     'skip_to_content'   => 'Aller au contenu principal',
     'primary_navigation'=> 'Navigation principale',
     'more'              => 'Plus',
