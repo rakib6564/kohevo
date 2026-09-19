@@ -412,6 +412,9 @@ class Booking extends Plugin {
         if ($cid === null) return $widgets;
 
         try {
+            // anti-drift-ignore: TENANT — scoped by a.customer_id, which is
+            // Auth::customerId() (the current session's own customer row);
+            // a customer's appointments can't belong to another tenant.
             $upcoming = Database::rows(
                 "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                    FROM booking_appointments a
@@ -460,6 +463,8 @@ class Booking extends Plugin {
             foreach (BookingAPI::reminderLeads() as $lead) {
                 // Appointments now within `lead` minutes of starting that
                 // haven't had this lead's reminder yet.
+                // anti-drift-ignore: TENANT — cron tick, intentionally scans
+                // every tenant's due reminders in one pass.
                 $rows = Database::rows(
                     "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                        FROM booking_appointments a
@@ -483,6 +488,8 @@ class Booking extends Plugin {
             // Follow-ups: appointments that finished a while ago.
             if (Database::setting('booking.followup_enabled') === '1') {
                 $delayH = max(1, (int)(Database::setting('booking.followup_delay_hours') ?: 24));
+                // anti-drift-ignore: TENANT — cron tick, intentionally scans
+                // every tenant's due follow-ups in one pass.
                 $rows = Database::rows(
                     "SELECT a.*, s.name AS service_name, s.name_fr AS service_name_fr, p.name AS provider_name
                        FROM booking_appointments a
