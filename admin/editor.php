@@ -241,6 +241,17 @@ function slate_editor_starter_blocks(string $key): ?array
         'type' => 'columns',
         'props' => ['columns' => count($cols), 'gap' => $gap, 'cols' => array_map(static fn (array $blocks) => ['blocks' => $blocks], $cols)],
     ];
+    // icon-grid now renders exactly the items it's given (previously every
+    // instance rendered the same 3 hardcoded cards regardless of props) — so a
+    // starter template needs its own seeded items, or it opens looking empty.
+    $iconGrid = static fn (string $eyebrow, string $heading): array => ['type' => 'icon-grid', 'props' => [
+        'eyebrow' => $eyebrow, 'heading' => $heading,
+        'items' => [
+            ['icon' => 'check', 'title' => 'Simple and clear', 'text' => 'A concise description that makes this section useful immediately.'],
+            ['icon' => 'shield', 'title' => 'Built for you', 'text' => 'A concise description that makes this section useful immediately.'],
+            ['icon' => 'clock', 'title' => 'Made to last', 'text' => 'A concise description that makes this section useful immediately.'],
+        ],
+    ]];
 
     return match ($key) {
         // Page Document Templates (admin/templates.php $pageTemplates)
@@ -256,13 +267,13 @@ function slate_editor_starter_blocks(string $key): ?array
         ],
         'full-width' => [
             $hero(['layout' => 'banner', 'pad' => 'spacious', 'height' => 'tall', 'heading' => 'Edge-to-edge canvas', 'subheading' => 'Built for bold, modern visual marketing pages that run full-bleed from edge to edge.', 'btnText' => 'Get started']),
-            ['type' => 'icon-grid', 'props' => ['eyebrow' => 'Why full width', 'heading' => 'Room to make an impression']],
+            $iconGrid('Why full width', 'Room to make an impression'),
             ['type' => 'testimonial', 'props' => []],
             ['type' => 'cta', 'props' => ['heading' => 'Ready to go full-bleed?', 'btnText' => 'Start building']],
         ],
         'landing' => [
             $hero(['layout' => 'split', 'heading' => 'Your big headline', 'subheading' => 'A short supporting sentence that sells the idea.', 'btnText' => 'Get started', 'btn2Text' => 'See how it works']),
-            ['type' => 'icon-grid', 'props' => ['eyebrow' => 'What we offer', 'heading' => 'Explore the possibilities']],
+            $iconGrid('What we offer', 'Explore the possibilities'),
             ['type' => 'testimonial', 'props' => []],
             $heading('Simple, transparent pricing', '2', 'center'),
             $columns([
@@ -283,7 +294,7 @@ function slate_editor_starter_blocks(string $key): ?array
         // Section Layout Library ($sectionTemplates) — single-section inserts,
         // each with fuller default props than the block's own bare defaults.
         'hero-split' => [$hero(['layout' => 'split', 'heading' => 'A headline that grabs attention', 'subheading' => 'Explain the value in one clear, confident sentence.', 'btnText' => 'Get started', 'btn2Text' => 'Learn more'])],
-        'features-grid-3' => [['type' => 'icon-grid', 'props' => ['eyebrow' => 'Why choose us', 'heading' => 'Everything you need to succeed']]],
+        'features-grid-3' => [$iconGrid('Why choose us', 'Everything you need to succeed')],
         'social-proof' => [['type' => 'testimonial', 'props' => []]],
         'pricing-table' => [$columns([
             [$heading('Starter', '3'), $para('For small teams getting started.'), $btn('Choose Starter')],
@@ -784,6 +795,20 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
     .ve-layer-indent-1 { padding-left: 28px; }
     .ve-layer-indent-2 { padding-left: 44px; }
     .ve-layer-group { color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 10px 12px 4px; }
+    .ve-layer-grip { width: 14px; height: 18px; flex: 0 0 14px; display: inline-flex; align-items: center; justify-content: center;
+                     color: var(--ve-text-dim); cursor: grab; opacity: 0; transition: opacity .12s; }
+    .ve-layer:hover .ve-layer-grip { opacity: .6; }
+    .ve-layer-grip:hover { opacity: 1 !important; }
+    .ve-layer.dragging { opacity: .4; }
+    .ve-layer.drop-before { box-shadow: inset 0 2px 0 var(--ve-accent); }
+    .ve-layer.drop-after { box-shadow: inset 0 -2px 0 var(--ve-accent); }
+    .ve-layer-visibility { width: 20px; height: 18px; flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center;
+                           border: 0; background: none; color: var(--ve-text-dim); cursor: pointer; opacity: 0; transition: opacity .12s; }
+    .ve-layer:hover .ve-layer-visibility, .ve-layer-visibility.is-hidden { opacity: .7; }
+    .ve-layer-visibility:hover { opacity: 1 !important; color: var(--ve-accent); }
+    .ve-layer-visibility svg { width: 14px; height: 14px; }
+    .ve-layer-label-input { flex: 1; background: #ffffff10; border: 1px solid var(--ve-accent); border-radius: 4px;
+                            color: var(--ve-text); font-size: 13px; padding: 1px 5px; min-width: 0; }
 
     /* Inspector */
     .ve-field { margin-bottom: 14px; }
@@ -1429,6 +1454,12 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         return info ? info.arr[info.idx] : null;
     }
     function nestedPathKey(path) { return JSON.stringify(path); }
+    function getBlockAtPath(topIdx, path) {
+        if (!layout[topIdx]) return null;
+        if (!path || !path.length) return layout[topIdx];
+        const arr = resolveSlotArrayForPath(layout[topIdx], path);
+        return arr ? (arr[path[path.length - 1].index] || null) : null;
+    }
     function getSelectedBlockEl() {
         if (selectedBlockIndex < 0) return null;
         const topEl = document.querySelector('.ve-block[data-index="' + selectedBlockIndex + '"]');
@@ -2464,6 +2495,8 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             return;
         }
         let html = '';
+        const eyeOpenSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+        const eyeOffSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a20.5 20.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
         const addRow = (block, topIndex, path, depth, labelOverride) => {
             const def = BLOCKS[block.type] || {};
             const label = block.props?.sectionName || block.props?.heading || (block.props?.text
@@ -2473,11 +2506,16 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
             const nodeKey = topIndex + ':' + nestedPathKey(path);
             const hasChildren = (Array.isArray(block.props?.children) && block.props.children.length) || (Array.isArray(block.props?.cols) && block.props.cols.some(col => (col?.blocks || []).length));
             const collapsed = collapsedNavigatorNodes.has(nodeKey);
-            html += '<div class="ve-layer ve-layer-indent-' + Math.min(depth, 2) + (selected ? ' selected' : '') + '" data-index="' + topIndex + '" data-path="' + escHtml(JSON.stringify(path)) + '">'
+            const isTop = depth === 0;
+            const hidden = !!(block.style?.hideDesktop && block.style?.hideTablet && block.style?.hideMobile);
+            html += '<div class="ve-layer ve-layer-indent-' + Math.min(depth, 2) + (selected ? ' selected' : '') + '"'
+                + ' data-index="' + topIndex + '" data-path="' + escHtml(JSON.stringify(path)) + '"' + (isTop ? ' draggable="true"' : '') + '>'
+                + (isTop ? '<span class="ve-layer-grip" title="Drag to reorder">⠿</span>' : '<span class="ve-layer-toggle-spacer"></span>')
                 + (hasChildren ? '<button type="button" class="ve-layer-toggle" data-node-key="' + escHtml(nodeKey) + '">' + (collapsed ? '▸' : '▾') + '</button>' : '<span class="ve-layer-toggle-spacer"></span>')
                 + blockIcon(block.type)
-                + '<span class="ve-layer-label">' + escHtml(label) + '</span>'
+                + '<span class="ve-layer-label" data-role="label">' + escHtml(label) + '</span>'
                 + '<span class="ve-layer-type">' + (def.label || block.type) + '</span>'
+                + '<button type="button" class="ve-layer-visibility' + (hidden ? ' is-hidden' : '') + '" data-role="visibility" title="' + (hidden ? 'Hidden — click to show' : 'Visible — click to hide') + '">' + (hidden ? eyeOffSvg : eyeOpenSvg) + '</button>'
                 + '</div>';
             if (collapsed) return;
             if (Array.isArray(block.props?.cols)) block.props.cols.forEach((col, colIndex) => {
@@ -2489,10 +2527,35 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
         layout.forEach((block, i) => addRow(block, i, [], 0, 'Section ' + (i + 1)));
         $layerTree.innerHTML = html;
         $layerTree.querySelectorAll('.ve-layer').forEach(el => {
-            el.addEventListener('click', () => {
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('[data-role="visibility"]') || e.target.closest('.ve-layer-toggle')) return;
                 const path = JSON.parse(el.dataset.path || '[]');
                 if (path.length) selectNestedBlock(parseInt(el.dataset.index), path);
                 else selectBlock(parseInt(el.dataset.index));
+            });
+            el.addEventListener('contextmenu', (e) => {
+                const path = JSON.parse(el.dataset.path || '[]');
+                if (path.length) return; // context menu actions are top-level-only, matching the canvas
+                openBlockContextMenu(e, parseInt(el.dataset.index));
+            });
+        });
+        $layerTree.querySelectorAll('[data-role="visibility"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const el = btn.closest('.ve-layer');
+                const path = JSON.parse(el.dataset.path || '[]');
+                const idx = parseInt(el.dataset.index, 10);
+                const target = getBlockAtPath(idx, path);
+                if (!target) return;
+                pushUndo();
+                target.style = target.style || {};
+                const nowHidden = !(target.style.hideDesktop && target.style.hideTablet && target.style.hideMobile);
+                target.style.hideDesktop = nowHidden;
+                target.style.hideTablet = nowHidden;
+                target.style.hideMobile = nowHidden;
+                markDirty();
+                renderLayers();
+                rebuildCanvas();
             });
         });
         $layerTree.querySelectorAll('.ve-layer-toggle').forEach(btn => {
@@ -2502,6 +2565,57 @@ $previewUrl = SLATE_URL . '/admin/editor-preview.php?id=' . $postId;
                 if (collapsedNavigatorNodes.has(key)) collapsedNavigatorNodes.delete(key);
                 else collapsedNavigatorNodes.add(key);
                 renderLayers();
+            });
+        });
+        wireNavigatorDrag();
+    }
+
+    // Drag-and-drop reordering of top-level sections from within the Navigator
+    // tree — previously the only way to reorder was the canvas toolbar's
+    // up/down buttons. Nested blocks (inside Columns/Container) stay
+    // click-to-select only, matching this app's existing top-level-only reorder
+    // scope (DocumentOperations has no nested-path addressing to move by).
+    let navDragFromIndex = null;
+    function wireNavigatorDrag() {
+        const rows = $layerTree.querySelectorAll('.ve-layer[draggable="true"]');
+        rows.forEach(el => {
+            el.addEventListener('dragstart', (e) => {
+                navDragFromIndex = parseInt(el.dataset.index, 10);
+                el.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            el.addEventListener('dragend', () => {
+                el.classList.remove('dragging');
+                rows.forEach(r => r.classList.remove('drop-before', 'drop-after'));
+                navDragFromIndex = null;
+            });
+            el.addEventListener('dragover', (e) => {
+                if (navDragFromIndex === null) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const rect = el.getBoundingClientRect();
+                const before = (e.clientY - rect.top) < rect.height / 2;
+                rows.forEach(r => r.classList.remove('drop-before', 'drop-after'));
+                el.classList.add(before ? 'drop-before' : 'drop-after');
+            });
+            el.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const toIndex = parseInt(el.dataset.index, 10);
+                const before = el.classList.contains('drop-before');
+                rows.forEach(r => r.classList.remove('drop-before', 'drop-after'));
+                if (navDragFromIndex === null || navDragFromIndex === toIndex) return;
+                let target = before ? toIndex : toIndex + 1;
+                if (navDragFromIndex < target) target--;
+                if (target === navDragFromIndex) return;
+                const layoutBefore = JSON.parse(JSON.stringify(layout));
+                const [moved] = layout.splice(navDragFromIndex, 1);
+                layout.splice(target, 0, moved);
+                const [movedRendered] = RENDERED.splice(navDragFromIndex, 1);
+                RENDERED.splice(target, 0, movedRendered);
+                selectedBlockIndex = target;
+                markDirty();
+                rebuildCanvas();
+                postEditorOp('op_move_block', { from_index: navDragFromIndex, to_index: target }, layoutBefore);
             });
         });
     }
