@@ -339,6 +339,17 @@ function bookpub_book_setting(string $key, bool $default = true): bool {
     return $v !== '0';
 }
 
+/**
+ * Whether this service's provider-pick step is being skipped (see the
+ * auto_skip_single_provider redirect in the GET routing block above) — so
+ * step 3/4 and the stepper can stop showing "Provider" as a step the
+ * customer never actually saw, instead of just skipping the page.
+ */
+function bookpub_provider_step_hidden(array $service): bool {
+    if (!bookpub_book_setting('auto_skip_single_provider', false)) return false;
+    return count(BookingAPI::getProvidersForService((int)$service['id'])) === 1;
+}
+
 /** Admin-configured cap on how many times one multi-slot booking can hold. */
 function bookpub_multislot_max(): int {
     return max(2, min(20, (int)(Database::setting('booking.multislot_max') ?? 4)));
@@ -539,13 +550,21 @@ function bookpub_layout_end(bool $embed): void {
     echo '</body></html>';
 }
 
-function bookpub_stepper(int $current, bool $embed): void {
+function bookpub_stepper(int $current, bool $embed, bool $hideProvider = false): void {
     $labels = [
         __('booking_step_service', 'Service'),
         __('booking_step_provider', 'Provider'),
         __('booking_step_when', 'When'),
         __('booking_step_confirm', 'Confirm'),
     ];
+    // The customer never saw the provider-pick page for this booking (it was
+    // auto-skipped) — drop it from the list instead of showing it as an
+    // already-"done" step, and renumber what's left to match.
+    if ($hideProvider) {
+        unset($labels[1]);
+        $labels = array_values($labels);
+        if ($current > 2) $current--;
+    }
     echo '<ol class="book-stepper">';
     foreach ($labels as $i => $label) {
         $n = $i + 1;
@@ -709,10 +728,15 @@ function bookpub_render_step3(array $service, array $provider, string $date, int
     $multiMax     = bookpub_multislot_max();
     $selections   = $multiEnabled ? bookpub_parse_multi_selections((string)($_GET['sel'] ?? ''), $multiMax) : [];
     $dateFormId   = 'book-date-form';
+    $providerHidden = bookpub_provider_step_hidden($service);
 
     bookpub_layout_start(BookingAPI::serviceName($service) . ' — ' . $provider['name'], $embed);
-    bookpub_stepper(3, $embed);
-    echo '<a class="book-back" href="' . e(bookpub_qs(['service' => (int)$service['id']], $embed)) . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
+    bookpub_stepper(3, $embed, $providerHidden);
+    // With the provider step hidden, its URL (?service=X) just redirects
+    // straight back here — send "back" to service selection instead so it's
+    // not a dead loop.
+    $backArgs = $providerHidden ? [] : ['service' => (int)$service['id']];
+    echo '<a class="book-back" href="' . e(bookpub_qs($backArgs, $embed)) . '">&larr; ' . e(__('booking_back', 'back')) . '</a>';
     echo '<h1>' . e(__('booking_pick_a_time', 'Pick a time')) . '</h1>';
     echo '<p class="book-sub">' . sprintf(
         e(__('booking_with_provider_duration', '%s with %s · %d min')),
@@ -953,7 +977,7 @@ function bookpub_render_step4(array $service, array $provider, string $date, str
     $membershipError   = $membershipBlocked ? (string)($gate['error'] ?? '') : '';
 
     bookpub_layout_start(__('booking_confirm_page_title', 'Confirm') . ' — ' . BookingAPI::serviceName($service), $embed);
-    bookpub_stepper(4, $embed);
+    bookpub_stepper(4, $embed, bookpub_provider_step_hidden($service));
     if ($isMulti) {
         echo '<a class="book-back" href="'
            . e(bookpub_qs(['service' => (int)$service['id'], 'provider' => (int)$provider['id'], 'party' => $party,
