@@ -1798,7 +1798,7 @@ class FormsAPI {
         [$brand, $accent, $accentDeep, $onAccent] = self::emailAccent($opts);
         $sansFont = '-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif';
 
-        $title = (string)($form['title'] ?? 'Form submission');
+        $title = (string)($form['title'] ?? __('forms_email_default_title', 'Form submission'));
         $when  = I18n::localDate('j M Y, H:i', strtotime((string)($opts['submitted_at'] ?? 'now')) ?: time());
         $base  = defined('SLATE_URL') ? rtrim(SLATE_URL, '/') : '';
         $admin = trim((string)($opts['admin_url'] ?? ''));
@@ -1820,7 +1820,7 @@ class FormsAPI {
         $submittedAt = (string)($opts['submitted_at'] ?? 'now');
         $headerLbl = trim((string)($tpl['header_label'] ?? '')) !== ''
                    ? self::renderTemplate((string)$tpl['header_label'], $form, $data, $ref, $submitter, $submittedAt)
-                   : 'New form submission';
+                   : __('forms_email_new_submission', 'New form submission');
         $introHtml = trim((string)($tpl['intro'] ?? '')) !== ''
                    ? self::renderTemplate((string)$tpl['intro'], $form, $data, $ref, $submitter, $submittedAt)
                    : '';
@@ -1829,7 +1829,7 @@ class FormsAPI {
                    : '';
         $ctaLabel  = trim((string)($tpl['cta_label'] ?? '')) !== ''
                    ? self::renderTemplate((string)$tpl['cta_label'], $form, $data, $ref, $submitter, $submittedAt)
-                   : 'View submission';
+                   : __('forms_email_view_submission', 'View submission');
         $showTable = !array_key_exists('show_table', $tpl) || (bool)$tpl['show_table'];
 
         // ── Field rows (zebra-striped) ──────────────────────────────────────
@@ -1866,7 +1866,7 @@ class FormsAPI {
         }
         if ($rows === '') {
             $rows = '<tr><td style="padding:16px 24px;font:400 14px/1.5 -apple-system,Helvetica,Arial,sans-serif;color:#94a3b8;">'
-                  . 'No fields were submitted.</td></tr>';
+                  . e(__('forms_email_no_fields', 'No fields were submitted.')) . '</td></tr>';
         }
 
         // ── Meta chips (reference · date · submitter) ───────────────────────
@@ -1875,7 +1875,8 @@ class FormsAPI {
                  . 'font:600 12px/1.3 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif;'
                  . 'color:#334155;">' . e($label) . ' <span style="color:#0f172a;font-weight:700;">' . e($value) . '</span></span>';
         };
-        $chips = $chip('Ref', $ref) . $chip('Received', $when) . ($submitter !== '' ? $chip('From', $submitter) : '');
+        $chips = $chip(__('forms_email_ref', 'Ref'), $ref) . $chip(__('forms_email_received', 'Received'), $when)
+               . ($submitter !== '' ? $chip(__('forms_email_from', 'From'), $submitter) : '');
 
         // ── CTA button (only when we have an admin link) ────────────────────
         $cta = '';
@@ -1900,7 +1901,7 @@ class FormsAPI {
             : '';
         $tableBlock = $showTable
             ? '<tr><td class="fe-pad" style="padding:14px 28px 0;">'
-              . '<div class="fe-sep" style="font:700 11px/1.4 ' . $sansFont . ';letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;border-top:1px solid #eef0f4;padding-top:16px;">Submission details</div>'
+              . '<div class="fe-sep" style="font:700 11px/1.4 ' . $sansFont . ';letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;border-top:1px solid #eef0f4;padding-top:16px;">' . e(__('forms_email_submission_details', 'Submission details')) . '</div>'
               . '</td></tr>'
               . '<tr><td style="padding:10px 4px 6px;">'
               . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' . $rows . '</table>'
@@ -1923,8 +1924,8 @@ class FormsAPI {
             'brand'      => $brand,
             'accent'     => $accent,
             'title'      => $title,
-            'preheader'  => 'New submission on ' . $title . ' (' . $ref . ')',
-            'footer_ref' => 'Reference ' . $ref,
+            'preheader'  => sprintf(__('forms_email_preheader', 'New submission on %s (%s)'), $title, $ref),
+            'footer_ref' => sprintf(__('forms_email_footer_ref', 'Reference %s'), $ref),
         ], $inner);
     }
 
@@ -1941,19 +1942,19 @@ class FormsAPI {
         [$brand, $accent, $accentDeep] = self::emailAccent($opts);
         $sansFont = '-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif';
 
-        $title = trim((string)($opts['heading'] ?? '')) ?: (string)($form['title'] ?? 'Thank you');
+        $title = trim((string)($opts['heading'] ?? '')) ?: (string)($form['title'] ?? __('forms_email_thank_you', 'Thank you'));
         $bodyHtml = trim($bodyHtml);
-        if ($bodyHtml === '') $bodyHtml = '<p>Thanks — we&rsquo;ve received your submission.</p>';
+        if ($bodyHtml === '') $bodyHtml = '<p>' . e(__('forms_email_default_thanks', 'Thanks — we\'ve received your submission.')) . '</p>';
 
         $inner =
               '<tr><td class="fe-pad" style="padding:26px 28px 2px;">'
-            . '<div style="font:700 11px/1.4 ' . $sansFont . ';letter-spacing:0.1em;text-transform:uppercase;color:' . e($accentDeep) . ';margin-bottom:6px;">Confirmation</div>'
+            . '<div style="font:700 11px/1.4 ' . $sansFont . ';letter-spacing:0.1em;text-transform:uppercase;color:' . e($accentDeep) . ';margin-bottom:6px;">' . e(__('forms_email_confirmation', 'Confirmation')) . '</div>'
             . '<h1 class="fe-title" style="margin:0;font:700 22px/1.25 ' . $sansFont . ';color:#0f172a;letter-spacing:-0.02em;">' . e($title) . '</h1>'
             . '</td></tr>'
             . '<tr><td class="fe-pad fe-text" style="padding:8px 28px 22px;font:400 15px/1.65 ' . $sansFont . ';color:#334155;">'
             . $bodyHtml
             . '<div class="fe-sep" style="margin-top:18px;padding-top:14px;border-top:1px solid #eef0f4;font-size:13px;color:#94a3b8;">'
-            . 'Your reference: <strong style="color:#475569;">' . e($ref) . '</strong></div>'
+            . e(__('forms_email_your_reference', 'Your reference:')) . ' <strong style="color:#475569;">' . e($ref) . '</strong></div>'
             . '</td></tr>';
 
         return self::emailShell([
@@ -1961,8 +1962,8 @@ class FormsAPI {
             'accent'       => $accent,
             'title'        => $title,
             'preheader'    => $title,
-            'header_label' => 'Confirmation',
-            'footer_ref'   => 'Reference ' . $ref,
+            'header_label' => __('forms_email_confirmation', 'Confirmation'),
+            'footer_ref'   => sprintf(__('forms_email_footer_ref', 'Reference %s'), $ref),
         ], $inner);
     }
 
@@ -1997,23 +1998,23 @@ class FormsAPI {
         $brand    = is_array($opts['brand'] ?? null) ? $opts['brand'] : FormsPdf::brandFromSettings();
         $hdrLabel = trim((string)($opts['header_label'] ?? ''));
         if ($hdrLabel === '') {
-            $hdrLabel = trim((string)($brand['sublabel'] ?? '')) ?: 'Form submission';
+            $hdrLabel = trim((string)($brand['sublabel'] ?? '')) ?: __('forms_email_default_title', 'Form submission');
         }
         return \BrandedEmail::shell(array_merge($opts, [
             'brand'        => $brand,
             'header_label' => $hdrLabel,
-            'sender_label' => 'Forms',
+            'sender_label' => __('forms', 'Forms'),
         ]), $inner);
     }
 
     /** Format one submission value as an email-safe HTML cell. */
     private static function emailFieldCell($val, string $base): string {
         if (is_bool($val)) {
-            return $val ? 'Yes' : 'No';
+            return $val ? e(__('yes', 'Yes')) : e(__('no', 'No'));
         }
         if (is_array($val) && !empty($val['signature'])) {
             $url  = $base . (string)($val['path'] ?? '');
-            $html = '<img src="' . e($url) . '" alt="Signature" style="display:block;max-width:240px;height:auto;border:1px solid #e6e9ef;border-radius:8px;">';
+            $html = '<img src="' . e($url) . '" alt="' . e(__('forms_email_signature', 'Signature')) . '" style="display:block;max-width:240px;height:auto;border:1px solid #e6e9ef;border-radius:8px;">';
             if (!empty($val['name'])) {
                 $html .= '<div style="margin-top:4px;color:#94a3b8;font-size:12px;">' . e((string)$val['name']) . '</div>';
             }

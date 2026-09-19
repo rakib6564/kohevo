@@ -32,4 +32,21 @@ return [
     'forms_subs_7d' => 'Soumissions · 7 j',
     'forms_unread' => 'Non lu',
     'view_all' => 'Tout afficher',
+
+    // Notification/confirmation emails
+    'forms_email_default_title' => 'Soumission de formulaire',
+    'forms_email_new_submission' => 'Nouvelle soumission de formulaire',
+    'forms_email_view_submission' => 'Voir la soumission',
+    'forms_email_no_fields' => 'Aucun champ n\'a été soumis.',
+    'forms_email_ref' => 'Réf.',
+    'forms_email_received' => 'Reçu le',
+    'forms_email_from' => 'De',
+    'forms_email_submission_details' => 'Détails de la soumission',
+    'forms_email_preheader' => 'Nouvelle soumission sur %s (%s)',
+    'forms_email_footer_ref' => 'Référence %s',
+    'forms_email_thank_you' => 'Merci',
+    'forms_email_default_thanks' => 'Merci — nous avons bien reçu votre soumission.',
+    'forms_email_confirmation' => 'Confirmation',
+    'forms_email_your_reference' => 'Votre référence :',
+    'forms_email_signature' => 'Signature',
 ];
