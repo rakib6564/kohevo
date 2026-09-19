@@ -29,7 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = __('auth_set_new_password', 'Set a new password');
-$customerPageVariant = 'auth';
+// Matches login.php/register.php — the branded two-column shell is the only
+// variant that renders the tenant's uploaded logo instead of the initial-letter mark.
+$customerPageVariant = 'auth-split';
 require __DIR__ . '/partials/header.php';
 ?>
 
