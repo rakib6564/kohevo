@@ -21,7 +21,7 @@ $tid = current_tenant_id();
 if (($_GET['preview'] ?? '') === '1' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $arr = json_decode((string)($_POST['fields_json_data'] ?? ''), true);
     $pf  = is_array($arr) ? FormsAPI::normalizeFields($arr)['fields'] : [];
-    $title = trim((string)($_POST['title'] ?? '')) ?: 'Form preview';
+    $title = trim((string)($_POST['title'] ?? '')) ?: __('forms_edit_preview_default_title', 'Form preview');
     $desc  = trim((string)($_POST['description'] ?? ''));
     $pvSet = FormsAPI::formSettings((string)($_POST['settings_json'] ?? ''));
     $cssUrl = plugin_url('forms', 'assets/css/public.css') . '?v=' . FormsAPI::ASSET_VERSION;
@@ -29,7 +29,7 @@ if (($_GET['preview'] ?? '') === '1' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: text/html; charset=utf-8');
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
-    echo '<title>Preview · ' . e($title) . '</title>';
+    echo '<title>' . __('forms_edit_preview', 'Preview') . ' · ' . e($title) . '</title>';
     slate_ui_emit_css();
     echo '<link rel="stylesheet" href="' . e($cssUrl) . '">';
     // Preview chrome — a polished toolbar + responsive device frame wrapped
@@ -66,14 +66,14 @@ CSS;
         'mobile'  => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>',
     ];
     echo '<div class="fbpv-bar">'
-       . '<span class="fbpv-brand"><span class="fbpv-dot"></span><span class="fbpv-kicker">Preview</span>'
+       . '<span class="fbpv-brand"><span class="fbpv-dot"></span><span class="fbpv-kicker">' . __('forms_edit_preview', 'Preview') . '</span>'
        . '<span class="fbpv-title">' . e($title) . '</span></span>'
-       . '<span class="fbpv-seg" id="fbpv-seg" role="group" aria-label="Preview width">'
-       . '<button type="button" data-device="desktop" aria-pressed="true" title="Desktop view">' . $pvIcon['desktop'] . 'Desktop</button>'
-       . '<button type="button" data-device="tablet" aria-pressed="false" title="Tablet view">' . $pvIcon['tablet'] . 'Tablet</button>'
-       . '<button type="button" data-device="mobile" aria-pressed="false" title="Mobile view">' . $pvIcon['mobile'] . 'Mobile</button>'
+       . '<span class="fbpv-seg" id="fbpv-seg" role="group" aria-label="' . e(__('forms_edit_preview_width', 'Preview width')) . '">'
+       . '<button type="button" data-device="desktop" aria-pressed="true" title="' . e(__('forms_edit_desktop_view', 'Desktop view')) . '">' . $pvIcon['desktop'] . __('forms_edit_desktop', 'Desktop') . '</button>'
+       . '<button type="button" data-device="tablet" aria-pressed="false" title="' . e(__('forms_edit_tablet_view', 'Tablet view')) . '">' . $pvIcon['tablet'] . __('forms_edit_tablet', 'Tablet') . '</button>'
+       . '<button type="button" data-device="mobile" aria-pressed="false" title="' . e(__('forms_edit_mobile_view', 'Mobile view')) . '">' . $pvIcon['mobile'] . __('forms_edit_mobile', 'Mobile') . '</button>'
        . '</span>'
-       . '<span class="fbpv-note">Changes aren’t saved</span>'
+       . '<span class="fbpv-note">' . __('forms_edit_changes_not_saved', 'Changes aren\'t saved') . '</span>'
        . '</div>';
     $pvMulti = false;
     foreach ($pf as $pff) { if (($pff['type'] ?? '') === 'step') { $pvMulti = true; break; } }
@@ -86,11 +86,11 @@ CSS;
     }
     echo '<form onsubmit="return false;" data-animate="' . ($pvSet['animate'] ? '1' : '0') . '" data-validate="' . ($pvSet['validate'] ? '1' : '0') . '">';
     if (!$pf) {
-        echo '<p style="color:#64748B;">No fields yet — add some in the builder.</p>';
+        echo '<p style="color:#64748B;">' . __('forms_edit_no_fields_yet', 'No fields yet — add some in the builder.') . '</p>';
     } else {
         $pvLogoPath = (string)Database::setting('brand_logo_path');
         $pvBrand = ['name' => (string)(Database::setting('site_name') ?: ''), 'logo' => $pvLogoPath !== '' ? SLATE_URL . '/' . ltrim($pvLogoPath, '/') : ''];
-        echo FormsAPI::renderFormBody($pf, [], [], 'Submit', ['rail' => $pvSet['rail'], 'title' => $title, 'summary' => !empty($pvSet['summary']), 'brand' => $pvBrand]);
+        echo FormsAPI::renderFormBody($pf, [], [], __('forms_submit', 'Submit'), ['rail' => $pvSet['rail'], 'title' => $title, 'summary' => !empty($pvSet['summary']), 'brand' => $pvBrand]);
     }
     echo '</form></article></main></div>';
     echo '<script>(function(){var f=document.getElementById("fbpv-frame"),s=document.getElementById("fbpv-seg");if(!f||!s)return;s.addEventListener("click",function(e){var b=e.target.closest("button[data-device]");if(!b)return;f.setAttribute("data-device",b.getAttribute("data-device"));var all=s.querySelectorAll("button");for(var i=0;i<all.length;i++){all[i].setAttribute("aria-pressed",all[i]===b?"true":"false");}});})();</script>';
@@ -111,7 +111,7 @@ if ($id > 0) {
     if (!$form) {
         http_response_code(404);
         require SLATE_ROOT . '/admin/partials/header.php';
-        echo '<div class="card"><h1>Form not found</h1></div>';
+        echo '<div class="card"><h1>' . __('form_not_found', 'Form not found') . '</h1></div>';
         require SLATE_ROOT . '/admin/partials/footer.php';
         exit;
     }
@@ -170,14 +170,14 @@ $fieldErrors = [];
 
 // Flash after a Post/Redirect/Get save (see redirect below).
 if (($_GET['saved'] ?? '') === 'created') {
-    $flash = ['type' => 'success', 'msg' => 'Form created.'];
+    $flash = ['type' => 'success', 'msg' => __('forms_edit_created', 'Form created.')];
 } elseif (($_GET['saved'] ?? '') === 'saved') {
-    $flash = ['type' => 'success', 'msg' => 'Form saved.'];
+    $flash = ['type' => 'success', 'msg' => __('forms_edit_saved', 'Form saved.')];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         // Soak up posted state
         foreach (array_keys($state) as $k) {
@@ -261,13 +261,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validate
         $title = trim($state['title']);
         if ($title === '') {
-            $fieldErrors['title'] = 'Title is required.';
+            $fieldErrors['title'] = __('title_required', 'Title is required.');
         }
         if ($state['notify_email'] !== '' && !filter_var($state['notify_email'], FILTER_VALIDATE_EMAIL)) {
-            $fieldErrors['notify_email'] = 'Notify email is not a valid email address.';
+            $fieldErrors['notify_email'] = __('notify_email_invalid', 'Notify email is not a valid email address.');
         }
         if ($state['redirect_url'] !== '' && !filter_var($state['redirect_url'], FILTER_VALIDATE_URL)) {
-            $fieldErrors['redirect_url'] = 'Redirect URL is not valid.';
+            $fieldErrors['redirect_url'] = __('forms_edit_redirect_url_invalid', 'Redirect URL is not valid.');
         }
 
         // Prefer the visual builder's JSON (carries advanced field metadata —
@@ -283,7 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fieldErrors['fields_dsl'] = implode(' ', $parsed['errors']);
         }
         if (empty($parsed['fields'])) {
-            $fieldErrors['fields_dsl'] = ($fieldErrors['fields_dsl'] ?? '') . ' At least one field is required.';
+            $fieldErrors['fields_dsl'] = ($fieldErrors['fields_dsl'] ?? '') . ' ' . __('forms_edit_at_least_one_field', 'At least one field is required.');
         }
         // Canonical JSON for the builder to re-read on re-render (keeps advanced props).
         $state['fields_json'] = json_encode($parsed['fields'], JSON_UNESCAPED_UNICODE);
@@ -294,7 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $u = trim($line);
             if ($u === '') continue;
             if (!filter_var($u, FILTER_VALIDATE_URL)) {
-                $fieldErrors['webhook_urls'] = 'One or more webhook URLs are invalid.';
+                $fieldErrors['webhook_urls'] = __('forms_edit_webhook_urls_invalid', 'One or more webhook URLs are invalid.');
                 continue;
             }
             $hookUrls[] = $u;
@@ -332,13 +332,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($isNew) {
                 $id = Database::insert('forms_definitions', $row);
                 AuditLog::record('forms.created', (string)$id, ['slug' => $slug]);
-                $flash = ['type' => 'success', 'msg' => 'Form created.'];
+                $flash = ['type' => 'success', 'msg' => __('forms_edit_created', 'Form created.')];
                 $wasNew = true;
                 $isNew = false;
             } else {
                 Database::update('forms_definitions', $row, 'id = ? AND tenant_id = ?', [$id, $tid]);
                 AuditLog::record('forms.updated', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Form saved.'];
+                $flash = ['type' => 'success', 'msg' => __('forms_edit_saved', 'Form saved.')];
                 $wasNew = false;
             }
 
@@ -369,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $state['fields_dsl']  = FormsAPI::fieldsToDsl($parsed['fields']);
             $state['webhook_urls'] = implode("\n", $hookUrls);
         } else {
-            $flash = ['type' => 'error', 'msg' => 'Please fix the highlighted fields.'];
+            $flash = ['type' => 'error', 'msg' => __('forms_edit_fix_highlighted', 'Please fix the highlighted fields.')];
         }
     }
 }
@@ -382,9 +382,9 @@ $subCount   = (!$isNew && $id) ? (int) Database::value(
     "SELECT COUNT(*) FROM forms_submissions WHERE tenant_id = ? AND form_id = ?", [$tid, $id]) : 0;
 $fieldCount = count(FormsAPI::parseFieldDsl($state['fields_dsl'])['fields'] ?? []);
 $statusMap  = [
-    'published' => ['tone' => 'on',   'text' => 'Published'],
-    'draft'     => ['tone' => 'warn', 'text' => 'Draft'],
-    'archived'  => ['tone' => 'off',  'text' => 'Archived'],
+    'published' => ['tone' => 'on',   'text' => __('published', 'Published')],
+    'draft'     => ['tone' => 'warn', 'text' => __('draft', 'Draft')],
+    'archived'  => ['tone' => 'off',  'text' => __('archived', 'Archived')],
 ];
 $curStatus  = $statusMap[$state['status']] ?? $statusMap['draft'];
 
@@ -396,7 +396,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
     ['label' => __('forms', 'Forms'), 'href' => plugin_url('forms', 'admin/index.php')],
-    ['label' => $isNew ? 'New form' : $state['title']],
+    ['label' => $isNew ? __('forms_new', 'New form') : $state['title']],
 ]); ?>
 
 <?php if ($flash): ?>
@@ -405,14 +405,14 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 
 <?php forms_editor_css(); ?>
 
-<?php forms_edit_open(['title_fallback' => 'New form']); ?>
+<?php forms_edit_open(['title_fallback' => __('forms_new', 'New form')]); ?>
 
 <form method="post">
     <?= csrf_field() ?>
 
     <?php forms_edit_backlink([
         'back_href'  => plugin_url('forms', 'admin/index.php'),
-        'back_label' => 'All forms',
+        'back_label' => __('forms_spam_all_forms', 'All forms'),
     ]); ?>
 
     <?php
@@ -427,7 +427,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
             <div class="fhead-idwrap">
                 <span class="fhead-ico"><?= forms_edit_icon('box', 22) ?></span>
                 <div class="fhead-id">
-                    <h1 class="fhead-title" data-title><?= e($isNew ? 'New form' : ($state['title'] !== '' ? $state['title'] : 'Untitled form')) ?></h1>
+                    <h1 class="fhead-title" data-title><?= e($isNew ? __('forms_new', 'New form') : ($state['title'] !== '' ? $state['title'] : __('forms_edit_untitled', 'Untitled form'))) ?></h1>
                     <div class="fhead-meta">
                         <?php if (!$isNew): ?><span class="fhead-ref">#<?= e(str_pad((string)(int)$id, 4, '0', STR_PAD_LEFT)) ?></span><?php endif; ?>
                         <span class="pv-status <?= e($curStatus['tone']) ?>" data-status data-status-map="<?= e(json_encode($statusMap)) ?>">
@@ -437,22 +437,22 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                 </div>
             </div>
             <div class="fhead-actions">
-                <a href="<?= e(plugin_url('forms', 'admin/index.php')) ?>" class="btn btn-ghost">Cancel</a>
-                <button type="submit" class="btn btn-primary"><?= $isNew ? 'Create form' : 'Save changes' ?></button>
+                <a href="<?= e(plugin_url('forms', 'admin/index.php')) ?>" class="btn btn-ghost"><?= __('cancel', 'Cancel') ?></a>
+                <button type="submit" class="btn btn-primary"><?= $isNew ? __('create_form', 'Create form') : __('save_changes', 'Save changes') ?></button>
             </div>
         </div>
         <?php if (!$isNew): ?>
         <div class="fhead-sub">
             <div class="fhead-stats">
-                <span><b><?= number_format($subCount) ?></b> Submissions</span>
+                <span><b><?= number_format($subCount) ?></b> <?= __('forms_submissions', 'Submissions') ?></span>
                 <span class="fhead-bullet"></span>
-                <span><b><?= number_format($fieldCount) ?></b> Fields</span>
-                <?php if ($createdTxt !== ''): ?><span class="fhead-bullet"></span><span>Created <b><?= e($createdTxt) ?></b></span><?php endif; ?>
+                <span><b><?= number_format($fieldCount) ?></b> <?= __('fields', 'Fields') ?></span>
+                <?php if ($createdTxt !== ''): ?><span class="fhead-bullet"></span><span><?= __('forms_edit_created_on', 'Created') ?> <b><?= e($createdTxt) ?></b></span><?php endif; ?>
             </div>
             <div class="fhead-links">
-                <a href="<?= e(plugin_url('forms', 'admin/submissions.php')) ?>?form_id=<?= (int)$id ?>"><?= forms_edit_icon('mail', 14) ?> Submissions</a>
+                <a href="<?= e(plugin_url('forms', 'admin/submissions.php')) ?>?form_id=<?= (int)$id ?>"><?= forms_edit_icon('mail', 14) ?> <?= __('forms_submissions', 'Submissions') ?></a>
                 <?php if ($state['status'] === 'published' && $publicUrl): ?>
-                    <a href="<?= e($publicUrl) ?>" target="_blank"><?= forms_edit_icon('link', 14) ?> View live</a>
+                    <a href="<?= e($publicUrl) ?>" target="_blank"><?= forms_edit_icon('link', 14) ?> <?= __('forms_edit_view_live', 'View live') ?></a>
                 <?php endif; ?>
             </div>
         </div>
@@ -460,20 +460,20 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
     </div>
 
     <?php forms_edit_tabs([
-        ['id' => 'general',    'label' => 'General',      'icon' => 'box'],
-        ['id' => 'fields',     'label' => 'Fields',       'icon' => 'list'],
-        ['id' => 'appearance', 'label' => 'Appearance',   'icon' => 'star'],
-        ['id' => 'after',      'label' => 'After submit', 'icon' => 'check'],
-        ['id' => 'notify',     'label' => 'Notifications','icon' => 'mail'],
-        ['id' => 'webhooks',   'label' => 'Webhooks',     'icon' => 'link'],
-        ['id' => 'security',   'label' => 'Spam & Security', 'icon' => 'shield'],
+        ['id' => 'general',    'label' => __('general', 'General'),      'icon' => 'box'],
+        ['id' => 'fields',     'label' => __('fields', 'Fields'),       'icon' => 'list'],
+        ['id' => 'appearance', 'label' => __('forms_edit_appearance', 'Appearance'),   'icon' => 'star'],
+        ['id' => 'after',      'label' => __('forms_edit_after_submit', 'After submit'), 'icon' => 'check'],
+        ['id' => 'notify',     'label' => __('notifications', 'Notifications'),'icon' => 'mail'],
+        ['id' => 'webhooks',   'label' => __('forms_edit_webhooks', 'Webhooks'),     'icon' => 'link'],
+        ['id' => 'security',   'label' => __('forms_spam_security_tab', 'Spam & Security'), 'icon' => 'shield'],
     ]); ?>
 
             <div class="pv-panel" data-panel="general">
-            <?php forms_edit_card_open(['icon' => 'box', 'eyebrow' => 'General', 'title' => 'Form details']); ?>
+            <?php forms_edit_card_open(['icon' => 'box', 'eyebrow' => __('general', 'General'), 'title' => __('forms_edit_form_details', 'Form details')]); ?>
 
                 <div class="field">
-                    <label class="field-label" for="title">Title <span class="field-required">*</span></label>
+                    <label class="field-label" for="title"><?= __('title', 'Title') ?> <span class="field-required">*</span></label>
                     <input type="text" id="title" name="title" required maxlength="200"
                            value="<?= e($state['title']) ?>">
                     <?php if (!empty($fieldErrors['title'])): ?>
@@ -483,40 +483,40 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="slug">URL slug</label>
+                        <label class="field-label" for="slug"><?= __('forms_edit_url_slug', 'URL slug') ?></label>
                         <input type="text" id="slug" name="slug" maxlength="80"
                                value="<?= e($state['slug']) ?>"
-                               placeholder="<?= e($isNew ? 'auto-generated from title' : '') ?>">
-                        <div class="field-hint">Lowercase letters / digits / hyphens. Leave blank to auto-generate.</div>
+                               placeholder="<?= e($isNew ? __('forms_edit_auto_generated_from_title', 'auto-generated from title') : '') ?>">
+                        <div class="field-hint"><?= __('forms_edit_slug_hint', 'Lowercase letters / digits / hyphens. Leave blank to auto-generate.') ?></div>
                     </div>
                     <div class="field">
-                        <label class="field-label" for="status">Status</label>
+                        <label class="field-label" for="status"><?= __('status', 'Status') ?></label>
                         <select id="status" name="status">
-                            <option value="draft"     <?= $state['status'] === 'draft'     ? 'selected' : '' ?>>Draft (not public)</option>
-                            <option value="published" <?= $state['status'] === 'published' ? 'selected' : '' ?>>Published (live)</option>
-                            <option value="archived"  <?= $state['status'] === 'archived'  ? 'selected' : '' ?>>Archived</option>
+                            <option value="draft"     <?= $state['status'] === 'draft'     ? 'selected' : '' ?>><?= __('forms_edit_status_draft', 'Draft (not public)') ?></option>
+                            <option value="published" <?= $state['status'] === 'published' ? 'selected' : '' ?>><?= __('forms_edit_status_published', 'Published (live)') ?></option>
+                            <option value="archived"  <?= $state['status'] === 'archived'  ? 'selected' : '' ?>><?= __('archived', 'Archived') ?></option>
                         </select>
                     </div>
                 </div>
 
                 <div class="field" style="margin-bottom:0;">
-                    <label class="field-label" for="description">Description</label>
+                    <label class="field-label" for="description"><?= __('description', 'Description') ?></label>
                     <textarea id="description" name="description" maxlength="1000"><?= e($state['description']) ?></textarea>
-                    <div class="field-hint">Shown above the form on the public page.</div>
+                    <div class="field-hint"><?= __('forms_edit_desc_hint', 'Shown above the form on the public page.') ?></div>
                 </div>
 
             <?php forms_edit_card_close(); ?>
 
             <?php if (!$isNew && $state['status'] === 'published' && $publicUrl): ?>
-                <?php forms_edit_card_open(['icon' => 'link', 'eyebrow' => 'Live', 'title' => 'Share & embed']); ?>
+                <?php forms_edit_card_open(['icon' => 'link', 'eyebrow' => __('forms_edit_live', 'Live'), 'title' => __('forms_edit_share_embed', 'Share & embed')]); ?>
                     <div class="field">
-                        <label class="field-label">Public URL</label>
+                        <label class="field-label"><?= __('forms_list_public_url', 'Public URL') ?></label>
                         <p style="margin:0;"><a href="<?= e($publicUrl) ?>" target="_blank"><?= e($publicUrl) ?></a></p>
                     </div>
                     <div class="field">
                         <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                            <span>Embed snippet <span class="text-muted text-xs">— inline iframe</span></span>
-                            <button type="button" class="btn btn-sm snippet-copy">Copy</button>
+                            <span><?= __('forms_list_embed_snippet', 'Embed snippet') ?> <span class="text-muted text-xs">— <?= __('forms_edit_inline_iframe', 'inline iframe') ?></span></span>
+                            <button type="button" class="btn btn-sm snippet-copy"><?= __('copy', 'Copy') ?></button>
                         </label>
                         <pre class="snippet" style="white-space:pre-wrap;">&lt;iframe src=&quot;<?= e($publicUrl) ?>?embed=1&quot;
   style=&quot;width:100%;border:0;min-height:520px&quot;&gt;
@@ -527,13 +527,13 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                     // in an overlay iframe. Self-contained — paste anywhere.
                     $popupSnippet =
 '<button class="slate-form-popup" data-form="' . $publicUrl . '?embed=1"'
-. ' style="padding:12px 22px;border:0;border-radius:10px;background:#2563EB;color:#fff;font:600 15px/1 sans-serif;cursor:pointer">Open form</button>' . "\n"
+. ' style="padding:12px 22px;border:0;border-radius:10px;background:#2563EB;color:#fff;font:600 15px/1 sans-serif;cursor:pointer">' . __('forms_edit_open_form', 'Open form') . '</button>' . "\n"
 . '<script>(function(){document.addEventListener("click",function(e){'
 . 'var b=e.target.closest(".slate-form-popup");if(!b)return;var url=b.getAttribute("data-form");'
 . 'var o=document.createElement("div");o.style.cssText="position:fixed;inset:0;z-index:2147483600;background:#f4f5f7;display:flex;align-items:center;justify-content:center;padding:clamp(8px,3vw,28px);overflow:auto";'
 . 'var m=document.createElement("div");m.style.cssText="position:relative;width:100%;max-width:720px;max-height:94vh";'
 . 'var f=document.createElement("iframe");f.src=url;f.style.cssText="display:block;width:100%;height:600px;max-height:94vh;border:0;background:transparent;transition:height .2s ease";'
-. 'var c=document.createElement("button");c.setAttribute("aria-label","Close");'
+. 'var c=document.createElement("button");c.setAttribute("aria-label","' . __('close', 'Close') . '");'
 . 'c.innerHTML=\'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>\';'
 . 'c.style.cssText="position:absolute;top:18px;right:18px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:999px;background:rgba(15,23,42,.92);color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.4);cursor:pointer;z-index:2";'
 . 'function onMsg(ev){var d=ev.data;if(d&&d.type==="cb-form-height"&&d.height){f.style.height=Math.min(d.height,Math.round(window.innerHeight*0.94))+"px";}}'
@@ -545,13 +545,13 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                     ?>
                     <div class="field" style="margin-bottom:0;">
                         <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                            <span>Popup button <span class="text-muted text-xs">— opens the form full-screen on click</span></span>
-                            <button type="button" class="btn btn-sm snippet-copy">Copy</button>
+                            <span><?= __('forms_edit_popup_button', 'Popup button') ?> <span class="text-muted text-xs">— <?= __('forms_edit_popup_button_desc', 'opens the form full-screen on click') ?></span></span>
+                            <button type="button" class="btn btn-sm snippet-copy"><?= __('copy', 'Copy') ?></button>
                         </label>
                         <pre class="snippet" style="white-space:pre-wrap;"><?= e($popupSnippet) ?></pre>
                         <div class="field-hint" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                            <span>Paste this where you want the button. Customise the label/colour in the first line.</span>
-                            <button type="button" class="btn btn-sm btn-primary" id="popup-demo" data-form="<?= e($publicUrl) ?>?embed=1">Preview popup ↗</button>
+                            <span><?= __('forms_edit_popup_hint', 'Paste this where you want the button. Customise the label/colour in the first line.') ?></span>
+                            <button type="button" class="btn btn-sm btn-primary" id="popup-demo" data-form="<?= e($publicUrl) ?>?embed=1"><?= __('forms_edit_preview_popup', 'Preview popup ↗') ?></button>
                         </div>
                     </div>
                 <?php forms_edit_card_close(); ?>
@@ -561,9 +561,9 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
             <div class="pv-panel" data-panel="fields" hidden>
             <?php forms_edit_card_open([
                 'icon'       => 'list',
-                'eyebrow'    => 'Fields',
-                'title'      => 'Form fields',
-                'aside_html' => '<button type="button" class="btn btn-sm fb-toolbar-toggle" id="fb-compact-toggle" title="Collapse fields to single lines">Compact view</button> <button type="button" class="btn btn-sm btn-primary" id="fb-preview">Preview</button> <button type="button" class="btn btn-sm" id="fb-toggle">Advanced (DSL)</button>',
+                'eyebrow'    => __('fields', 'Fields'),
+                'title'      => __('forms_form_fields', 'Form fields'),
+                'aside_html' => '<button type="button" class="btn btn-sm fb-toolbar-toggle" id="fb-compact-toggle" title="' . e(__('forms_edit_collapse_fields', 'Collapse fields to single lines')) . '">' . __('forms_edit_compact_view', 'Compact view') . '</button> <button type="button" class="btn btn-sm btn-primary" id="fb-preview">' . __('forms_edit_preview', 'Preview') . '</button> <button type="button" class="btn btn-sm" id="fb-toggle">' . __('forms_edit_advanced_dsl', 'Advanced (DSL)') . '</button>',
             ]); ?>
             <div id="fb-card">
                 <input type="hidden" name="fields_json_data" id="fields_json_data" value="<?= e($state['fields_json']) ?>">
@@ -598,32 +598,32 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                          . 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $p . '</svg>';
                 };
                 $fbGroups = [
-                    ['label' => 'Standard fields', 'items' => [
-                        ['text', 'Single Line Text', 'text'],
-                        ['textarea', 'Paragraph Text', 'para'],
-                        ['select', 'Drop Down', 'select'],
-                        ['radio', 'Radio Buttons', 'radio'],
-                        ['checkboxes', 'Multi-select', 'check'],
-                        ['checkbox', 'Checkbox (single)', 'check'],
-                        ['number', 'Number', 'hash'],
-                        ['email', 'Email', 'mail'],
-                        ['tel', 'Phone', 'phone'],
-                        ['intlphone', 'Phone (intl)', 'phone'],
-                        ['address', 'Address (autocomplete)', 'home'],
-                        ['date', 'Date', 'date'],
-                        ['time', 'Time', 'clock'],
-                        ['url', 'Website', 'globe'],
+                    ['label' => __('forms_edit_group_standard', 'Standard fields'), 'items' => [
+                        ['text', __('forms_edit_field_text', 'Single Line Text'), 'text'],
+                        ['textarea', __('forms_edit_field_textarea', 'Paragraph Text'), 'para'],
+                        ['select', __('forms_edit_field_select', 'Drop Down'), 'select'],
+                        ['radio', __('forms_edit_field_radio', 'Radio Buttons'), 'radio'],
+                        ['checkboxes', __('forms_edit_field_checkboxes', 'Multi-select'), 'check'],
+                        ['checkbox', __('forms_edit_field_checkbox', 'Checkbox (single)'), 'check'],
+                        ['number', __('forms_edit_field_number', 'Number'), 'hash'],
+                        ['email', __('email', 'Email'), 'mail'],
+                        ['tel', __('auth_phone', 'Phone'), 'phone'],
+                        ['intlphone', __('forms_edit_field_intlphone', 'Phone (intl)'), 'phone'],
+                        ['address', __('forms_edit_field_address', 'Address (autocomplete)'), 'home'],
+                        ['date', __('forms_edit_field_date', 'Date'), 'date'],
+                        ['time', __('forms_edit_field_time', 'Time'), 'clock'],
+                        ['url', __('forms_edit_field_url', 'Website'), 'globe'],
                     ]],
-                    ['label' => 'Advanced fields', 'items' => [
-                        ['range', 'Slider', 'slider'],
-                        ['rating', 'Rating', 'star'],
-                        ['calc', 'Calculated', 'calc'],
-                        ['file', 'File Upload', 'file'],
-                        ['signature', 'Signature', 'sign'],
-                        ['disclaimer', 'Acceptance', 'accept'],
-                        ['heading', 'Section', 'section'],
-                        ['step', 'Page Break', 'page'],
-                        ['hidden', 'Hidden', 'hidden'],
+                    ['label' => __('forms_edit_group_advanced', 'Advanced fields'), 'items' => [
+                        ['range', __('forms_edit_field_range', 'Slider'), 'slider'],
+                        ['rating', __('forms_edit_field_rating', 'Rating'), 'star'],
+                        ['calc', __('forms_edit_field_calc', 'Calculated'), 'calc'],
+                        ['file', __('forms_edit_field_file', 'File Upload'), 'file'],
+                        ['signature', __('forms_signature', 'Signature'), 'sign'],
+                        ['disclaimer', __('forms_edit_field_disclaimer', 'Acceptance'), 'accept'],
+                        ['heading', __('forms_edit_field_heading', 'Section'), 'section'],
+                        ['step', __('forms_edit_field_step', 'Page Break'), 'page'],
+                        ['hidden', __('forms_edit_field_hidden', 'Hidden'), 'hidden'],
                     ]],
                 ];
                 ?>
@@ -632,8 +632,8 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                         <div class="fb-list" id="fb-list"></div>
                         <div class="fb-empty" id="fb-empty">
                             <svg class="fb-empty-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                            <div class="fb-empty-t">Drag a field here to start building your form</div>
-                            <div class="fb-empty-s">…or tap a field on the right to add it.</div>
+                            <div class="fb-empty-t"><?= __('forms_edit_drag_field_here', 'Drag a field here to start building your form') ?></div>
+                            <div class="fb-empty-s"><?= __('forms_edit_or_tap_field', '…or tap a field on the right to add it.') ?></div>
                         </div>
                     </div>
                     <aside class="fb2-side" id="fb-side">
@@ -641,7 +641,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                         <div id="fb-side-palette">
                             <div class="fb2-hint">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l7 18 2-8 8-2z"/></svg>
-                                <span>Tap or drag a field onto the canvas. Select a field to edit its settings here.</span>
+                                <span><?= __('forms_edit_tap_or_drag_hint', 'Tap or drag a field onto the canvas. Select a field to edit its settings here.') ?></span>
                             </div>
                             <?php foreach ($fbGroups as $gi => $g): ?>
                             <div class="fb2-group is-open" data-fb-group>
@@ -663,12 +663,12 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                         <!-- Field settings (shown when a field is selected) -->
                         <div id="fb-side-settings" hidden>
                             <div class="fb2-set-head">
-                                <span class="fb2-set-badge" id="fb-set-type">Field</span>
-                                <span class="fb2-set-title">settings</span>
+                                <span class="fb2-set-badge" id="fb-set-type"><?= __('forms_edit_field_word', 'Field') ?></span>
+                                <span class="fb2-set-title"><?= __('settings', 'settings') ?></span>
                                 <span class="fb2-set-sp"></span>
-                                <button type="button" class="fb-move" id="fb-set-up" title="Move up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg></button>
-                                <button type="button" class="fb-move" id="fb-set-down" title="Move down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-                                <button type="button" class="fb2-set-done" id="fb-set-done">Done</button>
+                                <button type="button" class="fb-move" id="fb-set-up" title="<?= e(__('forms_edit_move_up', 'Move up')) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg></button>
+                                <button type="button" class="fb-move" id="fb-set-down" title="<?= e(__('forms_edit_move_down', 'Move down')) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                                <button type="button" class="fb2-set-done" id="fb-set-done"><?= __('forms_status_done', 'Done') ?></button>
                             </div>
                             <div id="fb-set-body"></div>
                         </div>
@@ -678,24 +678,23 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                 <!-- Always-posted source of truth; the builder writes here. Power
                      users can edit it directly via the Advanced toggle. -->
                 <div class="field" id="fb-advanced" hidden>
-                    <label class="field-label" for="fields_dsl">Field DSL — <code>type|name|label|required|placeholder|options</code></label>
+                    <label class="field-label" for="fields_dsl"><?= __('forms_edit_field_dsl_label', 'Field DSL') ?> — <code>type|name|label|required|placeholder|options</code></label>
                     <textarea id="fields_dsl" name="fields_dsl" rows="14"
                               style="font-family:var(--font-mono); font-size:12.5px; min-height:240px;"
                               spellcheck="false"><?= e($state['fields_dsl']) ?></textarea>
                     <div class="field-hint">
-                        Supported types: text, email, tel, url, number, date, time, textarea, select, radio,
-                        checkbox, range, rating, file, signature, heading, hidden.
-                        Options column = comma-separated choices (<code>select</code>/<code>radio</code>),
-                        <code>min,max,step</code> (range) or max-stars (rating). Switch back to the visual builder to sync.
+                        <?= __('forms_edit_dsl_supported_types', 'Supported types: text, email, tel, url, number, date, time, textarea, select, radio, checkbox, range, rating, file, signature, heading, hidden.') ?>
+                        <?= __('forms_edit_dsl_options_col', 'Options column = comma-separated choices') ?> (<code>select</code>/<code>radio</code>),
+                        <code>min,max,step</code> <?= __('forms_edit_dsl_range', '(range) or max-stars (rating). Switch back to the visual builder to sync.') ?>
                     </div>
                     <ul class="kv-list" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
                         <li class="kv-row"><span class="kv-label kv-mono">type</span><span class="kv-value">text · email · tel · url · number · date · time · textarea · select · radio · checkbox · range · rating · calc · file · signature · heading · step · hidden</span></li>
-                        <li class="kv-row"><span class="kv-label kv-mono">advanced</span><span class="kv-value">conditional visibility, calculated formulas and step breaks are set in the <strong>visual builder</strong> (not the DSL)</span></li>
-                        <li class="kv-row"><span class="kv-label kv-mono">name</span><span class="kv-value">lowercase, letters/digits/underscores</span></li>
-                        <li class="kv-row"><span class="kv-label kv-mono">label</span><span class="kv-value">shown next to the input</span></li>
-                        <li class="kv-row"><span class="kv-label kv-mono">required</span><span class="kv-value">literal word <code>required</code></span></li>
-                        <li class="kv-row"><span class="kv-label kv-mono">placeholder</span><span class="kv-value">optional hint</span></li>
-                        <li class="kv-row"><span class="kv-label kv-mono">options</span><span class="kv-value">for select/radio, comma-separated</span></li>
+                        <li class="kv-row"><span class="kv-label kv-mono">advanced</span><span class="kv-value"><?= __('forms_edit_dsl_advanced_note', 'conditional visibility, calculated formulas and step breaks are set in the') ?> <strong><?= __('forms_edit_visual_builder', 'visual builder') ?></strong> <?= __('forms_edit_dsl_not_dsl', '(not the DSL)') ?></span></li>
+                        <li class="kv-row"><span class="kv-label kv-mono">name</span><span class="kv-value"><?= __('forms_edit_dsl_name_hint', 'lowercase, letters/digits/underscores') ?></span></li>
+                        <li class="kv-row"><span class="kv-label kv-mono">label</span><span class="kv-value"><?= __('forms_edit_dsl_label_hint', 'shown next to the input') ?></span></li>
+                        <li class="kv-row"><span class="kv-label kv-mono">required</span><span class="kv-value"><?= __('forms_edit_dsl_required_hint', 'literal word') ?> <code>required</code></span></li>
+                        <li class="kv-row"><span class="kv-label kv-mono">placeholder</span><span class="kv-value"><?= __('forms_edit_dsl_placeholder_hint', 'optional hint') ?></span></li>
+                        <li class="kv-row"><span class="kv-label kv-mono">options</span><span class="kv-value"><?= __('forms_edit_dsl_options_hint', 'for select/radio, comma-separated') ?></span></li>
                     </ul>
                 </div>
                 <?php if (!empty($fieldErrors['fields_dsl'])): ?>
@@ -727,8 +726,8 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
             .fdesign-on{margin-left:auto;color:var(--accent);display:none;}
             .fdesign.is-on .fdesign-on{display:block;}
             </style>
-            <?php forms_edit_card_open(['icon' => 'star', 'eyebrow' => 'Designs', 'title' => 'Pick a design']); ?>
-                <p class="text-muted text-sm" style="margin:-2px 0 12px;">One click applies a ready-made look — accent, fields, corners and motion. Fine-tune anything below.</p>
+            <?php forms_edit_card_open(['icon' => 'star', 'eyebrow' => __('forms_edit_designs', 'Designs'), 'title' => __('forms_edit_pick_a_design', 'Pick a design')]); ?>
+                <p class="text-muted text-sm" style="margin:-2px 0 12px;"><?= __('forms_edit_design_hint', 'One click applies a ready-made look — accent, fields, corners and motion. Fine-tune anything below.') ?></p>
                 <div class="fdesign-grid">
                     <?php foreach (FormDesigns::all() as $d):
                         $sw = $d['swatch'] ?? ($d['accent'] ?: '#2563EB');
@@ -743,7 +742,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                         <span class="fdesign-prev" data-shape="<?= e($d['shape']) ?>" data-fs="<?= e($d['field_style']) ?>" style="--acc:<?= e($sw) ?>;">
                             <span class="fp-line"></span>
                             <span class="fp-line short"></span>
-                            <span class="fp-btn">Submit</span>
+                            <span class="fp-btn"><?= __('forms_submit', 'Submit') ?></span>
                         </span>
                         <div class="fdesign-meta">
                             <span class="fdesign-sw" style="--acc:<?= e($sw) ?>;"></span>
@@ -785,49 +784,49 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                 </script>
             <?php forms_edit_card_close(); ?>
 
-            <?php forms_edit_card_open(['icon' => 'star', 'eyebrow' => 'Appearance', 'title' => 'Look & feel']); ?>
+            <?php forms_edit_card_open(['icon' => 'star', 'eyebrow' => __('forms_edit_appearance', 'Appearance'), 'title' => __('forms_edit_look_feel', 'Look & feel')]); ?>
                 <div class="field">
-                    <label class="field-label" for="fs_density">Density</label>
+                    <label class="field-label" for="fs_density"><?= __('forms_edit_density', 'Density') ?></label>
                     <select id="fs_density" name="fs_density">
-                        <option value="comfortable" <?= $fset['density'] === 'comfortable' ? 'selected' : '' ?>>Comfortable (roomy)</option>
-                        <option value="compact"     <?= $fset['density'] === 'compact'     ? 'selected' : '' ?>>Compact (tighter)</option>
+                        <option value="comfortable" <?= $fset['density'] === 'comfortable' ? 'selected' : '' ?>><?= __('forms_edit_comfortable', 'Comfortable (roomy)') ?></option>
+                        <option value="compact"     <?= $fset['density'] === 'compact'     ? 'selected' : '' ?>><?= __('forms_edit_compact', 'Compact (tighter)') ?></option>
                     </select>
-                    <div class="field-hint">Compact tightens spacing, padding and type sizes on the public form.</div>
+                    <div class="field-hint"><?= __('forms_edit_density_hint', 'Compact tightens spacing, padding and type sizes on the public form.') ?></div>
                 </div>
                 <div class="field" style="margin-bottom:8px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_animate" value="1" <?= $fset['animate'] ? 'checked' : '' ?>>
-                        <span>Step animations <span class="text-muted text-xs">— directional slide + staggered field entrance</span></span>
+                        <span><?= __('forms_edit_step_animations', 'Step animations') ?> <span class="text-muted text-xs">— <?= __('forms_edit_step_animations_desc', 'directional slide + staggered field entrance') ?></span></span>
                     </label>
                 </div>
                 <div class="field" style="margin-bottom:8px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_validate" value="1" <?= $fset['validate'] ? 'checked' : '' ?>>
-                        <span>Inline validation <span class="text-muted text-xs">— live green-check / red state as visitors type</span></span>
+                        <span><?= __('forms_edit_inline_validation', 'Inline validation') ?> <span class="text-muted text-xs">— <?= __('forms_edit_inline_validation_desc', 'live green-check / red state as visitors type') ?></span></span>
                     </label>
                 </div>
                 <div class="field" style="margin-bottom:8px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_rail" value="1" <?= $fset['rail'] ? 'checked' : '' ?>>
-                        <span>Numbered step rail <span class="text-muted text-xs">— ①②③ progress dots on multi-step forms</span></span>
+                        <span><?= __('forms_edit_numbered_rail', 'Numbered step rail') ?> <span class="text-muted text-xs">— <?= __('forms_edit_numbered_rail_desc', '①②③ progress dots on multi-step forms') ?></span></span>
                     </label>
                 </div>
                 <div class="field" style="margin-bottom:8px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_scroll_fields" value="1" <?= !empty($fset['scroll_fields']) ? 'checked' : '' ?>>
-                        <span>Scrollable fields region <span class="text-muted text-xs">— keep fields in a fixed-height scroll area. Turn OFF to let the form flow at full height (recommended for embeds — avoids a gap under the button)</span></span>
+                        <span><?= __('forms_edit_scrollable_fields', 'Scrollable fields region') ?> <span class="text-muted text-xs">— <?= __('forms_edit_scrollable_fields_desc', 'keep fields in a fixed-height scroll area. Turn OFF to let the form flow at full height (recommended for embeds — avoids a gap under the button)') ?></span></span>
                     </label>
                 </div>
                 <div class="field" style="margin-bottom:8px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_full_width" value="1" <?= !empty($fset['full_width']) ? 'checked' : '' ?>>
-                        <span>Full-width form <span class="text-muted text-xs">— fill the container instead of a centered max-width column (best for wide embeds)</span></span>
+                        <span><?= __('forms_edit_full_width_form', 'Full-width form') ?> <span class="text-muted text-xs">— <?= __('forms_edit_full_width_form_desc', 'fill the container instead of a centered max-width column (best for wide embeds)') ?></span></span>
                     </label>
                 </div>
                 <div class="field" style="margin-bottom:0;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_summary" value="1" <?= !empty($fset['summary']) ? 'checked' : '' ?>>
-                        <span>Review &amp; summary step <span class="text-muted text-xs">— add a final read-only "Review your answers" step before submit</span></span>
+                        <span><?= __('forms_edit_review_summary_step', 'Review &amp; summary step') ?> <span class="text-muted text-xs">— <?= __('forms_edit_review_summary_step_desc', 'add a final read-only "Review your answers" step before submit') ?></span></span>
                     </label>
                 </div>
             <?php forms_edit_card_close(); ?>
@@ -837,44 +836,44 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                 $accVal = $fset['accent'] ?: '#2563EB';
                 $accHov = $fset['accent_hover'] ?: ($fset['accent'] ? FormsAPI::darkenHex($fset['accent'], 0.12) : '#1D4ED8');
             ?>
-            <?php forms_edit_card_open(['icon' => 'tag', 'eyebrow' => 'Style', 'title' => 'Colors & components']); ?>
+            <?php forms_edit_card_open(['icon' => 'tag', 'eyebrow' => __('forms_edit_style', 'Style'), 'title' => __('forms_edit_colors_components', 'Colors & components')]); ?>
                 <div class="field" style="margin-bottom:10px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" id="fs_accent_on" name="fs_accent_on" value="1" <?= $accOn ? 'checked' : '' ?>>
-                        <span>Custom brand colors <span class="text-muted text-xs">— override the theme accent</span></span>
+                        <span><?= __('forms_edit_custom_brand_colors', 'Custom brand colors') ?> <span class="text-muted text-xs">— <?= __('forms_edit_custom_brand_colors_desc', 'override the theme accent') ?></span></span>
                     </label>
                 </div>
                 <div class="field-row field-row-2" id="fs_accent_row" style="<?= $accOn ? '' : 'opacity:.45;pointer-events:none;' ?>">
                     <div class="field">
-                        <label class="field-label" for="fs_accent">Primary color</label>
+                        <label class="field-label" for="fs_accent"><?= __('forms_edit_primary_color', 'Primary color') ?></label>
                         <input type="color" id="fs_accent" name="fs_accent" value="<?= e($accVal) ?>" style="width:100%;height:40px;padding:3px;cursor:pointer;">
                     </div>
                     <div class="field">
-                        <label class="field-label" for="fs_accent_hover">Hover / darker</label>
+                        <label class="field-label" for="fs_accent_hover"><?= __('forms_edit_hover_darker', 'Hover / darker') ?></label>
                         <input type="color" id="fs_accent_hover" name="fs_accent_hover" value="<?= e($accHov) ?>" style="width:100%;height:40px;padding:3px;cursor:pointer;">
                     </div>
                 </div>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="fs_field_style">Field style</label>
+                        <label class="field-label" for="fs_field_style"><?= __('forms_edit_field_style', 'Field style') ?></label>
                         <select id="fs_field_style" name="fs_field_style">
-                            <option value="outline" <?= $fset['field_style'] === 'outline' ? 'selected' : '' ?>>Outlined (white)</option>
-                            <option value="filled"  <?= $fset['field_style'] === 'filled'  ? 'selected' : '' ?>>Filled (soft grey)</option>
+                            <option value="outline" <?= $fset['field_style'] === 'outline' ? 'selected' : '' ?>><?= __('forms_edit_outlined_white', 'Outlined (white)') ?></option>
+                            <option value="filled"  <?= $fset['field_style'] === 'filled'  ? 'selected' : '' ?>><?= __('forms_edit_filled_grey', 'Filled (soft grey)') ?></option>
                         </select>
                     </div>
                     <div class="field">
-                        <label class="field-label" for="fs_shape">Corners</label>
+                        <label class="field-label" for="fs_shape"><?= __('forms_edit_corners', 'Corners') ?></label>
                         <select id="fs_shape" name="fs_shape">
-                            <option value="rounded" <?= $fset['shape'] === 'rounded' ? 'selected' : '' ?>>Rounded</option>
-                            <option value="pill"    <?= $fset['shape'] === 'pill'    ? 'selected' : '' ?>>Pill buttons</option>
-                            <option value="square"  <?= $fset['shape'] === 'square'  ? 'selected' : '' ?>>Square</option>
+                            <option value="rounded" <?= $fset['shape'] === 'rounded' ? 'selected' : '' ?>><?= __('forms_edit_rounded', 'Rounded') ?></option>
+                            <option value="pill"    <?= $fset['shape'] === 'pill'    ? 'selected' : '' ?>><?= __('forms_edit_pill_buttons', 'Pill buttons') ?></option>
+                            <option value="square"  <?= $fset['shape'] === 'square'  ? 'selected' : '' ?>><?= __('forms_edit_square', 'Square') ?></option>
                         </select>
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_hide_labels" value="1" <?= $fset['labels'] === 'hide' ? 'checked' : '' ?>>
-                        <span>Hide field labels <span class="text-muted text-xs">— rely on placeholders (kept for screen readers)</span></span>
+                        <span><?= __('forms_edit_hide_field_labels', 'Hide field labels') ?> <span class="text-muted text-xs">— <?= __('forms_edit_hide_field_labels_desc', 'rely on placeholders (kept for screen readers)') ?></span></span>
                     </label>
                 </div>
                 <script>
@@ -885,98 +884,98 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                 </script>
             <?php forms_edit_card_close(); ?>
 
-            <?php forms_edit_card_open(['icon' => 'box', 'eyebrow' => 'Spacing', 'title' => 'Padding & gaps']); ?>
-                <p class="text-muted text-xs" style="margin:-2px 0 12px;">Leave blank to use the theme default. All values in pixels — handy for making an embedded form fit its container.</p>
+            <?php forms_edit_card_open(['icon' => 'box', 'eyebrow' => __('forms_edit_spacing', 'Spacing'), 'title' => __('forms_edit_padding_gaps', 'Padding & gaps')]); ?>
+                <p class="text-muted text-xs" style="margin:-2px 0 12px;"><?= __('forms_edit_spacing_hint', 'Leave blank to use the theme default. All values in pixels — handy for making an embedded form fit its container.') ?></p>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="fs_pad">Form padding</label>
-                        <input type="number" id="fs_pad" name="fs_pad" min="0" max="80" placeholder="default" value="<?= $fset['pad'] !== null ? (int)$fset['pad'] : '' ?>">
+                        <label class="field-label" for="fs_pad"><?= __('forms_edit_form_padding', 'Form padding') ?></label>
+                        <input type="number" id="fs_pad" name="fs_pad" min="0" max="80" placeholder="<?= e(__('forms_edit_default_ph', 'default')) ?>" value="<?= $fset['pad'] !== null ? (int)$fset['pad'] : '' ?>">
                     </div>
                     <div class="field">
-                        <label class="field-label" for="fs_field_gap">Field spacing</label>
-                        <input type="number" id="fs_field_gap" name="fs_field_gap" min="0" max="60" placeholder="default" value="<?= $fset['field_gap'] !== null ? (int)$fset['field_gap'] : '' ?>">
+                        <label class="field-label" for="fs_field_gap"><?= __('forms_edit_field_spacing', 'Field spacing') ?></label>
+                        <input type="number" id="fs_field_gap" name="fs_field_gap" min="0" max="60" placeholder="<?= e(__('forms_edit_default_ph', 'default')) ?>" value="<?= $fset['field_gap'] !== null ? (int)$fset['field_gap'] : '' ?>">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
-                    <label class="field-label" for="fs_col_gap">Column gap <span class="text-muted text-xs">— horizontal space between two-column fields</span></label>
-                    <input type="number" id="fs_col_gap" name="fs_col_gap" min="0" max="80" placeholder="default" value="<?= $fset['col_gap'] !== null ? (int)$fset['col_gap'] : '' ?>">
+                    <label class="field-label" for="fs_col_gap"><?= __('forms_edit_column_gap', 'Column gap') ?> <span class="text-muted text-xs">— <?= __('forms_edit_column_gap_desc', 'horizontal space between two-column fields') ?></span></label>
+                    <input type="number" id="fs_col_gap" name="fs_col_gap" min="0" max="80" placeholder="<?= e(__('forms_edit_default_ph', 'default')) ?>" value="<?= $fset['col_gap'] !== null ? (int)$fset['col_gap'] : '' ?>">
                 </div>
             <?php forms_edit_card_close(); ?>
             </div>
 
             <div class="pv-panel" data-panel="after" hidden>
-            <?php forms_edit_card_open(['icon' => 'check', 'eyebrow' => 'After submit', 'title' => 'Confirmation & redirect']); ?>
+            <?php forms_edit_card_open(['icon' => 'check', 'eyebrow' => __('forms_edit_after_submit', 'After submit'), 'title' => __('forms_edit_confirmation_redirect', 'Confirmation & redirect')]); ?>
 
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="submit_label">Submit button label</label>
+                        <label class="field-label" for="submit_label"><?= __('forms_edit_submit_button_label', 'Submit button label') ?></label>
                         <input type="text" id="submit_label" name="submit_label" maxlength="80"
                                value="<?= e($state['submit_label']) ?>">
                     </div>
                     <div class="field">
-                        <label class="field-label" for="submission_limit">Submission limit</label>
+                        <label class="field-label" for="submission_limit"><?= __('forms_edit_submission_limit', 'Submission limit') ?></label>
                         <input type="number" id="submission_limit" name="submission_limit" min="0"
                                value="<?= e($state['submission_limit']) ?>"
-                               placeholder="unlimited">
-                        <div class="field-hint">Form closes once this many submissions land.</div>
+                               placeholder="<?= e(__('unlimited', 'unlimited')) ?>">
+                        <div class="field-hint"><?= __('forms_edit_submission_limit_hint', 'Form closes once this many submissions land.') ?></div>
                     </div>
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="success_message">Success message</label>
+                    <label class="field-label" for="success_message"><?= __('forms_edit_success_message', 'Success message') ?></label>
                     <textarea id="success_message" name="success_message" maxlength="1000"><?= e($state['success_message']) ?></textarea>
-                    <div class="field-hint">Shown on the thank-you page after a successful submit (unless redirect URL is set).</div>
+                    <div class="field-hint"><?= __('forms_edit_success_message_hint', 'Shown on the thank-you page after a successful submit (unless redirect URL is set).') ?></div>
                 </div>
 
                 <div class="field" style="margin-bottom:0;">
-                    <label class="field-label" for="redirect_url">Redirect URL <span class="text-muted text-xs">(optional)</span></label>
+                    <label class="field-label" for="redirect_url"><?= __('forms_edit_redirect_url', 'Redirect URL') ?> <span class="text-muted text-xs"><?= __('forms_edit_optional_paren', '(optional)') ?></span></label>
                     <input type="url" id="redirect_url" name="redirect_url" maxlength="500"
                            value="<?= e($state['redirect_url']) ?>"
                            placeholder="https://example.com/thanks">
                     <?php if (!empty($fieldErrors['redirect_url'])): ?>
                         <div class="field-error"><?= e($fieldErrors['redirect_url']) ?></div>
                     <?php endif; ?>
-                    <div class="field-hint">If set, the submitter is redirected here instead of seeing the success message.</div>
+                    <div class="field-hint"><?= __('forms_edit_redirect_url_hint', 'If set, the submitter is redirected here instead of seeing the success message.') ?></div>
                 </div>
 
             <?php forms_edit_card_close(); ?>
             </div>
 
             <div class="pv-panel" data-panel="notify" hidden>
-            <?php forms_edit_card_open(['icon' => 'mail', 'eyebrow' => 'Notifications', 'title' => 'Email']); ?>
+            <?php forms_edit_card_open(['icon' => 'mail', 'eyebrow' => __('notifications', 'Notifications'), 'title' => __('email', 'Email')]); ?>
 
                 <div class="field">
-                    <label class="field-label" for="notify_email">Notify email</label>
+                    <label class="field-label" for="notify_email"><?= __('forms_edit_notify_email', 'Notify email') ?></label>
                     <input type="email" id="notify_email" name="notify_email" maxlength="200"
                            value="<?= e($state['notify_email']) ?>"
                            placeholder="you@example.com">
                     <?php if (!empty($fieldErrors['notify_email'])): ?>
                         <div class="field-error"><?= e($fieldErrors['notify_email']) ?></div>
                     <?php endif; ?>
-                    <div class="field-hint">Where to send a copy of each submission. Leave blank to skip.</div>
+                    <div class="field-hint"><?= __('forms_edit_notify_email_hint', 'Where to send a copy of each submission. Leave blank to skip.') ?></div>
                 </div>
 
                 <div class="field">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="confirm_submitter" value="1"
                                <?= $state['confirm_submitter'] ? 'checked' : '' ?>>
-                        <span>Email the submitter a confirmation (uses the form's <code>email</code> field)</span>
+                        <span><?= __('forms_edit_confirm_submitter_pre', 'Email the submitter a confirmation (uses the form\'s') ?> <code>email</code> <?= __('forms_edit_confirm_submitter_post', 'field)') ?></span>
                     </label>
                 </div>
 
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="confirm_subject">Confirmation subject</label>
+                        <label class="field-label" for="confirm_subject"><?= __('forms_edit_confirmation_subject', 'Confirmation subject') ?></label>
                         <input type="text" id="confirm_subject" name="confirm_subject" maxlength="200"
                                value="<?= e($state['confirm_subject']) ?>"
-                               placeholder="We got your message">
+                               placeholder="<?= e(__('forms_edit_we_got_your_message', 'We got your message')) ?>">
                     </div>
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="confirm_body">Confirmation body (HTML)</label>
+                    <label class="field-label" for="confirm_body"><?= __('forms_edit_confirmation_body', 'Confirmation body (HTML)') ?></label>
                     <textarea id="confirm_body" name="confirm_body" rows="4"><?= e($state['confirm_body']) ?></textarea>
-                    <div class="field-hint">Sent to the submitter when the checkbox above is on and the form has an <code>email</code> field.</div>
+                    <div class="field-hint"><?= __('forms_edit_confirmation_body_hint_pre', 'Sent to the submitter when the checkbox above is on and the form has an') ?> <code>email</code> <?= __('forms_edit_confirmation_body_hint_post', 'field.') ?></div>
                 </div>
 
             <?php forms_edit_card_close(); ?>
@@ -991,113 +990,113 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
             ?>
             <?php forms_edit_card_open([
                 'icon'       => 'mail',
-                'eyebrow'    => 'Notification template',
-                'title'      => 'Admin email content',
-                'aside_html' => '<span class="text-xs text-muted">Customize subject &amp; body</span>',
+                'eyebrow'    => __('forms_edit_notification_template', 'Notification template'),
+                'title'      => __('forms_edit_admin_email_content', 'Admin email content'),
+                'aside_html' => '<span class="text-xs text-muted">' . __('forms_edit_customize_subject_body', 'Customize subject &amp; body') . '</span>',
             ]); ?>
                 <div class="field-hint" style="margin-bottom:14px;">
-                    Sent to the notify address above when a submission lands. Leave a field blank to use the default. Placeholders: <?= $placeholderHint ?>.
+                    <?= __('forms_edit_notify_template_hint', 'Sent to the notify address above when a submission lands. Leave a field blank to use the default. Placeholders:') ?> <?= $placeholderHint ?>.
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="fs_email_subject">Subject line</label>
+                    <label class="field-label" for="fs_email_subject"><?= __('forms_edit_subject_line', 'Subject line') ?></label>
                     <input type="text" id="fs_email_subject" name="fs_email_subject" maxlength="200"
                            value="<?= e($fset['email_subject'] ?? '') ?>"
-                           placeholder="New submission · {{form.title}} ({{ref}})">
+                           placeholder="<?= e(__('forms_edit_ph_subject', 'New submission · {{form.title}} ({{ref}})')) ?>">
                 </div>
 
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="fs_email_header_label">Header eyebrow</label>
+                        <label class="field-label" for="fs_email_header_label"><?= __('forms_edit_header_eyebrow', 'Header eyebrow') ?></label>
                         <input type="text" id="fs_email_header_label" name="fs_email_header_label" maxlength="80"
                                value="<?= e($fset['email_header_label'] ?? '') ?>"
-                               placeholder="New form submission">
+                               placeholder="<?= e(__('forms_email_new_submission', 'New form submission')) ?>">
                     </div>
                     <div class="field">
-                        <label class="field-label" for="fs_email_cta_label">"View submission" button label</label>
+                        <label class="field-label" for="fs_email_cta_label"><?= __('forms_edit_view_submission_btn_label', '"View submission" button label') ?></label>
                         <input type="text" id="fs_email_cta_label" name="fs_email_cta_label" maxlength="60"
                                value="<?= e($fset['email_cta_label'] ?? '') ?>"
-                               placeholder="View submission">
+                               placeholder="<?= e(__('forms_email_view_submission', 'View submission')) ?>">
                     </div>
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="fs_email_intro">Intro paragraph <span class="text-muted text-xs">(above the field table)</span></label>
+                    <label class="field-label" for="fs_email_intro"><?= __('forms_edit_intro_paragraph', 'Intro paragraph') ?> <span class="text-muted text-xs"><?= __('forms_edit_above_field_table', '(above the field table)') ?></span></label>
                     <textarea id="fs_email_intro" name="fs_email_intro" rows="3"
-                              placeholder="Hi team — a new {{form.title}} just came in from {{submitter}}."><?= e($fset['email_intro'] ?? '') ?></textarea>
+                              placeholder="<?= e(__('forms_edit_ph_email_intro', 'Hi team — a new {{form.title}} just came in from {{submitter}}.')) ?>"><?= e($fset['email_intro'] ?? '') ?></textarea>
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="fs_email_outro">Outro paragraph <span class="text-muted text-xs">(below the field table)</span></label>
+                    <label class="field-label" for="fs_email_outro"><?= __('forms_edit_outro_paragraph', 'Outro paragraph') ?> <span class="text-muted text-xs"><?= __('forms_edit_below_field_table', '(below the field table)') ?></span></label>
                     <textarea id="fs_email_outro" name="fs_email_outro" rows="3"
-                              placeholder="Reply directly to this email to follow up — the submitter is BCC'd."><?= e($fset['email_outro'] ?? '') ?></textarea>
+                              placeholder="<?= e(__('forms_edit_ph_email_outro', 'Reply directly to this email to follow up — the submitter is BCC\'d.')) ?>"><?= e($fset['email_outro'] ?? '') ?></textarea>
                 </div>
 
                 <div class="field" style="margin-bottom:0;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_email_show_table" value="1"
                                <?= !empty($fset['email_show_table']) ? 'checked' : '' ?>>
-                        <span>Include the <strong>field-by-field</strong> table in the body</span>
+                        <span><?= __('forms_edit_include_field_table_pre', 'Include the') ?> <strong><?= __('forms_edit_field_by_field', 'field-by-field') ?></strong> <?= __('forms_edit_include_field_table_post', 'table in the body') ?></span>
                     </label>
-                    <div class="field-hint">Turn off for short notifications that only need the intro / CTA. Submitted values are still in the saved submission.</div>
+                    <div class="field-hint"><?= __('forms_edit_include_field_table_hint', 'Turn off for short notifications that only need the intro / CTA. Submitted values are still in the saved submission.') ?></div>
                 </div>
             <?php forms_edit_card_close(); ?>
 
             <?php forms_edit_card_open([
                 'icon'       => 'box',
-                'eyebrow'    => 'PDF customizer',
-                'title'      => 'Submission PDF',
-                'aside_html' => '<span class="text-xs text-muted">Heading, recital, signatures, page size</span>',
+                'eyebrow'    => __('forms_edit_pdf_customizer', 'PDF customizer'),
+                'title'      => __('forms_edit_submission_pdf', 'Submission PDF'),
+                'aside_html' => '<span class="text-xs text-muted">' . __('forms_edit_pdf_customizer_desc', 'Heading, recital, signatures, page size') . '</span>',
             ]); ?>
 
                 <div class="field">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_pdf_attach" value="1"
                                <?= !empty($fset['pdf_attach']) ? 'checked' : '' ?>>
-                        <span>Attach a branded <strong>PDF</strong> of the submission to the notification &amp; confirmation emails</span>
+                        <span><?= __('forms_edit_attach_pdf_pre', 'Attach a branded') ?> <strong>PDF</strong> <?= __('forms_edit_attach_pdf_post', 'of the submission to the notification &amp; confirmation emails') ?></span>
                     </label>
-                    <div class="field-hint">A professional, brand-styled PDF (logo, colours, signature) is generated for each submission and attached to the admin notification and the submitter confirmation. You can also download it from any submission.</div>
+                    <div class="field-hint"><?= __('forms_edit_attach_pdf_hint', 'A professional, brand-styled PDF (logo, colours, signature) is generated for each submission and attached to the admin notification and the submitter confirmation. You can also download it from any submission.') ?></div>
                 </div>
 
                 <div class="field-hint" style="margin-top:14px;margin-bottom:14px;border-top:1px solid var(--line,#e5e7eb);padding-top:14px;">
-                    Override the title, recital and footer printed on the PDF. Leave blank to use the form's defaults. Placeholders: <?= $placeholderHint ?>.
+                    <?= __('forms_edit_pdf_override_hint', 'Override the title, recital and footer printed on the PDF. Leave blank to use the form\'s defaults. Placeholders:') ?> <?= $placeholderHint ?>.
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="fs_pdf_heading">PDF heading <span class="text-muted text-xs">(replaces the form title)</span></label>
+                    <label class="field-label" for="fs_pdf_heading"><?= __('forms_edit_pdf_heading', 'PDF heading') ?> <span class="text-muted text-xs"><?= __('forms_edit_pdf_heading_desc', '(replaces the form title)') ?></span></label>
                     <input type="text" id="fs_pdf_heading" name="fs_pdf_heading" maxlength="200"
                            value="<?= e($fset['pdf_heading'] ?? '') ?>"
                            placeholder="{{form.title}}">
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="fs_pdf_intro">Recital / introduction</label>
+                    <label class="field-label" for="fs_pdf_intro"><?= __('forms_edit_recital_intro', 'Recital / introduction') ?></label>
                     <textarea id="fs_pdf_intro" name="fs_pdf_intro" rows="3"
-                              placeholder="Particulars submitted through the &quot;{{form.title}}&quot; form…"><?= e($fset['pdf_intro'] ?? '') ?></textarea>
-                    <div class="field-hint">Shown directly under the heading. If blank, the standard "Particulars submitted through the … form" sentence is used.</div>
+                              placeholder="<?= e(__('forms_edit_ph_pdf_intro', 'Particulars submitted through the &quot;{{form.title}}&quot; form…')) ?>"><?= e($fset['pdf_intro'] ?? '') ?></textarea>
+                    <div class="field-hint"><?= __('forms_edit_pdf_intro_hint', 'Shown directly under the heading. If blank, the standard "Particulars submitted through the … form" sentence is used.') ?></div>
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="fs_pdf_footer_note">Footer note <span class="text-muted text-xs">(printed alongside the business line)</span></label>
+                    <label class="field-label" for="fs_pdf_footer_note"><?= __('forms_edit_footer_note', 'Footer note') ?> <span class="text-muted text-xs"><?= __('forms_edit_footer_note_desc', '(printed alongside the business line)') ?></span></label>
                     <input type="text" id="fs_pdf_footer_note" name="fs_pdf_footer_note" maxlength="200"
                            value="<?= e($fset['pdf_footer_note'] ?? '') ?>"
-                           placeholder="e.g. Confidential — for internal use only">
+                           placeholder="<?= e(__('forms_edit_ph_footer_note', 'e.g. Confidential — for internal use only')) ?>">
                 </div>
 
                 <div class="field-row field-row-2" style="margin-top:8px;border-top:1px solid var(--line,#e5e7eb);padding-top:16px;">
                     <div class="field">
-                        <label class="field-label" for="fs_pdf_page">PDF page layout</label>
+                        <label class="field-label" for="fs_pdf_page"><?= __('forms_edit_pdf_page_layout', 'PDF page layout') ?></label>
                         <select id="fs_pdf_page" name="fs_pdf_page">
-                            <option value="a4"     <?= ($fset['pdf_page'] ?? 'a4') === 'a4'     ? 'selected' : '' ?>>A4 (210 × 297 mm)</option>
-                            <option value="letter" <?= ($fset['pdf_page'] ?? '') === 'letter'   ? 'selected' : '' ?>>US Letter (8.5 × 11 in)</option>
-                            <option value="legal"  <?= ($fset['pdf_page'] ?? '') === 'legal'    ? 'selected' : '' ?>>US Legal (8.5 × 14 in)</option>
+                            <option value="a4"     <?= ($fset['pdf_page'] ?? 'a4') === 'a4'     ? 'selected' : '' ?>><?= __('forms_edit_a4', 'A4 (210 × 297 mm)') ?></option>
+                            <option value="letter" <?= ($fset['pdf_page'] ?? '') === 'letter'   ? 'selected' : '' ?>><?= __('forms_edit_us_letter', 'US Letter (8.5 × 11 in)') ?></option>
+                            <option value="legal"  <?= ($fset['pdf_page'] ?? '') === 'legal'    ? 'selected' : '' ?>><?= __('forms_edit_us_legal', 'US Legal (8.5 × 14 in)') ?></option>
                         </select>
                     </div>
                     <div class="field">
-                        <label class="field-label" for="fs_pdf_save_btn">"Save PDF" button on submission</label>
+                        <label class="field-label" for="fs_pdf_save_btn"><?= __('forms_edit_save_pdf_btn_label', '"Save PDF" button on submission') ?></label>
                         <select id="fs_pdf_save_btn" name="fs_pdf_save_btn">
-                            <option value="always" <?= ($fset['pdf_save_btn'] ?? 'always') === 'always' ? 'selected' : '' ?>>Always show</option>
-                            <option value="never"  <?= ($fset['pdf_save_btn'] ?? '') === 'never'         ? 'selected' : '' ?>>Hide always</option>
+                            <option value="always" <?= ($fset['pdf_save_btn'] ?? 'always') === 'always' ? 'selected' : '' ?>><?= __('forms_edit_always_show', 'Always show') ?></option>
+                            <option value="never"  <?= ($fset['pdf_save_btn'] ?? '') === 'never'         ? 'selected' : '' ?>><?= __('forms_edit_hide_always', 'Hide always') ?></option>
                         </select>
                     </div>
                 </div>
@@ -1106,38 +1105,38 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_pdf_sign" value="1"
                                <?= !empty($fset['pdf_sign']) ? 'checked' : '' ?>>
-                        <span>Add a <strong>signature area</strong> to the PDF</span>
+                        <span><?= __('forms_edit_add_signature_area_pre', 'Add a') ?> <strong><?= __('forms_edit_signature_area', 'signature area') ?></strong> <?= __('forms_edit_add_signature_area_post', 'to the PDF') ?></span>
                     </label>
-                    <div class="field-hint">When on, the document always ends with a signature line — even if the form has no signature field — so it can be signed by hand. Turn off to omit the signature block entirely.</div>
+                    <div class="field-hint"><?= __('forms_edit_signature_area_hint', 'When on, the document always ends with a signature line — even if the form has no signature field — so it can be signed by hand. Turn off to omit the signature block entirely.') ?></div>
                 </div>
 
                 <div class="field" style="margin-top:12px;margin-bottom:0;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="fs_pdf_sign_both" value="1"
                                <?= !empty($fset['pdf_sign_both']) ? 'checked' : '' ?>>
-                        <span>Require signatures from <strong>both parties</strong></span>
+                        <span><?= __('forms_edit_require_both_pre', 'Require signatures from') ?> <strong><?= __('forms_edit_both_parties', 'both parties') ?></strong></span>
                     </label>
-                    <div class="field-hint">Prints two signature columns — the client and your company representative (from the Sender profile below), the original agreement layout. Leave off for a single signature line.</div>
+                    <div class="field-hint"><?= __('forms_edit_both_parties_hint', 'Prints two signature columns — the client and your company representative (from the Sender profile below), the original agreement layout. Leave off for a single signature line.') ?></div>
                 </div>
 
             <?php forms_edit_card_close(); ?>
 
-            <?php forms_edit_card_open(['icon' => 'user', 'eyebrow' => 'E-Signature', 'title' => 'Sender profile', 'aside_html' => '<span class="text-xs text-muted">Printed on the agreement PDF</span>']); ?>
-                <div class="field-hint" style="margin-bottom:14px;">Identity shown as the document sender on the generated PDF when the form collects a signature.</div>
+            <?php forms_edit_card_open(['icon' => 'user', 'eyebrow' => __('forms_edit_e_signature', 'E-Signature'), 'title' => __('forms_edit_sender_profile', 'Sender profile'), 'aside_html' => '<span class="text-xs text-muted">' . __('forms_edit_printed_on_pdf', 'Printed on the agreement PDF') . '</span>']); ?>
+                <div class="field-hint" style="margin-bottom:14px;"><?= __('forms_edit_sender_profile_hint', 'Identity shown as the document sender on the generated PDF when the form collects a signature.') ?></div>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="fs_sender_name">Sender name</label>
+                        <label class="field-label" for="fs_sender_name"><?= __('from_name', 'Sender name') ?></label>
                         <input type="text" id="fs_sender_name" name="fs_sender_name" maxlength="120"
                                value="<?= e($fset['sender']['name'] ?? '') ?>" placeholder="Rick Lenschow">
                     </div>
                     <div class="field">
-                        <label class="field-label" for="fs_sender_company">Company name</label>
+                        <label class="field-label" for="fs_sender_company"><?= __('business_name', 'Company name') ?></label>
                         <input type="text" id="fs_sender_company" name="fs_sender_company" maxlength="160"
                                value="<?= e($fset['sender']['company'] ?? '') ?>" placeholder="CM Surveyors">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:16px;">
-                    <label class="field-label" for="fs_sender_email">Sender email</label>
+                    <label class="field-label" for="fs_sender_email"><?= __('from_email', 'Sender email') ?></label>
                     <input type="email" id="fs_sender_email" name="fs_sender_email" maxlength="200"
                            value="<?= e($fset['sender']['email'] ?? '') ?>" placeholder="rick@cmsurveyors.com">
                 </div>
@@ -1155,23 +1154,23 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                 #sender-sig .sig-canvas{display:block;width:100%;height:150px;background:#fff;cursor:crosshair;touch-action:none;}
                 #sender-sig .sig-type-input{position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);box-sizing:border-box;border:1.5px dashed #e4e7ec;border-radius:10px;padding:10px 14px;font-size:20px;text-align:center;outline:none;font-family:'Brush Script MT','Segoe Script',cursive;}
                 </style>
-                <label class="field-label" style="margin-bottom:6px;">Legal signature</label>
+                <label class="field-label" style="margin-bottom:6px;"><?= __('forms_edit_legal_signature', 'Legal signature') ?></label>
                 <div class="sig-pad" data-sig id="sender-sig">
                     <div class="sig-tabs">
-                        <button type="button" class="sig-tab is-active" data-sig-mode-btn="draw">Draw</button>
-                        <button type="button" class="sig-tab" data-sig-mode-btn="type">Type</button>
-                        <label class="sig-upload" title="Upload an image of your signature">Upload<input type="file" id="sender-sig-file" accept="image/png,image/jpeg" hidden></label>
-                        <button type="button" class="sig-clear" data-sig-clear>Clear</button>
+                        <button type="button" class="sig-tab is-active" data-sig-mode-btn="draw"><?= __('forms_edit_draw', 'Draw') ?></button>
+                        <button type="button" class="sig-tab" data-sig-mode-btn="type"><?= __('forms_edit_type', 'Type') ?></button>
+                        <label class="sig-upload" title="<?= e(__('forms_edit_upload_signature_title', 'Upload an image of your signature')) ?>"><?= __('upload', 'Upload') ?><input type="file" id="sender-sig-file" accept="image/png,image/jpeg" hidden></label>
+                        <button type="button" class="sig-clear" data-sig-clear><?= __('forms_edit_clear', 'Clear') ?></button>
                     </div>
                     <div class="sig-stage">
-                        <canvas class="sig-canvas" width="660" height="180" role="img" aria-label="Sender signature pad"></canvas>
-                        <input type="text" class="sig-type-input" maxlength="60" placeholder="Type your full name" autocomplete="name" hidden>
+                        <canvas class="sig-canvas" width="660" height="180" role="img" aria-label="<?= e(__('forms_edit_sender_sig_pad', 'Sender signature pad')) ?>"></canvas>
+                        <input type="text" class="sig-type-input" maxlength="60" placeholder="<?= e(__('forms_edit_type_full_name', 'Type your full name')) ?>" autocomplete="name" hidden>
                     </div>
                     <input type="hidden" name="fs_sender_sig" value="<?= e($fset['sender']['sig'] ?? '') ?>" data-sig-value>
                     <input type="hidden" name="fs_sender_sig__mode" value="draw" data-sig-mode>
                     <input type="hidden" name="fs_sender_sig__name" value="" data-sig-name>
                 </div>
-                <div class="field-hint" style="margin-top:8px;">Draw with your mouse, switch to <strong>Type</strong>, or <strong>Upload</strong> an image. This signature + your name and the signing date are stamped on the PDF as the sender.</div>
+                <div class="field-hint" style="margin-top:8px;"><?= __('forms_edit_draw_switch_pre', 'Draw with your mouse, switch to') ?> <strong><?= __('forms_edit_type', 'Type') ?></strong>, <?= __('forms_edit_draw_switch_or', 'or') ?> <strong><?= __('upload', 'Upload') ?></strong> <?= __('forms_edit_draw_switch_post', 'an image. This signature + your name and the signing date are stamped on the PDF as the sender.') ?></div>
                 <script src="<?= e(plugin_url('forms', 'assets/js/signature.js') . '?v=' . FormsAPI::ASSET_VERSION) ?>" defer></script>
                 <script>
                 (function(){
@@ -1203,9 +1202,9 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
             <div class="pv-panel" data-panel="webhooks" hidden>
             <?php forms_edit_card_open([
                 'icon'       => 'link',
-                'eyebrow'    => 'Integrations',
-                'title'      => 'Webhooks',
-                'aside_html' => '<span class="text-xs text-muted">POST JSON on submit</span>',
+                'eyebrow'    => __('forms_edit_integrations', 'Integrations'),
+                'title'      => __('forms_edit_webhooks', 'Webhooks'),
+                'aside_html' => '<span class="text-xs text-muted">' . __('forms_edit_post_json_on_submit', 'POST JSON on submit') . '</span>',
             ]); ?>
                 <div class="field" style="margin-bottom:0;">
                     <textarea id="webhook_urls" name="webhook_urls" rows="3"
@@ -1214,7 +1213,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                     <?php if (!empty($fieldErrors['webhook_urls'])): ?>
                         <div class="field-error"><?= e($fieldErrors['webhook_urls']) ?></div>
                     <?php endif; ?>
-                    <div class="field-hint">One URL per line. Each submission is POSTed as JSON. Save and we'll start firing.</div>
+                    <div class="field-hint"><?= __('forms_edit_webhook_hint', 'One URL per line. Each submission is POSTed as JSON. Save and we\'ll start firing.') ?></div>
                 </div>
             <?php forms_edit_card_close(); ?>
             </div>
@@ -1240,150 +1239,150 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
             ) : [];
             // Human labels for the block codes recorded by FormsSpamGuard.
             $spCodeLabel = [
-                'ip' => 'IP blocklist', 'timetrap' => 'Too fast', 'keyword' => 'Keyword',
-                'links' => 'Too many links', 'email' => 'Email blocklist',
-                'disposable' => 'Disposable email', 'country' => 'Country', 'rate' => 'Rate limit',
-                'captcha' => 'CAPTCHA',
+                'ip' => __('forms_spam_code_ip', 'IP blocklist'), 'timetrap' => __('forms_spam_code_timetrap', 'Too fast'), 'keyword' => __('forms_spam_code_keyword', 'Keyword'),
+                'links' => __('forms_spam_code_links', 'Too many links'), 'email' => __('forms_spam_code_email', 'Email blocklist'),
+                'disposable' => __('forms_spam_code_disposable', 'Disposable email'), 'country' => __('forms_spam_code_country', 'Country'), 'rate' => __('forms_spam_code_rate', 'Rate limit'),
+                'captcha' => __('forms_spam_code_captcha', 'CAPTCHA'),
             ];
             ?>
             <div class="pv-panel" data-panel="security" hidden>
 
-            <?php forms_edit_card_open(['icon' => 'shield', 'eyebrow' => 'CAPTCHA', 'title' => 'Bot challenge']); ?>
+            <?php forms_edit_card_open(['icon' => 'shield', 'eyebrow' => 'CAPTCHA', 'title' => __('forms_edit_bot_challenge', 'Bot challenge')]); ?>
                 <div class="field">
-                    <label class="field-label" for="sp_captcha_provider">Provider</label>
+                    <label class="field-label" for="sp_captcha_provider"><?= __('forms_edit_provider', 'Provider') ?></label>
                     <select id="sp_captcha_provider" name="sp_captcha_provider">
-                        <option value="none"      <?= $sp['captcha_provider'] === 'none'      ? 'selected' : '' ?>>Off</option>
+                        <option value="none"      <?= $sp['captcha_provider'] === 'none'      ? 'selected' : '' ?>><?= __('off', 'Off') ?></option>
                         <option value="turnstile" <?= $sp['captcha_provider'] === 'turnstile' ? 'selected' : '' ?>>Cloudflare Turnstile</option>
                         <option value="recaptcha" <?= $sp['captcha_provider'] === 'recaptcha' ? 'selected' : '' ?>>Google reCAPTCHA v3</option>
                         <option value="hcaptcha"  <?= $sp['captcha_provider'] === 'hcaptcha'  ? 'selected' : '' ?>>hCaptcha</option>
                     </select>
-                    <div class="field-hint">Paste the site &amp; secret keys from your provider dashboard. The widget appears just above the submit button; the secret never leaves the server.</div>
+                    <div class="field-hint"><?= __('forms_edit_captcha_hint', 'Paste the site &amp; secret keys from your provider dashboard. The widget appears just above the submit button; the secret never leaves the server.') ?></div>
                 </div>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="sp_captcha_site_key">Site key</label>
+                        <label class="field-label" for="sp_captcha_site_key"><?= __('forms_edit_site_key', 'Site key') ?></label>
                         <input type="text" id="sp_captcha_site_key" name="sp_captcha_site_key" maxlength="200"
                                value="<?= e($sp['captcha_site_key']) ?>" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="field">
-                        <label class="field-label" for="sp_captcha_secret">Secret key</label>
+                        <label class="field-label" for="sp_captcha_secret"><?= __('forms_edit_secret_key', 'Secret key') ?></label>
                         <input type="password" id="sp_captcha_secret" name="sp_captcha_secret" maxlength="200"
                                value="<?= e($sp['captcha_secret']) ?>" autocomplete="off" spellcheck="false">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:0;" data-sp-recaptcha<?= $sp['captcha_provider'] === 'recaptcha' ? '' : ' hidden' ?>>
-                    <label class="field-label" for="sp_recaptcha_min">reCAPTCHA v3 score threshold</label>
+                    <label class="field-label" for="sp_recaptcha_min"><?= __('forms_edit_recaptcha_threshold', 'reCAPTCHA v3 score threshold') ?></label>
                     <input type="number" id="sp_recaptcha_min" name="sp_recaptcha_min" min="0" max="1" step="0.1"
                            value="<?= e((string)$sp['recaptcha_min']) ?>" style="max-width:120px;">
-                    <div class="field-hint">0 = lenient, 1 = strict. Submissions scoring below this are rejected. 0.5 is a good default.</div>
+                    <div class="field-hint"><?= __('forms_edit_recaptcha_hint', '0 = lenient, 1 = strict. Submissions scoring below this are rejected. 0.5 is a good default.') ?></div>
                 </div>
             <?php forms_edit_card_close(); ?>
 
-            <?php forms_edit_card_open(['icon' => 'map-pin', 'eyebrow' => 'Geography', 'title' => 'Country filtering']); ?>
+            <?php forms_edit_card_open(['icon' => 'map-pin', 'eyebrow' => __('forms_edit_geography', 'Geography'), 'title' => __('forms_edit_country_filtering', 'Country filtering')]); ?>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="sp_country_mode">Mode</label>
+                        <label class="field-label" for="sp_country_mode"><?= __('forms_edit_mode', 'Mode') ?></label>
                         <select id="sp_country_mode" name="sp_country_mode">
-                            <option value="off"   <?= $sp['country_mode'] === 'off'   ? 'selected' : '' ?>>Off (allow everywhere)</option>
-                            <option value="allow" <?= $sp['country_mode'] === 'allow' ? 'selected' : '' ?>>Allow only the listed countries</option>
-                            <option value="block" <?= $sp['country_mode'] === 'block' ? 'selected' : '' ?>>Block the listed countries</option>
+                            <option value="off"   <?= $sp['country_mode'] === 'off'   ? 'selected' : '' ?>><?= __('forms_edit_off_allow_everywhere', 'Off (allow everywhere)') ?></option>
+                            <option value="allow" <?= $sp['country_mode'] === 'allow' ? 'selected' : '' ?>><?= __('forms_edit_allow_listed_countries', 'Allow only the listed countries') ?></option>
+                            <option value="block" <?= $sp['country_mode'] === 'block' ? 'selected' : '' ?>><?= __('forms_edit_block_listed_countries', 'Block the listed countries') ?></option>
                         </select>
                     </div>
                     <div class="field">
-                        <label class="field-label" for="sp_geo_method">Lookup method</label>
+                        <label class="field-label" for="sp_geo_method"><?= __('forms_edit_lookup_method', 'Lookup method') ?></label>
                         <select id="sp_geo_method" name="sp_geo_method">
-                            <option value="auto"    <?= $sp['geo_method'] === 'auto'    ? 'selected' : '' ?>>Auto (header → MaxMind → API)</option>
-                            <option value="header"  <?= $sp['geo_method'] === 'header'  ? 'selected' : '' ?>>Proxy header only (Cloudflare)</option>
-                            <option value="api"     <?= $sp['geo_method'] === 'api'     ? 'selected' : '' ?>>ip-api.com lookup</option>
-                            <option value="maxmind" <?= $sp['geo_method'] === 'maxmind' ? 'selected' : '' ?>>MaxMind GeoLite2 DB</option>
+                            <option value="auto"    <?= $sp['geo_method'] === 'auto'    ? 'selected' : '' ?>><?= __('forms_edit_geo_auto', 'Auto (header → MaxMind → API)') ?></option>
+                            <option value="header"  <?= $sp['geo_method'] === 'header'  ? 'selected' : '' ?>><?= __('forms_edit_geo_header', 'Proxy header only (Cloudflare)') ?></option>
+                            <option value="api"     <?= $sp['geo_method'] === 'api'     ? 'selected' : '' ?>><?= __('forms_edit_geo_api', 'ip-api.com lookup') ?></option>
+                            <option value="maxmind" <?= $sp['geo_method'] === 'maxmind' ? 'selected' : '' ?>><?= __('forms_edit_geo_maxmind', 'MaxMind GeoLite2 DB') ?></option>
                         </select>
                     </div>
                 </div>
                 <div class="field">
-                    <label class="field-label" for="sp_country_list">Country codes</label>
+                    <label class="field-label" for="sp_country_list"><?= __('forms_edit_country_codes', 'Country codes') ?></label>
                     <input type="text" id="sp_country_list" name="sp_country_list" maxlength="500"
                            value="<?= e($spCountryList) ?>" placeholder="US, GB, CA, AU" spellcheck="false">
-                    <div class="field-hint">Two-letter ISO codes, comma-separated. An unknown country is never blocked (fails open), so legitimate visitors aren't locked out when geo lookup is unavailable.</div>
+                    <div class="field-hint"><?= __('forms_edit_country_codes_hint', 'Two-letter ISO codes, comma-separated. An unknown country is never blocked (fails open), so legitimate visitors aren\'t locked out when geo lookup is unavailable.') ?></div>
                 </div>
                 <div class="field" style="margin-bottom:0;">
-                    <label class="field-label" for="sp_maxmind_db">MaxMind .mmdb path <span class="text-muted text-xs">(optional)</span></label>
+                    <label class="field-label" for="sp_maxmind_db"><?= __('forms_edit_maxmind_path', 'MaxMind .mmdb path') ?> <span class="text-muted text-xs"><?= __('forms_edit_optional_paren', '(optional)') ?></span></label>
                     <input type="text" id="sp_maxmind_db" name="sp_maxmind_db" maxlength="500"
                            value="<?= e($sp['maxmind_db']) ?>" placeholder="/home/you/geoip/GeoLite2-Country.mmdb" spellcheck="false">
-                    <div class="field-hint">Absolute path to a GeoLite2-Country database. Used by the MaxMind method (and Auto). The official <code>\MaxMind\Db\Reader</code> is used if installed; otherwise a built-in reader.</div>
+                    <div class="field-hint"><?= __('forms_edit_maxmind_hint', 'Absolute path to a GeoLite2-Country database. Used by the MaxMind method (and Auto). The official') ?> <code>\MaxMind\Db\Reader</code> <?= __('forms_edit_maxmind_hint2', 'is used if installed; otherwise a built-in reader.') ?></div>
                 </div>
             <?php forms_edit_card_close(); ?>
 
-            <?php forms_edit_card_open(['icon' => 'list', 'eyebrow' => 'Filtering', 'title' => 'Content rules']); ?>
+            <?php forms_edit_card_open(['icon' => 'list', 'eyebrow' => __('forms_edit_filtering', 'Filtering'), 'title' => __('forms_edit_content_rules', 'Content rules')]); ?>
                 <div class="field">
-                    <label class="field-label" for="sp_keywords">Blocked keywords</label>
+                    <label class="field-label" for="sp_keywords"><?= __('forms_edit_blocked_keywords', 'Blocked keywords') ?></label>
                     <textarea id="sp_keywords" name="sp_keywords" rows="3"
                               placeholder="casino&#10;crypto airdrop&#10;viagra"><?= e($spKeywords) ?></textarea>
-                    <div class="field-hint">One word or phrase per line (or comma-separated). A submission containing any of these in a text field is dropped silently.</div>
+                    <div class="field-hint"><?= __('forms_edit_blocked_keywords_hint', 'One word or phrase per line (or comma-separated). A submission containing any of these in a text field is dropped silently.') ?></div>
                 </div>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="sp_max_links">Max links</label>
+                        <label class="field-label" for="sp_max_links"><?= __('forms_edit_max_links', 'Max links') ?></label>
                         <input type="number" id="sp_max_links" name="sp_max_links" min="0"
-                               value="<?= e((string)$sp['max_links']) ?>" placeholder="0 = unlimited">
-                        <div class="field-hint">Drop submissions with more than this many <code>http(s)://</code> links across all fields.</div>
+                               value="<?= e((string)$sp['max_links']) ?>" placeholder="<?= e(__('forms_edit_zero_unlimited', '0 = unlimited')) ?>">
+                        <div class="field-hint"><?= __('forms_edit_max_links_hint', 'Drop submissions with more than this many') ?> <code>http(s)://</code> <?= __('forms_edit_max_links_hint2', 'links across all fields.') ?></div>
                     </div>
                     <div class="field">
-                        <label class="field-label">Disposable email</label>
+                        <label class="field-label"><?= __('forms_spam_code_disposable', 'Disposable email') ?></label>
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;margin-top:8px;">
                             <input type="checkbox" name="sp_block_disposable" value="1" <?= $sp['block_disposable'] ? 'checked' : '' ?>>
-                            <span>Reject known throwaway domains <span class="text-muted text-xs">(mailinator, 10minutemail, …)</span></span>
+                            <span><?= __('forms_edit_reject_throwaway', 'Reject known throwaway domains') ?> <span class="text-muted text-xs">(mailinator, 10minutemail, …)</span></span>
                         </label>
                     </div>
                 </div>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="sp_email_blocklist">Email blocklist</label>
+                        <label class="field-label" for="sp_email_blocklist"><?= __('forms_spam_code_email', 'Email blocklist') ?></label>
                         <textarea id="sp_email_blocklist" name="sp_email_blocklist" rows="3"
                                   placeholder="spammer@example.com&#10;@bad-domain.com"><?= e($spEmailList) ?></textarea>
-                        <div class="field-hint">Full addresses, or <code>@domain</code> to block a whole domain.</div>
+                        <div class="field-hint"><?= __('forms_edit_email_blocklist_hint', 'Full addresses, or') ?> <code>@domain</code> <?= __('forms_edit_email_blocklist_hint2', 'to block a whole domain.') ?></div>
                     </div>
                     <div class="field">
-                        <label class="field-label" for="sp_ip_blocklist">IP blocklist</label>
+                        <label class="field-label" for="sp_ip_blocklist"><?= __('forms_spam_code_ip', 'IP blocklist') ?></label>
                         <textarea id="sp_ip_blocklist" name="sp_ip_blocklist" rows="3"
                                   placeholder="203.0.113.7&#10;198.51.100.0/24"><?= e($spIpList) ?></textarea>
-                        <div class="field-hint">Exact IPs or CIDR ranges (v4 / v6), one per line.</div>
+                        <div class="field-hint"><?= __('forms_edit_ip_blocklist_hint', 'Exact IPs or CIDR ranges (v4 / v6), one per line.') ?></div>
                     </div>
                 </div>
             <?php forms_edit_card_close(); ?>
 
-            <?php forms_edit_card_open(['icon' => 'clock', 'eyebrow' => 'Throttling', 'title' => 'Rate limit & time-trap']); ?>
+            <?php forms_edit_card_open(['icon' => 'clock', 'eyebrow' => __('forms_edit_throttling', 'Throttling'), 'title' => __('forms_edit_rate_limit_time_trap', 'Rate limit & time-trap')]); ?>
                 <div class="field-row field-row-2">
                     <div class="field">
-                        <label class="field-label" for="sp_rate_limit">Max submissions per IP</label>
+                        <label class="field-label" for="sp_rate_limit"><?= __('forms_edit_max_subs_per_ip', 'Max submissions per IP') ?></label>
                         <input type="number" id="sp_rate_limit" name="sp_rate_limit" min="0"
-                               value="<?= e((string)$sp['rate_limit']) ?>" placeholder="0 = off">
-                        <div class="field-hint">Within the window below. 0 disables the limit.</div>
+                               value="<?= e((string)$sp['rate_limit']) ?>" placeholder="<?= e(__('forms_edit_zero_off', '0 = off')) ?>">
+                        <div class="field-hint"><?= __('forms_edit_max_subs_hint', 'Within the window below. 0 disables the limit.') ?></div>
                     </div>
                     <div class="field">
-                        <label class="field-label" for="sp_rate_window">Window (seconds)</label>
+                        <label class="field-label" for="sp_rate_window"><?= __('forms_edit_window_seconds', 'Window (seconds)') ?></label>
                         <input type="number" id="sp_rate_window" name="sp_rate_window" min="10"
                                value="<?= e((string)$sp['rate_window']) ?>">
                     </div>
                 </div>
                 <div class="field">
-                    <label class="field-label" for="sp_min_seconds">Minimum fill time (seconds)</label>
+                    <label class="field-label" for="sp_min_seconds"><?= __('forms_edit_min_fill_time', 'Minimum fill time (seconds)') ?></label>
                     <input type="number" id="sp_min_seconds" name="sp_min_seconds" min="0"
-                           value="<?= e((string)$sp['min_seconds']) ?>" style="max-width:120px;" placeholder="0 = off">
-                    <div class="field-hint">A signed hidden timestamp records when the form was shown. Submissions sent faster than this are almost always bots — dropped silently. Try 3.</div>
+                           value="<?= e((string)$sp['min_seconds']) ?>" style="max-width:120px;" placeholder="<?= e(__('forms_edit_zero_off', '0 = off')) ?>">
+                    <div class="field-hint"><?= __('forms_edit_min_fill_time_hint', 'A signed hidden timestamp records when the form was shown. Submissions sent faster than this are almost always bots — dropped silently. Try 3.') ?></div>
                 </div>
                 <div class="field" style="margin-bottom:0;border-top:1px solid var(--line,#e5e7eb);padding-top:16px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
                         <input type="checkbox" name="sp_log_blocked" value="1" <?= $sp['log_blocked'] ? 'checked' : '' ?>>
-                        <span>Log blocked attempts <span class="text-muted text-xs">— keep a record of what was stopped and why</span></span>
+                        <span><?= __('forms_edit_log_blocked', 'Log blocked attempts') ?> <span class="text-muted text-xs">— <?= __('forms_edit_log_blocked_desc', 'keep a record of what was stopped and why') ?></span></span>
                     </label>
                     <?php if (!$isNew && $spBlocked30 > 0): ?>
-                        <div class="field-hint"><strong><?= number_format($spBlocked30) ?></strong> submission<?= $spBlocked30 === 1 ? '' : 's' ?> blocked on this form in the last 30 days.</div>
+                        <div class="field-hint"><strong><?= number_format($spBlocked30) ?></strong> <?= $spBlocked30 === 1 ? __('forms_edit_submission_blocked_30d', 'submission blocked on this form in the last 30 days.') : __('forms_edit_submissions_blocked_30d', 'submissions blocked on this form in the last 30 days.') ?></div>
                     <?php endif; ?>
                 </div>
             <?php forms_edit_card_close(); ?>
 
             <?php if (!empty($spRecent)): ?>
-            <?php forms_edit_card_open(['icon' => 'clipboard', 'eyebrow' => 'Activity', 'title' => 'Recently blocked']); ?>
+            <?php forms_edit_card_open(['icon' => 'clipboard', 'eyebrow' => __('activity', 'Activity'), 'title' => __('forms_edit_recently_blocked', 'Recently blocked')]); ?>
                 <ul class="kv-list" style="margin:0;">
                     <?php foreach ($spRecent as $b): ?>
                         <li class="kv-row" style="align-items:flex-start;">
@@ -1398,7 +1397,7 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                         </li>
                     <?php endforeach; ?>
                 </ul>
-                <div class="field-hint" style="margin-top:12px;">Last <?= count($spRecent) ?> blocked attempt<?= count($spRecent) === 1 ? '' : 's' ?>. Silent drops (honeypot, time-trap, content rules) and visible rejections (country, rate limit, CAPTCHA) are both recorded here while logging is on.</div>
+                <div class="field-hint" style="margin-top:12px;"><?= __('forms_edit_last_n_blocked_pre', 'Last') ?> <?= count($spRecent) ?> <?= count($spRecent) === 1 ? __('forms_edit_blocked_attempt', 'blocked attempt.') : __('forms_edit_blocked_attempts', 'blocked attempts.') ?> <?= __('forms_edit_last_blocked_desc', 'Silent drops (honeypot, time-trap, content rules) and visible rejections (country, rate limit, CAPTCHA) are both recorded here while logging is on.') ?></div>
             <?php forms_edit_card_close(); ?>
             <?php endif; ?>
             </div>
@@ -1712,24 +1711,101 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
 <script>
 <?php /* Country list mirrored from FormsAPI::phoneCountries() so the builder UI can render the allowlist + default editors without an extra fetch. */ ?>
 var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCAPED_UNICODE) ?>;
+<?php
+// Translated strings for the client-side field builder (below). Kept as one
+// small JSON blob rather than scattering __() through the <script> block —
+// PHP can't be evaluated inline inside the JS source.
+$fbI18n = [
+    'type_text' => __('forms_edit_js_type_text', 'Text'),
+    'type_textarea' => __('forms_edit_js_type_textarea', 'Paragraph'),
+    'type_email' => __('email', 'Email'),
+    'type_tel' => __('auth_phone', 'Phone'),
+    'type_intlphone' => __('forms_edit_field_intlphone', 'Phone (intl)'),
+    'type_address' => __('forms_edit_js_type_address', 'Address'),
+    'type_number' => __('forms_edit_field_number', 'Number'),
+    'type_date' => __('forms_edit_field_date', 'Date'),
+    'type_time' => __('forms_edit_field_time', 'Time'),
+    'type_select' => __('forms_edit_js_type_dropdown', 'Dropdown'),
+    'type_radio' => __('forms_edit_js_type_choice', 'Choice'),
+    'type_checkbox' => __('forms_edit_js_type_checkbox', 'Checkbox'),
+    'type_checkboxes' => __('forms_edit_field_checkboxes', 'Multi-select'),
+    'type_range' => __('forms_edit_field_range', 'Slider'),
+    'type_rating' => __('forms_edit_field_rating', 'Rating'),
+    'type_calc' => __('forms_edit_field_calc', 'Calculated'),
+    'type_file' => __('forms_edit_js_type_file', 'File'),
+    'type_signature' => __('forms_signature', 'Signature'),
+    'type_disclaimer' => __('forms_edit_field_disclaimer', 'Acceptance'),
+    'type_heading' => __('title', 'Heading'),
+    'type_step' => __('forms_edit_js_type_step_break', 'Step break'),
+    'type_hidden' => __('forms_edit_field_hidden', 'Hidden'),
+    'opt_min_max_step' => __('forms_edit_js_min_max_step', 'Min, Max, Step'),
+    'opt_max_stars' => __('forms_edit_js_max_stars', 'Max stars (e.g. 5)'),
+    'opt_options_csv' => __('forms_edit_js_options_csv', 'Options (comma-separated)'),
+    'ph_subtitle_optional' => __('forms_edit_js_subtitle_optional', 'Subtitle (optional)'),
+    'ph_value' => __('forms_edit_js_value', 'Value'),
+    'ph_placeholder' => __('forms_edit_js_placeholder', 'Placeholder'),
+    'width_full' => __('forms_edit_js_full', 'Full'),
+    'drag_resize_col' => __('forms_edit_js_drag_resize_col', 'Drag to resize column'),
+    'drag_reorder' => __('forms_edit_js_drag_reorder', 'Drag to reorder'),
+    'untitled_field' => __('forms_edit_js_untitled', '(untitled)'),
+    'remove_field' => __('forms_edit_js_remove_field', 'Remove field'),
+    'label_word' => __('forms_edit_js_label', 'Label'),
+    'field_key' => __('forms_edit_js_field_key', 'Field key'),
+    'field_icon' => __('forms_edit_js_field_icon', 'Field icon'),
+    'auto_by_type' => __('forms_edit_js_auto_by_type', 'Auto (by type)'),
+    'no_icon' => __('forms_edit_js_no_icon', 'No icon'),
+    'display_as_choice_cards' => __('forms_edit_js_display_as_cards', ' Display as choice cards (icon + description)'),
+    'choice_cards' => __('forms_edit_js_choice_cards', 'Choice cards'),
+    'add_option' => __('forms_edit_js_add_option', '+ Add option'),
+    'option_desc_ph' => __('short_description', 'Short description'),
+    'remove_word' => __('remove', 'Remove'),
+    'formula_label' => __('forms_edit_js_formula_label', 'Formula (e.g. {qty} * {price})'),
+    'available_prefix' => __('forms_edit_js_available_prefix', 'Available: '),
+    'allowed_countries' => __('forms_edit_js_allowed_countries', 'Allowed countries'),
+    'allow_all_countries' => __('forms_edit_js_allow_all_countries', 'Allow all countries'),
+    'choose_specific_countries' => __('forms_edit_js_choose_specific_countries', 'Choose specific countries'),
+    'default_country' => __('forms_edit_js_default_country', 'Default country'),
+    'auto_united_states' => __('forms_edit_js_auto_united_states', 'Auto (United States)'),
+    'bias_countries_label' => __('forms_edit_js_bias_countries', 'Bias to countries (optional, e.g. "us, ca")'),
+    'osm_hint' => __('forms_edit_js_osm_hint', 'Powered by OpenStreetMap (no API key required). Leave blank to search worldwide.'),
+    'terms_disclaimer_label' => __('forms_edit_js_terms_label', 'Terms / disclaimer text'),
+    'agreement_checkbox_label' => __('forms_edit_js_agreement_label', 'Agreement checkbox label'),
+    'required_word' => __('required', 'Required'),
+    'width_word' => __('forms_edit_js_width', 'Width'),
+    'visibility_word' => __('forms_edit_js_visibility', 'Visibility'),
+    'always_show' => __('forms_edit_js_always_show', 'Always show'),
+    'op_is' => __('forms_edit_js_op_is', 'is'),
+    'op_is_not' => __('forms_edit_js_op_is_not', 'is not'),
+    'op_greater_than' => __('forms_edit_js_op_greater_than', 'greater than'),
+    'op_less_than' => __('forms_edit_js_op_less_than', 'less than'),
+    'op_is_filled' => __('forms_edit_js_op_is_filled', 'is filled'),
+    'op_is_empty' => __('forms_edit_js_op_is_empty', 'is empty'),
+    'value_ph_lc' => __('forms_edit_js_value_lc', 'value'),
+    'visual_builder_btn' => __('forms_edit_js_visual_builder_btn', 'Visual builder'),
+    'advanced_dsl_btn' => __('forms_edit_advanced_dsl', 'Advanced (DSL)'),
+    'close_word' => __('close', 'Close'),
+    'copied' => __('copied', 'Copied!'),
+];
+?>
+var FB_I18N = <?= json_encode($fbI18n, JSON_UNESCAPED_UNICODE) ?>;
 (function(){
-    var TYPES = {text:'Text',textarea:'Paragraph',email:'Email',tel:'Phone',intlphone:'Phone (intl)',
-                 address:'Address',number:'Number',
-                 date:'Date',time:'Time',url:'URL',select:'Dropdown',radio:'Choice',checkbox:'Checkbox',
-                 checkboxes:'Multi-select',
-                 range:'Slider',rating:'Rating',calc:'Calculated',file:'File',signature:'Signature',
-                 disclaimer:'Acceptance',heading:'Heading',step:'Step break',hidden:'Hidden'};
+    var TYPES = {text:FB_I18N.type_text,textarea:FB_I18N.type_textarea,email:FB_I18N.type_email,tel:FB_I18N.type_tel,intlphone:FB_I18N.type_intlphone,
+                 address:FB_I18N.type_address,number:FB_I18N.type_number,
+                 date:FB_I18N.type_date,time:FB_I18N.type_time,url:'URL',select:FB_I18N.type_select,radio:FB_I18N.type_radio,checkbox:FB_I18N.type_checkbox,
+                 checkboxes:FB_I18N.type_checkboxes,
+                 range:FB_I18N.type_range,rating:FB_I18N.type_rating,calc:FB_I18N.type_calc,file:FB_I18N.type_file,signature:FB_I18N.type_signature,
+                 disclaimer:FB_I18N.type_disclaimer,heading:FB_I18N.type_heading,step:FB_I18N.type_step,hidden:FB_I18N.type_hidden};
     var hasOptions = function(t){ return t === 'select' || t === 'radio' || t === 'checkboxes' || t === 'range' || t === 'rating'; };
     // Per-type labels for the config (options) and placeholder inputs.
     var optLabel = function(t){
-        if (t === 'range')  return 'Min, Max, Step';
-        if (t === 'rating') return 'Max stars (e.g. 5)';
-        return 'Options (comma-separated)';
+        if (t === 'range')  return FB_I18N.opt_min_max_step;
+        if (t === 'rating') return FB_I18N.opt_max_stars;
+        return FB_I18N.opt_options_csv;
     };
     var phLabel = function(t){
-        if (t === 'heading' || t === 'step' || t === 'disclaimer') return 'Subtitle (optional)';
-        if (t === 'hidden')  return 'Value';
-        return 'Placeholder';
+        if (t === 'heading' || t === 'step' || t === 'disclaimer') return FB_I18N.ph_subtitle_optional;
+        if (t === 'hidden')  return FB_I18N.ph_value;
+        return FB_I18N.ph_placeholder;
     };
     var hasPlaceholder = function(t){
         return ['checkbox','file','signature','range','rating','calc'].indexOf(t) === -1;
@@ -1738,7 +1814,7 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
     var hasRequired = function(t){ return ['heading','hidden','step','calc'].indexOf(t) === -1; };
 
     // ── Column width (twelfths). Full = 12 (stored as absent). ──
-    var WIDTH_PRESETS = [[3,'¼'],[4,'⅓'],[6,'½'],[8,'⅔'],[9,'¾'],[12,'Full']];
+    var WIDTH_PRESETS = [[3,'¼'],[4,'⅓'],[6,'½'],[8,'⅔'],[9,'¾'],[12,FB_I18N.width_full]];
     function canWidth(f){ return canHalf(f.type) && !f.card && f.type !== 'hidden'; }
     function widthOf(f){
         var w = parseInt(f.width, 10);
@@ -1768,7 +1844,7 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
     }
     // Right-edge drag handle that resizes a field's column width live.
     function makeResizeHandle(item, f, wchip){
-        var h = document.createElement('span'); h.className = 'fb-resize'; h.title = 'Drag to resize column';
+        var h = document.createElement('span'); h.className = 'fb-resize'; h.title = FB_I18N.drag_resize_col;
         var startX = 0, startW = 12, colPx = 60, dragging = false;
         h.addEventListener('pointerdown', function(e){
             if (list.classList.contains('fb-compact')) return;
@@ -1868,22 +1944,22 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
     function optObj(opts){ return (opts||[]).map(function(o){ return (o && typeof o === 'object') ? o : { value:o, label:o, icon:'', desc:'' }; }); }
     function cardOptionsEditor(f){
         var wrap = document.createElement('div'); wrap.className = 'fb-full fb-cards-ed';
-        var lab = document.createElement('label'); lab.textContent = 'Choice cards'; wrap.appendChild(lab);
+        var lab = document.createElement('label'); lab.textContent = FB_I18N.choice_cards; wrap.appendChild(lab);
         var rows = document.createElement('div'); wrap.appendChild(rows);
-        var addBtn = document.createElement('button'); addBtn.type='button'; addBtn.className='fb-card-add'; addBtn.textContent='+ Add option';
+        var addBtn = document.createElement('button'); addBtn.type='button'; addBtn.className='fb-card-add'; addBtn.textContent=FB_I18N.add_option;
         wrap.appendChild(addBtn);
         function draw(){
             rows.innerHTML = '';
             f.options.forEach(function(o, i){
                 var row = document.createElement('div'); row.className='fb-card-row';
-                var lv = document.createElement('input'); lv.type='text'; lv.placeholder='Label'; lv.value=o.label||o.value||'';
+                var lv = document.createElement('input'); lv.type='text'; lv.placeholder=FB_I18N.label_word; lv.value=o.label||o.value||'';
                 lv.addEventListener('input', function(){ o.label=lv.value; o.value=lv.value; sync(); });
                 var ic = document.createElement('select');
                 FB_CARD_ICONS.forEach(function(n){ var op=new Option(n||'— icon —', n); if((o.icon||'')===n) op.selected=true; ic.appendChild(op); });
                 ic.addEventListener('change', function(){ o.icon=ic.value; sync(); });
-                var dv = document.createElement('input'); dv.type='text'; dv.placeholder='Short description'; dv.value=o.desc||'';
+                var dv = document.createElement('input'); dv.type='text'; dv.placeholder=FB_I18N.option_desc_ph; dv.value=o.desc||'';
                 dv.addEventListener('input', function(){ o.desc=dv.value; sync(); });
-                var rm = document.createElement('button'); rm.type='button'; rm.className='fb-card-rm'; rm.title='Remove'; rm.textContent='✕';
+                var rm = document.createElement('button'); rm.type='button'; rm.className='fb-card-rm'; rm.title=FB_I18N.remove_word; rm.textContent='✕';
                 rm.addEventListener('click', function(){ f.options.splice(i,1); draw(); sync(); });
                 row.appendChild(lv); row.appendChild(ic); row.appendChild(dv); row.appendChild(rm);
                 rows.appendChild(row);
@@ -1907,15 +1983,15 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
         if (canWidth(f)) item.style.gridColumn = 'span ' + widthOf(f);
 
         var head = document.createElement('div'); head.className = 'fb-head'; head.draggable = true;
-        var handle = document.createElement('span'); handle.className = 'fb-handle'; handle.textContent = '⠿'; handle.title = 'Drag to reorder';
+        var handle = document.createElement('span'); handle.className = 'fb-handle'; handle.textContent = '⠿'; handle.title = FB_I18N.drag_reorder;
         var badge = document.createElement('span'); badge.className = 'fb-badge'; badge.textContent = TYPES[f.type] || f.type;
-        var hlabel = document.createElement('span'); hlabel.className = 'fb-head-label'; hlabel.textContent = f.label || '(untitled)';
+        var hlabel = document.createElement('span'); hlabel.className = 'fb-head-label'; hlabel.textContent = f.label || FB_I18N.untitled_field;
         head.appendChild(handle); head.appendChild(badge); head.appendChild(hlabel);
         if (canWidth(f)) {
             var wchip = document.createElement('span'); wchip.className = 'fb-wchip';
             wchip.textContent = widthLabel(widthOf(f)); head.appendChild(wchip);
         }
-        var del = document.createElement('button'); del.type = 'button'; del.className = 'fb-del'; del.textContent = '✕'; del.title = 'Remove field';
+        var del = document.createElement('button'); del.type = 'button'; del.className = 'fb-del'; del.textContent = '✕'; del.title = FB_I18N.remove_field;
         del.addEventListener('click', function(e){
             e.stopPropagation();
             fields.splice(idx, 1);
@@ -1950,14 +2026,14 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
     // field). Returns a .fb-body node.
     function fieldSettings(f, idx){
         var body = document.createElement('div'); body.className = 'fb-body';
-        body.appendChild(textField('Label', f.label, function(v){
+        body.appendChild(textField(FB_I18N.label_word, f.label, function(v){
             f.label = v;
             var lblEl = list.querySelector('.fb-item[data-idx="' + idx + '"] .fb-head-label');
-            if (lblEl) lblEl.textContent = v || '(untitled)';
+            if (lblEl) lblEl.textContent = v || FB_I18N.untitled_field;
             if (!f._named) f.name = uniqueName(v, idx);
             sync();
         }));
-        body.appendChild(textField('Field key', f.name, function(v){
+        body.appendChild(textField(FB_I18N.field_key, f.name, function(v){
             f.name = v; f._named = true; sync();
         }));
         var isTextLike = ['text','email','tel','url','number','date','time'].indexOf(f.type) !== -1;
@@ -1968,9 +2044,9 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
         }
         if (isTextLike) {
             var iw = document.createElement('div'); iw.className = 'fb-icon-sel';
-            var il = document.createElement('label'); il.textContent = 'Field icon';
+            var il = document.createElement('label'); il.textContent = FB_I18N.field_icon;
             var isel = document.createElement('select');
-            [['','Auto (by type)'], ['none','No icon']].concat(FB_CARD_ICONS.filter(Boolean).map(function(n){ return [n, n]; })).forEach(function(p){
+            [['',FB_I18N.auto_by_type], ['none',FB_I18N.no_icon]].concat(FB_CARD_ICONS.filter(Boolean).map(function(n){ return [n, n]; })).forEach(function(p){
                 var o = new Option(p[1], p[0]); if ((f.icon||'') === p[0]) o.selected = true; isel.appendChild(o);
             });
             isel.addEventListener('change', function(){ f.icon = isel.value; sync(); });
@@ -1985,13 +2061,13 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
                 f.options = f.card ? optObj(f.options) : optStr(f.options);
                 render();
             });
-            clab.appendChild(ccb); clab.appendChild(document.createTextNode(' Display as choice cards (icon + description)'));
+            clab.appendChild(ccb); clab.appendChild(document.createTextNode(FB_I18N.display_as_choice_cards));
             cardWrap.appendChild(clab); body.appendChild(cardWrap);
 
             if (f.card) {
                 body.appendChild(cardOptionsEditor(f));
             } else {
-                body.appendChild(textField('Options (comma-separated)', optStr(f.options).join(', '), function(v){
+                body.appendChild(textField(FB_I18N.opt_options_csv, optStr(f.options).join(', '), function(v){
                     f.options = v.split(',').map(function(s){return s.trim();}).filter(Boolean); sync();
                 }, true));
             }
@@ -2001,12 +2077,12 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
             }, true));
         }
         if (f.type === 'calc') {
-            body.appendChild(textField('Formula (e.g. {qty} * {price})', f.formula || '', function(v){ f.formula = v; sync(); }, true));
+            body.appendChild(textField(FB_I18N.formula_label, f.formula || '', function(v){ f.formula = v; sync(); }, true));
             var ck = fields.filter(function(of, j){ return j !== idx && of.name && of.type !== 'step' && of.type !== 'heading' && of.type !== 'calc'; })
                            .map(function(of){ return '{' + of.name + '}'; });
             if (ck.length){
                 var hk = document.createElement('div'); hk.className = 'fb-full fb-formula-keys';
-                hk.textContent = 'Available: ' + ck.join('  ');
+                hk.textContent = FB_I18N.available_prefix + ck.join('  ');
                 body.appendChild(hk);
             }
         }
@@ -2016,10 +2092,10 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
             // it. The default-country dropdown is filtered to the allowed set
             // so the admin can't pick a default that won't render.
             var iw = document.createElement('div'); iw.className = 'fb-full';
-            var il = document.createElement('label'); il.textContent = 'Allowed countries';
+            var il = document.createElement('label'); il.textContent = FB_I18N.allowed_countries;
             var modeSel = document.createElement('select');
-            modeSel.appendChild(new Option('Allow all countries', 'all'));
-            modeSel.appendChild(new Option('Choose specific countries', 'pick'));
+            modeSel.appendChild(new Option(FB_I18N.allow_all_countries, 'all'));
+            modeSel.appendChild(new Option(FB_I18N.choose_specific_countries, 'pick'));
             modeSel.value = (f.intl_countries && f.intl_countries.length) ? 'pick' : 'all';
             iw.appendChild(il); iw.appendChild(modeSel); body.appendChild(iw);
 
@@ -2051,12 +2127,12 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
             body.appendChild(pickWrap);
 
             var dw = document.createElement('div'); dw.className = 'fb-full';
-            var dl = document.createElement('label'); dl.textContent = 'Default country';
+            var dl = document.createElement('label'); dl.textContent = FB_I18N.default_country;
             var dsel = document.createElement('select');
             dw.appendChild(dl); dw.appendChild(dsel); body.appendChild(dw);
             function rebuildDefault(){
                 dsel.innerHTML = '';
-                dsel.appendChild(new Option('Auto (United States)', ''));
+                dsel.appendChild(new Option(FB_I18N.auto_united_states, ''));
                 var allow = f.intl_countries || [];
                 FB_PHONE_COUNTRIES.forEach(function(c){
                     if (allow.length && allow.indexOf(c.d) === -1) return;
@@ -2087,23 +2163,23 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
             // bias results to one or more countries (ISO 3166-1 alpha-2),
             // comma-separated, to keep suggestions local.
             body.appendChild(textField(
-                'Bias to countries (optional, e.g. "us, ca")',
+                FB_I18N.bias_countries_label,
                 f.addr_countries || '',
                 function(v){ f.addr_countries = v.toLowerCase().replace(/[^a-z,]/g, ''); sync(); },
                 false
             ));
             var hint = document.createElement('div'); hint.className = 'fb-full fb-formula-keys';
-            hint.textContent = 'Powered by OpenStreetMap (no API key required). Leave blank to search worldwide.';
+            hint.textContent = FB_I18N.osm_hint;
             body.appendChild(hint);
         }
         if (f.type === 'disclaimer') {
             var tw = document.createElement('div'); tw.className = 'fb-full';
-            var tl = document.createElement('label'); tl.textContent = 'Terms / disclaimer text';
+            var tl = document.createElement('label'); tl.textContent = FB_I18N.terms_disclaimer_label;
             var tt = document.createElement('textarea'); tt.rows = 7; tt.value = f.terms || '';
             tt.style.cssText = 'width:100%;box-sizing:border-box;font:inherit;font-size:13px;line-height:1.5;';
             tt.addEventListener('input', function(){ f.terms = tt.value; sync(); });
             tw.appendChild(tl); tw.appendChild(tt); body.appendChild(tw);
-            body.appendChild(textField('Agreement checkbox label', f.agree || '', function(v){ f.agree = v; sync(); }, true));
+            body.appendChild(textField(FB_I18N.agreement_checkbox_label, f.agree || '', function(v){ f.agree = v; sync(); }, true));
         }
         // One tidy "layout" row: Required on the left, Width presets on the right.
         if (hasRequired(f.type) || canWidth(f)) {
@@ -2112,12 +2188,12 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
                 var rl = document.createElement('label'); rl.className = 'fb-req';
                 var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!f.required;
                 cb.addEventListener('change', function(){ f.required = cb.checked; sync(); });
-                rl.appendChild(cb); rl.appendChild(document.createTextNode(' Required'));
+                rl.appendChild(cb); rl.appendChild(document.createTextNode(' ' + FB_I18N.required_word));
                 lay.appendChild(rl);
             }
             if (canWidth(f)) {
                 var wWrap = document.createElement('div'); wWrap.className = 'fb-width';
-                var wl = document.createElement('label'); wl.textContent = 'Width'; wWrap.appendChild(wl);
+                var wl = document.createElement('label'); wl.textContent = FB_I18N.width_word; wWrap.appendChild(wl);
                 var cur = widthOf(f);
                 WIDTH_PRESETS.forEach(function(p){
                     var b = document.createElement('button'); b.type = 'button';
@@ -2135,21 +2211,21 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
         if (f.type !== 'step') {
             var others = fields.filter(function(of, j){ return j !== idx && of.name && of.type !== 'step' && of.type !== 'heading'; });
             var logic = document.createElement('div'); logic.className = 'fb-full fb-logic';
-            var ll = document.createElement('label'); ll.textContent = 'Visibility'; logic.appendChild(ll);
+            var ll = document.createElement('label'); ll.textContent = FB_I18N.visibility_word; logic.appendChild(ll);
             var lrow = document.createElement('div'); lrow.className = 'fb-logic-row';
 
             var selF = document.createElement('select');
-            selF.appendChild(new Option('Always show', ''));
+            selF.appendChild(new Option(FB_I18N.always_show, ''));
             others.forEach(function(of){
                 var o = new Option((of.label || of.name), of.name);
                 if (f.show_if && f.show_if.field === of.name) o.selected = true;
                 selF.appendChild(o);
             });
             var selOp = document.createElement('select');
-            [['eq','is'],['ne','is not'],['gt','greater than'],['lt','less than'],['filled','is filled'],['empty','is empty']].forEach(function(p){
+            [['eq',FB_I18N.op_is],['ne',FB_I18N.op_is_not],['gt',FB_I18N.op_greater_than],['lt',FB_I18N.op_less_than],['filled',FB_I18N.op_is_filled],['empty',FB_I18N.op_is_empty]].forEach(function(p){
                 var o = new Option(p[1], p[0]); if (f.show_if && f.show_if.op === p[0]) o.selected = true; selOp.appendChild(o);
             });
-            var inpV = document.createElement('input'); inpV.type = 'text'; inpV.placeholder = 'value';
+            var inpV = document.createElement('input'); inpV.type = 'text'; inpV.placeholder = FB_I18N.value_ph_lc;
             inpV.value = (f.show_if && f.show_if.value) || '';
 
             var noVal = function(){ return selOp.value === 'filled' || selOp.value === 'empty'; };
@@ -2350,10 +2426,10 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
         showingAdvanced = !showingAdvanced;
         if (showingAdvanced) {
             sync(); advanced.hidden = false; if (builder) builder.style.display = 'none';
-            toggle.textContent = 'Visual builder';
+            toggle.textContent = FB_I18N.visual_builder_btn;
         } else {
             fields = parse(ta.value); advanced.hidden = true; if (builder) builder.style.display = '';
-            toggle.textContent = 'Advanced (DSL)'; render();
+            toggle.textContent = FB_I18N.advanced_dsl_btn; render();
         }
     });
 
@@ -2411,7 +2487,7 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
         f.src = url;
         f.style.cssText = 'display:block;width:100%;height:600px;max-height:94vh;border:0;background:transparent;transition:height .2s ease';
         var c = document.createElement('button');
-        c.setAttribute('aria-label', 'Close');
+        c.setAttribute('aria-label', FB_I18N.close_word);
         c.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
         c.style.cssText = 'position:absolute;top:18px;right:18px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:999px;background:rgba(15,23,42,.92);color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.4);cursor:pointer;z-index:2';
         function onMsg(ev){ var d = ev.data; if (d && d.type === 'cb-form-height' && d.height) { f.style.height = Math.min(d.height, Math.round(window.innerHeight * 0.94)) + 'px'; } }
@@ -2432,7 +2508,7 @@ var FB_PHONE_COUNTRIES = <?= json_encode(FormsAPI::phoneCountries(), JSON_UNESCA
         var b = e.target.closest('.snippet-copy'); if (!b) return;
         var fld = b.closest('.field'); var pre = fld && fld.querySelector('pre.snippet'); if (!pre) return;
         var txt = pre.textContent;
-        var done = function(){ var o = b.textContent; b.textContent = 'Copied!'; setTimeout(function(){ b.textContent = o; }, 1500); };
+        var done = function(){ var o = b.textContent; b.textContent = FB_I18N.copied; setTimeout(function(){ b.textContent = o; }, 1500); };
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(txt).then(done, function(){});
         } else {

@@ -20,14 +20,14 @@ if (($_GET['export'] ?? '') === 'csv') {
     $formId = (int)($_GET['form_id'] ?? 0);
     if ($formId <= 0) {
         http_response_code(400);
-        echo 'Specify a form_id to export.';
+        echo e(__('forms_specify_form_id', 'Specify a form_id to export.'));
         exit;
     }
 
     $form = FormsAPI::getFormById($formId);
     if (!$form) {
         http_response_code(404);
-        echo 'Form not found.';
+        echo e(__('form_not_found', 'Form not found.'));
         exit;
     }
 
@@ -148,7 +148,7 @@ if (!function_exists('forms_gravatar_url')) {
 $flash = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         $action = $_POST['_action'] ?? '';
         // Accept a bulk ids[] set or a single id; normalise to one int list.
@@ -163,24 +163,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($action === 'mark_read') {
                 Database::update('forms_submissions', ['read_at' => slate_db_now()],
                     "tenant_id = ? AND id IN ($place)", array_merge([$tid], $ids));
-                $flash = ['type' => 'success', 'msg' => $n === 1 ? 'Marked as read.' : "$n marked as read."];
+                $flash = ['type' => 'success', 'msg' => $n === 1 ? __('forms_marked_read_one', 'Marked as read.') : sprintf(__('forms_marked_read_n', '%d marked as read.'), $n)];
             } elseif ($action === 'mark_unread') {
                 Database::update('forms_submissions', ['read_at' => null],
                     "tenant_id = ? AND id IN ($place)", array_merge([$tid], $ids));
-                $flash = ['type' => 'success', 'msg' => $n === 1 ? 'Marked as unread.' : "$n marked as unread."];
+                $flash = ['type' => 'success', 'msg' => $n === 1 ? __('forms_marked_unread_one', 'Marked as unread.') : sprintf(__('forms_marked_unread_n', '%d marked as unread.'), $n)];
             } elseif ($action === 'set_status') {
                 $st = (string)($_POST['status'] ?? '');
                 if (in_array($st, ['new', 'in_progress', 'done'], true)) {
                     Database::update('forms_submissions', ['status' => $st],
                         "tenant_id = ? AND id IN ($place)", array_merge([$tid], $ids));
-                    $label = ['new' => 'New', 'in_progress' => 'In progress', 'done' => 'Done'][$st];
-                    $flash = ['type' => 'success', 'msg' => ($n === 1 ? 'Status set to ' : "$n set to ") . $label . '.'];
+                    $label = [
+                        'new'         => __('forms_status_new', 'New'),
+                        'in_progress' => __('forms_status_in_progress', 'In progress'),
+                        'done'        => __('forms_status_done', 'Done'),
+                    ][$st];
+                    $flash = ['type' => 'success', 'msg' => $n === 1
+                        ? sprintf(__('forms_status_set_to', 'Status set to %s.'), $label)
+                        : sprintf(__('forms_status_set_to_n', '%d set to %s.'), $n, $label)];
                 }
             } elseif ($action === 'delete' && Auth::can('forms.manage')) {
                 Database::delete('forms_submissions',
                     "tenant_id = ? AND id IN ($place)", array_merge([$tid], $ids));
                 AuditLog::record('forms.submission_deleted', implode(',', $ids), ['count' => $n]);
-                $flash = ['type' => 'success', 'msg' => $n === 1 ? 'Submission deleted.' : "$n deleted."];
+                $flash = ['type' => 'success', 'msg' => $n === 1 ? __('forms_submission_deleted', 'Submission deleted.') : sprintf(__('forms_submissions_deleted_n', '%d deleted.'), $n)];
             }
         }
     }
@@ -267,11 +273,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <div class="page-header">
     <div>
-        <h1>Submissions</h1>
-        <p class="page-header-sub"><?= number_format($totalSubs) ?> entries across your published forms.</p>
+        <h1><?= __('forms_submissions', 'Submissions') ?></h1>
+        <p class="page-header-sub"><?= number_format($totalSubs) ?> <?= __('forms_submissions_subtitle', 'entries across your published forms.') ?></p>
     </div>
     <?php if ($formId > 0 && Auth::can('forms.export')): ?>
-        <a href="?export=csv&form_id=<?= (int)$formId ?>" class="btn btn-primary">Export CSV</a>
+        <a href="?export=csv&form_id=<?= (int)$formId ?>" class="btn btn-primary"><?= __('export_csv', 'Export CSV') ?></a>
     <?php endif; ?>
 </div>
 
@@ -282,19 +288,19 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="subs-stats">
     <div class="subs-stat<?= $statToday > 0 ? ' is-alert' : '' ?>">
         <div class="subs-stat-num"><?= number_format($statToday) ?></div>
-        <div class="subs-stat-label">Today</div>
+        <div class="subs-stat-label"><?= __('forms_spam_today', 'Today') ?></div>
     </div>
     <div class="subs-stat">
         <div class="subs-stat-num"><?= number_format($statWeek) ?></div>
-        <div class="subs-stat-label">This week</div>
+        <div class="subs-stat-label"><?= __('forms_this_week', 'This week') ?></div>
     </div>
     <div class="subs-stat<?= $statUnread > 0 ? ' is-alert' : '' ?>">
         <div class="subs-stat-num"><?= number_format($statUnread) ?></div>
-        <div class="subs-stat-label">Unread</div>
+        <div class="subs-stat-label"><?= __('forms_unread', 'Unread') ?></div>
     </div>
     <div class="subs-stat">
         <div class="subs-stat-num"><?= number_format($statOpen) ?></div>
-        <div class="subs-stat-label">Open</div>
+        <div class="subs-stat-label"><?= __('forms_open_status', 'Open') ?></div>
     </div>
 </div>
 
@@ -454,13 +460,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="card tight">
     <form method="get" class="filter-row">
         <div class="field filter-search">
-            <label class="field-label" for="q">Search</label>
-            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="Name or email…">
+            <label class="field-label" for="q"><?= __('search', 'Search') ?></label>
+            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('forms_search_name_email_ph', 'Name or email…')) ?>">
         </div>
         <div class="field">
-            <label class="field-label" for="form_id">Form</label>
+            <label class="field-label" for="form_id"><?= __('forms_form', 'Form') ?></label>
             <select id="form_id" name="form_id">
-                <option value="0">All forms</option>
+                <option value="0"><?= __('forms_spam_all_forms', 'All forms') ?></option>
                 <?php foreach ($forms as $f): ?>
                     <option value="<?= (int)$f['id'] ?>" <?= $formId === (int)$f['id'] ? 'selected' : '' ?>>
                         <?= e($f['title']) ?>
@@ -469,25 +475,25 @@ require SLATE_ROOT . '/admin/partials/header.php';
             </select>
         </div>
         <div class="field">
-            <label class="field-label" for="status">Status</label>
+            <label class="field-label" for="status"><?= __('status', 'Status') ?></label>
             <select id="status" name="status">
-                <option value=""            <?= $status === ''            ? 'selected' : '' ?>>Any status</option>
-                <option value="new"         <?= $status === 'new'         ? 'selected' : '' ?>>New</option>
-                <option value="in_progress" <?= $status === 'in_progress' ? 'selected' : '' ?>>In progress</option>
-                <option value="done"        <?= $status === 'done'        ? 'selected' : '' ?>>Done</option>
+                <option value=""            <?= $status === ''            ? 'selected' : '' ?>><?= __('forms_list_any_status', 'Any status') ?></option>
+                <option value="new"         <?= $status === 'new'         ? 'selected' : '' ?>><?= __('forms_status_new', 'New') ?></option>
+                <option value="in_progress" <?= $status === 'in_progress' ? 'selected' : '' ?>><?= __('forms_status_in_progress', 'In progress') ?></option>
+                <option value="done"        <?= $status === 'done'        ? 'selected' : '' ?>><?= __('forms_status_done', 'Done') ?></option>
             </select>
         </div>
         <div class="field">
-            <label class="field-label" for="show">Read state</label>
+            <label class="field-label" for="show"><?= __('forms_read_state', 'Read state') ?></label>
             <select id="show" name="show">
-                <option value="all"    <?= $showRead === 'all'    ? 'selected' : '' ?>>All</option>
-                <option value="unread" <?= $showRead === 'unread' ? 'selected' : '' ?>>Unread</option>
-                <option value="read"   <?= $showRead === 'read'   ? 'selected' : '' ?>>Read</option>
+                <option value="all"    <?= $showRead === 'all'    ? 'selected' : '' ?>><?= __('all', 'All') ?></option>
+                <option value="unread" <?= $showRead === 'unread' ? 'selected' : '' ?>><?= __('forms_unread', 'Unread') ?></option>
+                <option value="read"   <?= $showRead === 'read'   ? 'selected' : '' ?>><?= __('forms_status_read', 'Read') ?></option>
             </select>
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn">Filter</button>
-            <a href="<?= e(plugin_url('forms', 'admin/submissions.php')) ?>" class="btn btn-ghost">Reset</a>
+            <button type="submit" class="btn"><?= __('filter', 'Filter') ?></button>
+            <a href="<?= e(plugin_url('forms', 'admin/submissions.php')) ?>" class="btn btn-ghost"><?= __('reset', 'Reset') ?></a>
         </div>
     </form>
 </div>
@@ -495,48 +501,48 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php if (empty($rows)): ?>
     <div class="card">
         <div class="empty">
-            <div class="empty-title"><?= $q !== '' ? 'No matching submissions' : 'No submissions yet' ?></div>
+            <div class="empty-title"><?= $q !== '' ? __('forms_no_matching_submissions', 'No matching submissions') : __('forms_no_subs', 'No submissions yet') ?></div>
             <p class="text-sm">
                 <?= $q !== ''
-                    ? 'Try a different search or reset the filters.'
-                    : "When someone fills out a form, it'll show up here." ?>
+                    ? __('forms_list_try_different_search', 'Try a different search or reset the filters.')
+                    : __('forms_submissions_auto_desc', "When someone fills out a form, it'll show up here.") ?>
             </p>
         </div>
     </div>
 <?php else: ?>
 
     <form method="post" id="subs-bulk" class="card subs-card"
-          onsubmit="return !(event.submitter &amp;&amp; event.submitter.value === 'delete') || confirm('Delete the selected submissions? This cannot be undone.');">
+          onsubmit="return !(event.submitter &amp;&amp; event.submitter.value === 'delete') || confirm('<?= e(__('forms_confirm_delete_submissions', 'Delete the selected submissions? This cannot be undone.')) ?>');">
         <?= csrf_field() ?>
 
         <div class="subs-bulkbar" id="subs-bulkbar">
-            <span class="subs-bulkbar-count"><span id="subs-sel-count">0</span> selected</span>
+            <span class="subs-bulkbar-count"><span id="subs-sel-count">0</span> <?= __('forms_selected', 'selected') ?></span>
             <div class="subs-bulkbar-spacer"></div>
             <label class="subs-bulkbar-status">
-                <select name="status" aria-label="Set status">
-                    <option value="new">New</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="done">Done</option>
+                <select name="status" aria-label="<?= e(__('forms_set_status', 'Set status')) ?>">
+                    <option value="new"><?= __('forms_status_new', 'New') ?></option>
+                    <option value="in_progress"><?= __('forms_status_in_progress', 'In progress') ?></option>
+                    <option value="done"><?= __('forms_status_done', 'Done') ?></option>
                 </select>
             </label>
-            <button type="submit" name="_action" value="set_status"  class="btn btn-sm">Set status</button>
-            <button type="submit" name="_action" value="mark_read"   class="btn btn-sm">Mark read</button>
-            <button type="submit" name="_action" value="mark_unread" class="btn btn-sm">Mark unread</button>
+            <button type="submit" name="_action" value="set_status"  class="btn btn-sm"><?= __('forms_set_status', 'Set status') ?></button>
+            <button type="submit" name="_action" value="mark_read"   class="btn btn-sm"><?= __('forms_mark_read', 'Mark read') ?></button>
+            <button type="submit" name="_action" value="mark_unread" class="btn btn-sm"><?= __('forms_mark_unread', 'Mark unread') ?></button>
             <?php if (Auth::can('forms.manage')): ?>
-                <button type="submit" name="_action" value="delete" class="btn btn-sm btn-danger">Delete</button>
+                <button type="submit" name="_action" value="delete" class="btn btn-sm btn-danger"><?= __('delete', 'Delete') ?></button>
             <?php endif; ?>
         </div>
 
         <div class="subs-listhead">
             <span class="subs-check">
-                <input type="checkbox" id="subs-check-all" aria-label="Select all submissions">
+                <input type="checkbox" id="subs-check-all" aria-label="<?= e(__('forms_select_all_submissions_aria', 'Select all submissions')) ?>">
             </span>
             <span class="subs-head-main">
                 <span class="subs-head-avatar" aria-hidden="true"></span>
-                <span class="subs-head-who">Submitter</span>
-                <span class="subs-head-form">Form</span>
-                <span class="subs-head-date">Received</span>
-                <span class="subs-head-status">Status</span>
+                <span class="subs-head-who"><?= __('forms_submitter', 'Submitter') ?></span>
+                <span class="subs-head-form"><?= __('forms_form', 'Form') ?></span>
+                <span class="subs-head-date"><?= __('forms_received', 'Received') ?></span>
+                <span class="subs-head-status"><?= __('status', 'Status') ?></span>
                 <span class="subs-head-chevron" aria-hidden="true"></span>
             </span>
         </div>
@@ -550,10 +556,10 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
             $st      = $r['status'] ?? 'new';
             $stMeta  = [
-                'new'         => ['New',         's-new'],
-                'in_progress' => ['In progress', 's-prog'],
-                'done'        => ['Done',        's-done'],
-            ][$st] ?? ['New', 's-new'];
+                'new'         => [__('forms_status_new', 'New'),         's-new'],
+                'in_progress' => [__('forms_status_in_progress', 'In progress'), 's-prog'],
+                'done'        => [__('forms_status_done', 'Done'),        's-done'],
+            ][$st] ?? [__('forms_status_new', 'New'), 's-new'];
 
             $detailUrl = plugin_url('forms', 'admin/submission.php') . '?id=' . (int)$r['id'];
             $pdfUrl    = $detailUrl . '&download=pdf';
@@ -563,13 +569,13 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 <div class="subs-row-main">
                     <span class="subs-check">
                         <input type="checkbox" name="ids[]" value="<?= (int)$r['id'] ?>"
-                               class="subs-row-check" aria-label="Select submission from <?= e($name !== '' ? $name : $email) ?>">
+                               class="subs-row-check" aria-label="<?= e(sprintf(__('forms_select_submission_aria', 'Select submission from %s'), $name !== '' ? $name : $email)) ?>">
                     </span>
                     <button type="button" class="subs-toggle" aria-expanded="false" aria-controls="<?= $panelId ?>">
                         <span class="subs-ava <?= $isRead ? 'is-read' : '' ?>" aria-hidden="true"
                               style="<?= $isRead ? '' : 'background:' . e(FormsAPI::avatarGradient($email !== '' ? $email : $name)) . ';' ?>"><?= e(forms_initials($name, $email)) ?><?php if ($grav !== ''): ?><img src="<?= e($grav) ?>" alt="" loading="lazy" onerror="this.remove()"><?php endif; ?></span>
                         <span class="subs-who-text">
-                            <span class="subs-name"><?= e($name !== '' ? $name : '(no name)') ?></span>
+                            <span class="subs-name"><?= e($name !== '' ? $name : __('forms_no_name', '(no name)')) ?></span>
                             <span class="subs-email"><?= e($email !== '' ? $email : '—') ?></span>
                             <span class="subs-sub"><?= e($r['form_title']) ?> · <?= e(I18n::localDate('j M Y, H:i', strtotime($r['created_at']))) ?></span>
                         </span>
@@ -581,17 +587,17 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </div>
                 <div class="subs-detail" id="<?= $panelId ?>" hidden>
                     <dl class="subs-detail-grid">
-                        <div><dt>Status</dt><dd><?= e($stMeta[0]) ?></dd></div>
-                        <div><dt>Read state</dt><dd><?= $isRead ? 'Read' : 'Unread' ?></dd></div>
-                        <div><dt>Form</dt><dd><?= e($r['form_title']) ?></dd></div>
-                        <div><dt>Received</dt><dd><?= e(I18n::localDate('j M Y, H:i', strtotime($r['created_at']))) ?></dd></div>
-                        <div><dt>Reference</dt><dd><code><?= e($r['ref']) ?></code></dd></div>
-                        <div><dt>IP</dt><dd><?= e($r['ip'] ?: '—') ?></dd></div>
-                        <div><dt>Email sent</dt><dd><?= (int)$r['email_sent'] === 1 ? 'Yes' : 'No' ?></dd></div>
+                        <div><dt><?= __('status', 'Status') ?></dt><dd><?= e($stMeta[0]) ?></dd></div>
+                        <div><dt><?= __('forms_read_state', 'Read state') ?></dt><dd><?= $isRead ? __('forms_status_read', 'Read') : __('forms_unread', 'Unread') ?></dd></div>
+                        <div><dt><?= __('forms_form', 'Form') ?></dt><dd><?= e($r['form_title']) ?></dd></div>
+                        <div><dt><?= __('forms_received', 'Received') ?></dt><dd><?= e(I18n::localDate('j M Y, H:i', strtotime($r['created_at']))) ?></dd></div>
+                        <div><dt><?= __('forms_reference', 'Reference') ?></dt><dd><code><?= e($r['ref']) ?></code></dd></div>
+                        <div><dt><?= __('forms_spam_ip', 'IP') ?></dt><dd><?= e($r['ip'] ?: '—') ?></dd></div>
+                        <div><dt><?= __('forms_email_sent', 'Email sent') ?></dt><dd><?= (int)$r['email_sent'] === 1 ? __('yes', 'Yes') : __('no', 'No') ?></dd></div>
                     </dl>
                     <div class="subs-detail-actions">
-                        <a href="<?= e($detailUrl) ?>" class="btn btn-sm btn-primary">Open</a>
-                        <a href="<?= e($pdfUrl) ?>" target="_blank" rel="noopener" class="btn btn-sm">PDF</a>
+                        <a href="<?= e($detailUrl) ?>" class="btn btn-sm btn-primary"><?= __('notif_open', 'Open') ?></a>
+                        <a href="<?= e($pdfUrl) ?>" target="_blank" rel="noopener" class="btn btn-sm"><?= __('forms_pdf_label', 'PDF') ?></a>
                     </div>
                 </div>
             </div>
@@ -643,7 +649,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     </script>
 
     <?php slate_pagination($page, $totalPages, $_GET, [
-        'total' => $totalSubs, 'per_page' => $perPage, 'label' => 'submissions',
+        'total' => $totalSubs, 'per_page' => $perPage, 'label' => __('forms_submissions_pager_label', 'submissions'),
     ]); ?>
 <?php endif; ?>
 

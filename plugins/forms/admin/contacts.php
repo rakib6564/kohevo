@@ -22,7 +22,7 @@ FormsAPI::backfillContacts($tid);
 $flash = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         $action = $_POST['_action'] ?? '';
         $ids = $_POST['ids'] ?? [];
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::delete('forms_contacts',
                     "tenant_id = ? AND id IN ($place)", array_merge([$tid], $ids));
                 AuditLog::record('forms.contact_deleted', implode(',', $ids), ['count' => $n]);
-                $flash = ['type' => 'success', 'msg' => $n === 1 ? 'Contact deleted.' : "$n contacts deleted."];
+                $flash = ['type' => 'success', 'msg' => $n === 1 ? __('forms_contact_deleted', 'Contact deleted.') : sprintf(__('forms_contacts_deleted_n', '%d contacts deleted.'), $n)];
             }
         }
     }
@@ -204,11 +204,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <div class="page-header">
     <div>
-        <h1>Contacts</h1>
-        <p class="page-header-sub"><?= number_format($totalCts) ?> people who've submitted a form.</p>
+        <h1><?= __('forms_contacts', 'Contacts') ?></h1>
+        <p class="page-header-sub"><?= number_format($totalCts) ?> <?= __('forms_contacts_subtitle', "people who've submitted a form.") ?></p>
     </div>
     <?php if (Auth::can('forms.export') && $totalCts > 0): ?>
-        <a href="?export=csv<?= $q !== '' ? '&q=' . urlencode($q) : '' ?>" class="btn btn-primary">Export CSV</a>
+        <a href="?export=csv<?= $q !== '' ? '&q=' . urlencode($q) : '' ?>" class="btn btn-primary"><?= __('export_csv', 'Export CSV') ?></a>
     <?php endif; ?>
 </div>
 
@@ -220,19 +220,19 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="cts-stats">
     <div class="cts-stat">
         <div class="cts-stat-num"><?= number_format($statContacts) ?></div>
-        <div class="cts-stat-label">Contacts</div>
+        <div class="cts-stat-label"><?= __('forms_contacts', 'Contacts') ?></div>
     </div>
     <div class="cts-stat<?= $statNew7 > 0 ? ' is-alert' : '' ?>">
         <div class="cts-stat-num"><?= number_format($statNew7) ?></div>
-        <div class="cts-stat-label">New this week</div>
+        <div class="cts-stat-label"><?= __('forms_contacts_new_week', 'New this week') ?></div>
     </div>
     <div class="cts-stat">
         <div class="cts-stat-num"><?= number_format($statReturning) ?></div>
-        <div class="cts-stat-label">Returning</div>
+        <div class="cts-stat-label"><?= __('forms_contacts_returning', 'Returning') ?></div>
     </div>
     <div class="cts-stat">
         <div class="cts-stat-num"><?= number_format($statWithPhone) ?></div>
-        <div class="cts-stat-label">With phone</div>
+        <div class="cts-stat-label"><?= __('forms_contacts_with_phone', 'With phone') ?></div>
     </div>
 </div>
 <?php endif; ?>
@@ -240,12 +240,12 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="card tight">
     <form method="get" class="filter-row">
         <div class="field filter-search">
-            <label class="field-label" for="q">Search</label>
-            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="Name or email…">
+            <label class="field-label" for="q"><?= __('search', 'Search') ?></label>
+            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('forms_search_name_email_ph', 'Name or email…')) ?>">
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn">Search</button>
-            <a href="<?= e(plugin_url('forms', 'admin/contacts.php')) ?>" class="btn btn-ghost">Reset</a>
+            <button type="submit" class="btn"><?= __('search', 'Search') ?></button>
+            <a href="<?= e(plugin_url('forms', 'admin/contacts.php')) ?>" class="btn btn-ghost"><?= __('reset', 'Reset') ?></a>
         </div>
     </form>
 </div>
@@ -253,40 +253,40 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php if (empty($contacts)): ?>
     <div class="card">
         <div class="empty">
-            <div class="empty-title"><?= $q !== '' ? 'No matching contacts' : 'No contacts yet' ?></div>
+            <div class="empty-title"><?= $q !== '' ? __('forms_contacts_no_match', 'No matching contacts') : __('forms_contacts_none_yet', 'No contacts yet') ?></div>
             <p class="text-sm">
                 <?= $q !== ''
-                    ? 'Try a different search or reset.'
-                    : 'Contacts are built automatically from form submissions.' ?>
+                    ? __('forms_contacts_try_diff', 'Try a different search or reset.')
+                    : __('forms_contacts_auto_desc', 'Contacts are built automatically from form submissions.') ?>
             </p>
         </div>
     </div>
 <?php else: ?>
     <form method="post" id="cts-bulk" class="card cts-card"
-          onsubmit="return !(event.submitter &amp;&amp; event.submitter.value === 'delete') || confirm('Delete the selected contacts? This only removes them from the contacts list — their submissions are kept.');">
+          onsubmit="return !(event.submitter &amp;&amp; event.submitter.value === 'delete') || confirm('<?= e(__('forms_contacts_confirm_delete', 'Delete the selected contacts? This only removes them from the contacts list — their submissions are kept.')) ?>');">
         <?= csrf_field() ?>
 
         <div class="cts-bulkbar" id="cts-bulkbar">
-            <span class="cts-bulkbar-count"><span id="cts-sel-count">0</span> selected</span>
+            <span class="cts-bulkbar-count"><span id="cts-sel-count">0</span> <?= __('forms_selected', 'selected') ?></span>
             <div class="cts-bulkbar-spacer"></div>
             <?php if (Auth::can('forms.export')): ?>
                 <button type="submit" formmethod="get" formaction="<?= e(plugin_url('forms', 'admin/contacts.php')) ?>"
-                        name="export" value="csv" class="btn btn-sm">Export selected</button>
+                        name="export" value="csv" class="btn btn-sm"><?= __('forms_export_selected', 'Export selected') ?></button>
             <?php endif; ?>
             <?php if (Auth::can('forms.manage')): ?>
-                <button type="submit" name="_action" value="delete" class="btn btn-sm btn-danger">Delete</button>
+                <button type="submit" name="_action" value="delete" class="btn btn-sm btn-danger"><?= __('delete', 'Delete') ?></button>
             <?php endif; ?>
         </div>
 
         <div class="cts-head">
             <span class="cts-head-check">
-                <input type="checkbox" id="cts-check-all" aria-label="Select all contacts">
+                <input type="checkbox" id="cts-check-all" aria-label="<?= e(__('forms_contacts_select_all_aria', 'Select all contacts')) ?>">
             </span>
             <span class="cts-head-ava"></span>
-            <span class="cts-head-who">Contact</span>
-            <span class="cts-head-phone">Phone</span>
-            <span class="cts-head-count">Submissions</span>
-            <span class="cts-head-seen">Last seen</span>
+            <span class="cts-head-who"><?= __('forms_contacts_col_contact', 'Contact') ?></span>
+            <span class="cts-head-phone"><?= __('forms_contacts_col_phone', 'Phone') ?></span>
+            <span class="cts-head-count"><?= __('forms_submissions', 'Submissions') ?></span>
+            <span class="cts-head-seen"><?= __('forms_contacts_col_last_seen', 'Last seen') ?></span>
             <span class="cts-head-chev"></span>
         </div>
         <?php foreach ($contacts as $c):
@@ -301,18 +301,18 @@ require SLATE_ROOT . '/admin/partials/header.php';
             <div class="cts-rowwrap" data-row>
                 <span class="cts-check">
                     <input type="checkbox" name="ids[]" value="<?= (int)$c['id'] ?>"
-                           class="cts-row-check" aria-label="Select <?= e($name !== '' ? $name : $email) ?>">
+                           class="cts-row-check" aria-label="<?= e(sprintf(__('forms_select_x_aria', 'Select %s'), $name !== '' ? $name : $email)) ?>">
                 </span>
                 <a href="<?= e($subsUrl) ?>" class="cts-link">
                     <span class="cts-ava" aria-hidden="true" style="background:<?= e($bg) ?>;"><?= e(FormsAPI::initials($name, $email)) ?><?php if ($grav !== ''): ?><img src="<?= e($grav) ?>" alt="" loading="lazy" onerror="this.remove()"><?php endif; ?></span>
                     <span class="cts-who">
-                        <span class="cts-name"><?= e($name !== '' ? $name : '(no name)') ?></span>
+                        <span class="cts-name"><?= e($name !== '' ? $name : __('forms_no_name', '(no name)')) ?></span>
                         <span class="cts-email"><?= e($email) ?></span>
-                        <span class="cts-sub"><?= number_format((int)$c['submissions_count']) ?> submission<?= (int)$c['submissions_count'] === 1 ? '' : 's' ?><?= $c['last_seen_at'] ? ' · ' . e(I18n::localDate('j M Y', strtotime($c['last_seen_at']))) : '' ?></span>
+                        <span class="cts-sub"><?= number_format((int)$c['submissions_count']) ?> <?= __('forms_word_submission', 'submission') ?><?= (int)$c['submissions_count'] === 1 ? '' : 's' ?><?= $c['last_seen_at'] ? ' · ' . e(I18n::localDate('j M Y', strtotime($c['last_seen_at']))) : '' ?></span>
                     </span>
                     <span class="cts-phone"><?= e($c['phone'] ?: '—') ?></span>
                     <span class="cts-count">
-                        <span class="cts-count-badge"><?= number_format((int)$c['submissions_count']) ?> submission<?= (int)$c['submissions_count'] === 1 ? '' : 's' ?></span>
+                        <span class="cts-count-badge"><?= number_format((int)$c['submissions_count']) ?> <?= __('forms_word_submission', 'submission') ?><?= (int)$c['submissions_count'] === 1 ? '' : 's' ?></span>
                     </span>
                     <span class="cts-seen"><?= $c['last_seen_at'] ? e(I18n::localDate('j M Y', strtotime($c['last_seen_at']))) : '—' ?></span>
                     <svg class="cts-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
@@ -352,7 +352,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     </script>
 
     <?php slate_pagination($page, $totalPages, $_GET, [
-        'total' => $totalCts, 'per_page' => $perPage, 'label' => 'contacts',
+        'total' => $totalCts, 'per_page' => $perPage, 'label' => __('forms_contacts_pager_label', 'contacts'),
     ]); ?>
 <?php endif; ?>
 

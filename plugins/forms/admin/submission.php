@@ -29,9 +29,9 @@ $row = Database::row(
 
 if (!$row) {
     http_response_code(404);
-    $pageTitle = 'Submission not found';
+    $pageTitle = __('forms_submission_not_found', 'Submission not found');
     require SLATE_ROOT . '/admin/partials/header.php';
-    echo '<div class="card"><h1>Submission not found</h1></div>';
+    echo '<div class="card"><h1>' . e(__('forms_submission_not_found', 'Submission not found')) . '</h1></div>';
     require SLATE_ROOT . '/admin/partials/footer.php';
     exit;
 }
@@ -72,7 +72,7 @@ if (($_GET['download'] ?? '') === 'pdf') {
         );
     } catch (\Throwable $e) {
         http_response_code(500);
-        echo 'Could not generate PDF: ' . e($e->getMessage());
+        echo e(__('forms_pdf_error', 'Could not generate PDF: ')) . e($e->getMessage());
         exit;
     }
     $fname = 'submission-' . preg_replace('/[^A-Za-z0-9_\-]/', '', (string)$row['ref']) . '.pdf';
@@ -88,7 +88,7 @@ if (($_GET['download'] ?? '') === 'pdf') {
 $flash = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         $action = $_POST['_action'] ?? '';
         if ($action === 'delete' && Auth::can('forms.manage')) {
@@ -110,8 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::update('forms_submissions', ['status' => $st],
                     'id = ? AND tenant_id = ?', [$id, $tid]);
                 $row['status'] = $st; // reflect immediately in this render
-                $label = ['new' => 'New', 'in_progress' => 'In progress', 'done' => 'Done'][$st];
-                $flash = ['type' => 'success', 'msg' => 'Status set to ' . $label . '.'];
+                $label = [
+                    'new'         => __('forms_status_new', 'New'),
+                    'in_progress' => __('forms_status_in_progress', 'In progress'),
+                    'done'        => __('forms_status_done', 'Done'),
+                ][$st];
+                $flash = ['type' => 'success', 'msg' => sprintf(__('forms_status_set_to', 'Status set to %s.'), $label)];
             }
         }
     }
@@ -119,15 +123,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Build audit trail from what we know
 $audit = [];
-$audit[] = ['action' => 'Submission received', 'when' => $row['created_at'], 'muted' => false,
-            'detail' => $row['ip'] ? 'from ' . $row['ip'] : ''];
+$audit[] = ['action' => __('forms_audit_received', 'Submission received'), 'when' => $row['created_at'], 'muted' => false,
+            'detail' => $row['ip'] ? sprintf(__('forms_audit_from', 'from %s'), $row['ip']) : ''];
 if ((int)$row['email_sent'] === 1) {
-    $audit[] = ['action' => 'Admin notification sent', 'when' => $row['created_at'], 'muted' => true];
+    $audit[] = ['action' => __('forms_audit_notif_sent', 'Admin notification sent'), 'when' => $row['created_at'], 'muted' => true];
 } elseif (!empty($row['email_error'])) {
-    $audit[] = ['action' => 'Admin notification failed', 'when' => $row['created_at'], 'muted' => false,
+    $audit[] = ['action' => __('forms_audit_notif_failed', 'Admin notification failed'), 'when' => $row['created_at'], 'muted' => false,
                 'detail' => $row['email_error']];
 }
-$audit[] = ['action' => 'Read in admin', 'when' => $row['read_at'], 'muted' => true];
+$audit[] = ['action' => __('forms_audit_read', 'Read in admin'), 'when' => $row['read_at'], 'muted' => true];
 
 // Recent webhook dispatch logs for this submission
 $hookLogs = Database::rows(
@@ -141,16 +145,16 @@ $hookLogs = Database::rows(
 foreach ($hookLogs as $l) {
     $ok = ($l['status_code'] !== null && (int)$l['status_code'] >= 200 && (int)$l['status_code'] < 300);
     $audit[] = [
-        'action' => ($ok ? 'Webhook delivered' : 'Webhook failed') . ' · ' . parse_url($l['hook_url'], PHP_URL_HOST),
+        'action' => ($ok ? __('forms_audit_webhook_ok', 'Webhook delivered') : __('forms_audit_webhook_fail', 'Webhook failed')) . ' · ' . parse_url($l['hook_url'], PHP_URL_HOST),
         'when'   => $l['created_at'],
         'muted'  => $ok,
         'detail' => $l['status_code'] !== null
-                    ? 'HTTP ' . (int)$l['status_code']
-                    : ($l['error'] ?: 'no response'),
+                    ? sprintf(__('forms_audit_http', 'HTTP %s'), (int)$l['status_code'])
+                    : ($l['error'] ?: __('forms_audit_no_response', 'no response')),
     ];
 }
 
-$pageTitle  = 'Submission ' . $row['ref'];
+$pageTitle  = sprintf(__('forms_submission_title', 'Submission %s'), $row['ref']);
 $currentNav = 'forms-submissions';
 
 require SLATE_ROOT . '/admin/partials/header.php';
@@ -165,18 +169,18 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <?php
 $isRead     = !empty($row['read_at']);
-$statusText = $isRead ? 'Read' : 'New';
+$statusText = $isRead ? __('forms_status_read', 'Read') : __('forms_status_new', 'New');
 $statusTone = $isRead ? 'off'  : 'warn';
 
 $pdfHref    = plugin_url('forms', 'admin/submission.php') . '?id=' . (int)$id . '&download=pdf';
 $pdfBtn     = '<a href="' . e($pdfHref) . '" target="_blank" rel="noopener" class="btn">'
             . '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
-            . 'Download PDF</a>';
+            . e(__('forms_download_pdf', 'Download PDF')) . '</a>';
 $markUnread = '<form method="post" style="display:inline;margin:0;">' . csrf_field()
-            . '<button name="_action" value="mark_unread" class="btn">Mark unread</button></form>';
+            . '<button name="_action" value="mark_unread" class="btn">' . e(__('forms_mark_unread', 'Mark unread')) . '</button></form>';
 $deleteBtn  = Auth::can('forms.manage')
-    ? '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'Delete this submission?\')">' . csrf_field()
-      . '<button name="_action" value="delete" class="btn btn-danger">Delete</button></form>'
+    ? '<form method="post" style="display:inline;margin:0;" onsubmit="return confirm(\'' . e(__('forms_confirm_delete_submission', 'Delete this submission?')) . '\')">' . csrf_field()
+      . '<button name="_action" value="delete" class="btn btn-danger">' . e(__('delete', 'Delete')) . '</button></form>'
     : '';
 ?>
 
@@ -186,11 +190,11 @@ $deleteBtn  = Auth::can('forms.manage')
 
 <?php forms_editor_css(); ?>
 
-<?php forms_edit_open(['title_fallback' => 'Submission']); ?>
+<?php forms_edit_open(['title_fallback' => __('forms_submission', 'Submission')]); ?>
 
     <?php forms_edit_backlink([
         'back_href'  => plugin_url('forms', 'admin/submissions.php') . '?form_id=' . (int)$row['form_id'],
-        'back_label' => 'All submissions',
+        'back_label' => __('forms_all_submissions', 'All submissions'),
     ]); ?>
 
     <?php forms_edit_hero([
@@ -200,16 +204,16 @@ $deleteBtn  = Auth::can('forms.manage')
         'status_tone'  => $statusTone,
         'actions_html' => $deleteBtn . $markUnread . $pdfBtn,
         'stats'        => [
-            ['Form',     '<small>' . e($row['form_title']) . '</small>'],
-            ['Received', '<small>' . e(I18n::localDate('j M Y, H:i', strtotime($row['created_at']))) . '</small>'],
-            ['Source',   '<small>' . e($row['submitter_email'] ?: ($row['ip'] ?: '—')) . '</small>'],
+            [__('forms_form', 'Form'),     '<small>' . e($row['form_title']) . '</small>'],
+            [__('forms_received', 'Received'), '<small>' . e(I18n::localDate('j M Y, H:i', strtotime($row['created_at']))) . '</small>'],
+            [__('forms_source', 'Source'),   '<small>' . e($row['submitter_email'] ?: ($row['ip'] ?: '—')) . '</small>'],
         ],
     ]); ?>
 
 <?php slate_page_layout('with-aside'); ?>
 
     <div class="page-main">
-        <?php forms_edit_card_open(['icon' => 'list', 'eyebrow' => 'Submitted', 'title' => 'Form fields']); ?>
+        <?php forms_edit_card_open(['icon' => 'list', 'eyebrow' => __('forms_submitted_eyebrow', 'Submitted'), 'title' => __('forms_form_fields', 'Form fields')]); ?>
             <ul class="kv-list">
                 <?php foreach ($fields as $f):
                     $name  = $f['name']  ?? '';
@@ -218,7 +222,7 @@ $deleteBtn  = Auth::can('forms.manage')
                     $value = $data[$name] ?? null;
 
                     if (is_bool($value)) {
-                        $display = $value ? 'Yes' : 'No';
+                        $display = $value ? __('yes', 'Yes') : __('no', 'No');
                     } elseif (is_array($value)) {
                         // Signature has {signature, path, mode, name}; file has
                         // {path, original, size, mime}. Both carry 'path', so
@@ -241,8 +245,8 @@ $deleteBtn  = Auth::can('forms.manage')
                                 $sig  = $display['signature'];
                                 $href = SLATE_URL . e($sig['path']);
                                 echo '<a href="' . $href . '" target="_blank" class="forms-sig-thumb">'
-                                   . '<img src="' . $href . '" alt="Signature" style="max-width:240px;max-height:90px;border:1px solid var(--border);border-radius:8px;background:#fff;display:block;"></a>';
-                                $tag = (($sig['mode'] ?? '') === 'type') ? 'Typed' : 'Drawn';
+                                   . '<img src="' . $href . '" alt="' . e(__('forms_signature', 'Signature')) . '" style="max-width:240px;max-height:90px;border:1px solid var(--border);border-radius:8px;background:#fff;display:block;"></a>';
+                                $tag = (($sig['mode'] ?? '') === 'type') ? __('forms_sig_typed', 'Typed') : __('forms_sig_drawn', 'Drawn');
                                 echo '<span class="text-xs text-muted">' . e($tag)
                                    . (!empty($sig['name']) ? ' · ' . e($sig['name']) : '') . '</span>';
                             } elseif (is_array($display) && isset($display['file'])) {
@@ -253,7 +257,7 @@ $deleteBtn  = Auth::can('forms.manage')
                                    . '</a> <span class="text-xs text-muted">('
                                    . e(number_format((float)$file['size'] / 1024, 1)) . ' KB)</span>';
                             } elseif ($display === '') {
-                                echo '<span class="text-muted">— empty —</span>';
+                                echo '<span class="text-muted">' . e(__('forms_empty_value', '— empty —')) . '</span>';
                             } elseif (($f['type'] ?? '') === 'textarea') {
                                 echo nl2br(e((string)$display));
                             } else {
@@ -281,44 +285,44 @@ $deleteBtn  = Auth::can('forms.manage')
         .status-seg-btn.is-on[value="in_progress"] { background: #F59E0B; }
         .status-seg-btn.is-on[value="done"]        { background: #22C55E; }
         </style>
-        <?php forms_edit_card_open(['icon' => 'tag', 'eyebrow' => 'Workflow', 'title' => 'Status']); ?>
+        <?php forms_edit_card_open(['icon' => 'tag', 'eyebrow' => __('forms_workflow_eyebrow', 'Workflow'), 'title' => __('status', 'Status')]); ?>
             <form method="post" class="status-seg">
                 <?= csrf_field() ?>
                 <input type="hidden" name="_action" value="set_status">
-                <button type="submit" name="status" value="new"         class="status-seg-btn<?= $st === 'new'         ? ' is-on' : '' ?>">New</button>
-                <button type="submit" name="status" value="in_progress" class="status-seg-btn<?= $st === 'in_progress' ? ' is-on' : '' ?>">In progress</button>
-                <button type="submit" name="status" value="done"        class="status-seg-btn<?= $st === 'done'        ? ' is-on' : '' ?>">Done</button>
+                <button type="submit" name="status" value="new"         class="status-seg-btn<?= $st === 'new'         ? ' is-on' : '' ?>"><?= __('forms_status_new', 'New') ?></button>
+                <button type="submit" name="status" value="in_progress" class="status-seg-btn<?= $st === 'in_progress' ? ' is-on' : '' ?>"><?= __('forms_status_in_progress', 'In progress') ?></button>
+                <button type="submit" name="status" value="done"        class="status-seg-btn<?= $st === 'done'        ? ' is-on' : '' ?>"><?= __('forms_status_done', 'Done') ?></button>
             </form>
         <?php forms_edit_card_close(); ?>
 
-        <?php forms_edit_card_open(['icon' => 'tag', 'eyebrow' => 'Meta', 'title' => 'Submission info']); ?>
+        <?php forms_edit_card_open(['icon' => 'tag', 'eyebrow' => __('forms_meta_eyebrow', 'Meta'), 'title' => __('forms_submission_info', 'Submission info')]); ?>
             <ul class="kv-list">
                 <?php if ($row['submitter_email']): ?>
                     <li class="kv-row">
-                        <span class="kv-label">Submitter</span>
+                        <span class="kv-label"><?= __('forms_submitter', 'Submitter') ?></span>
                         <span class="kv-value"><a href="mailto:<?= e($row['submitter_email']) ?>"><?= e($row['submitter_email']) ?></a></span>
                     </li>
                 <?php endif; ?>
                 <li class="kv-row">
-                    <span class="kv-label">IP</span>
+                    <span class="kv-label"><?= __('forms_spam_ip', 'IP') ?></span>
                     <span class="kv-value kv-mono"><?= e($row['ip'] ?: '—') ?></span>
                 </li>
                 <?php if (!empty($row['country'])): ?>
                     <li class="kv-row">
-                        <span class="kv-label">Country</span>
+                        <span class="kv-label"><?= __('forms_spam_country', 'Country') ?></span>
                         <span class="kv-value kv-mono"><?= e($row['country']) ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if ($row['user_agent']): ?>
                     <li class="kv-row">
-                        <span class="kv-label">User agent</span>
+                        <span class="kv-label"><?= __('forms_spam_user_agent', 'User agent') ?></span>
                         <span class="kv-value text-xs" style="text-align:right;"><?= e(mb_strimwidth($row['user_agent'], 0, 80, '…')) ?></span>
                     </li>
                 <?php endif; ?>
             </ul>
         <?php forms_edit_card_close(); ?>
 
-        <?php forms_edit_card_open(['icon' => 'clock', 'eyebrow' => 'History', 'title' => 'Audit trail']); ?>
+        <?php forms_edit_card_open(['icon' => 'clock', 'eyebrow' => __('forms_history_eyebrow', 'History'), 'title' => __('forms_audit_trail', 'Audit trail')]); ?>
             <ol class="audit-trail">
                 <?php foreach ($audit as $a): if (empty($a['when'])) continue; ?>
                     <li class="audit-trail-item<?= !empty($a['muted']) ? ' is-muted' : '' ?>">
