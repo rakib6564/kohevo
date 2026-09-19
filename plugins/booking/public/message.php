@@ -87,7 +87,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit'])) {
                 // admin Notifications list, not just email — matches the
                 // pattern already used by Coaching's chat (customer/router.php).
                 if (class_exists('Notifications')) {
-                    Notifications::add('New message · ' . ($appt['customer_name'] ?? 'A client'), [
+                    Notifications::add(__('booking_notif_new_message', 'New message') . ' · ' . ($appt['customer_name'] ?? __('booking_notif_a_client', 'A client')), [
                         'body' => mb_substr($message, 0, 140),
                         'url'  => SLATE_URL . '/plugins/booking/admin/messages.php',
                         'icon' => 'message-circle',

@@ -795,11 +795,12 @@ class BookingAPI {
         if (class_exists('Notifications')) {
             $whenTs = strtotime((string)$startsAtSql);
             $awaits = $status === 'awaiting_approval';
-            Notifications::add(($awaits ? 'Booking awaiting approval · ' : 'New booking · ') . $ref, [
-                'body' => ($name !== '' ? $name : 'A customer') . ($awaits ? ' requested ' : ' booked ')
-                        . ($service['name'] ?? 'a service')
+            Notifications::add(($awaits ? __('booking_notif_awaiting_approval', 'Booking awaiting approval') : __('booking_notif_new_booking', 'New booking')) . ' · ' . $ref, [
+                'body' => ($name !== '' ? $name : __('booking_notif_a_customer', 'A customer'))
+                        . ' ' . ($awaits ? __('booking_notif_requested', 'requested') : __('booking_notif_booked', 'booked')) . ' '
+                        . (self::serviceName($service) ?: __('booking_notif_a_service', 'a service'))
                         . ($whenTs ? ' · ' . I18n::localDate('D j M, g:ia', $whenTs) : '')
-                        . ($awaits ? ' — needs your approval.' : ''),
+                        . ($awaits ? ' — ' . __('booking_notif_needs_approval', 'needs your approval.') : ''),
                 'url'  => function_exists('plugin_url')
                           ? plugin_url('booking', 'admin/appointment.php') . '?id=' . $id
                           : (defined('SLATE_URL') ? SLATE_URL . '/plugins/booking/admin/appointment.php?id=' . $id : ''),
@@ -1512,10 +1513,13 @@ class BookingAPI {
         // silently-declined payment is exactly the kind of thing that must
         // not depend on staff noticing on their own.
         if (class_exists('Notifications')) {
-            Notifications::add('Payment failed · ' . $a['ref'], [
-                'body' => ($a['customer_name'] ?: 'A customer') . '\'s payment for '
-                        . ($a['service_name'] ?? 'a booking') . ' did not go through'
-                        . ($reason !== '' ? ' (' . $reason . ')' : '') . '.',
+            Notifications::add(__('booking_notif_payment_failed', 'Payment failed') . ' · ' . $a['ref'], [
+                'body' => sprintf(
+                    __('booking_notif_payment_failed_body', '%s\'s payment for %s did not go through%s.'),
+                    ($a['customer_name'] ?: __('booking_notif_a_customer', 'A customer')),
+                    ($a['service_name'] ?? __('booking_notif_a_booking', 'a booking')),
+                    ($reason !== '' ? ' (' . $reason . ')' : '')
+                ),
                 'url'  => function_exists('plugin_url')
                           ? plugin_url('booking', 'admin/appointment.php') . '?id=' . $apptId
                           : (defined('SLATE_URL') ? SLATE_URL . '/plugins/booking/admin/appointment.php?id=' . $apptId : ''),

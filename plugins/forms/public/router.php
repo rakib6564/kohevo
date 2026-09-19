@@ -654,8 +654,12 @@ function forms_public_dispatch(array $form, array $data, array $saved): void {
     AuditLog::record('forms.submitted', (string)$submissionId, ['form_id' => (int)$form['id'], 'ref' => $ref]);
 
     if (class_exists('Notifications')) {
-        Notifications::add('New submission · ' . $ref, [
-            'body' => ($submitterEmail ?: 'Someone') . ' submitted “' . ($form['title'] ?? 'a form') . '”',
+        Notifications::add(__('forms_notif_new_submission', 'New submission') . ' · ' . $ref, [
+            'body' => sprintf(
+                __('forms_notif_new_submission_body', '%s submitted "%s"'),
+                ($submitterEmail ?: __('forms_notif_someone', 'Someone')),
+                ($form['title'] ?? __('forms_notif_a_form', 'a form'))
+            ),
             'url'  => function_exists('plugin_url')
                       ? plugin_url('forms', 'admin/submission.php') . '?id=' . $submissionId
                       : (defined('SLATE_URL') ? SLATE_URL . '/plugins/forms/admin/submission.php?id=' . $submissionId : ''),

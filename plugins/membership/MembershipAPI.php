@@ -818,8 +818,12 @@ class MembershipAPI {
         // who just did it.
         if (($sub['activation'] ?? '') === 'online' && class_exists('Notifications')) {
             $cust = self::customerRow((int)$sub['customer_id']);
-            Notifications::add('New member · ' . ($cust['name'] ?? 'A customer'), [
-                'body' => ($cust['name'] ?? 'A customer') . ' signed up for ' . ($sub['plan_name'] ?? 'a plan'),
+            Notifications::add(__('membership_notif_new_member', 'New member') . ' · ' . ($cust['name'] ?? __('membership_notif_a_customer', 'A customer')), [
+                'body' => sprintf(
+                    __('membership_notif_new_member_body', '%s signed up for %s'),
+                    ($cust['name'] ?? __('membership_notif_a_customer', 'A customer')),
+                    (self::planName(['name' => $sub['plan_name'] ?? '', 'name_fr' => $sub['plan_name_fr'] ?? '']) ?: __('membership_notif_a_plan', 'a plan'))
+                ),
                 'url'  => function_exists('plugin_url') ? plugin_url('membership', 'admin/members.php') . '?id=' . (int)$sub['customer_id'] : '',
                 'icon' => 'user-plus',
             ]);
@@ -879,8 +883,12 @@ class MembershipAPI {
         }
         if ($byMember && class_exists('Notifications')) {
             $cust = self::customerRow((int)$sub['customer_id']);
-            Notifications::add('Membership cancelled by member · ' . ($cust['name'] ?? 'A customer'), [
-                'body' => ($cust['name'] ?? 'A customer') . ' cancelled ' . ($sub['plan_name'] ?? 'their plan'),
+            Notifications::add(__('membership_notif_cancelled', 'Membership cancelled by member') . ' · ' . ($cust['name'] ?? __('membership_notif_a_customer', 'A customer')), [
+                'body' => sprintf(
+                    __('membership_notif_cancelled_body', '%s cancelled %s'),
+                    ($cust['name'] ?? __('membership_notif_a_customer', 'A customer')),
+                    (self::planName(['name' => $sub['plan_name'] ?? '', 'name_fr' => $sub['plan_name_fr'] ?? '']) ?: __('membership_notif_their_plan', 'their plan'))
+                ),
                 'url'  => function_exists('plugin_url') ? plugin_url('membership', 'admin/members.php') . '?id=' . (int)$sub['customer_id'] : '',
                 'icon' => 'x-circle',
             ]);
@@ -918,8 +926,11 @@ class MembershipAPI {
             AuditLog::record('membership.payment_failed', (string)$subId);
             if (class_exists('Notifications')) {
                 $cust = self::customerRow((int)$sub['customer_id']);
-                Notifications::add('Membership payment failed · ' . ($cust['name'] ?? 'A customer'), [
-                    'body' => 'Payment for ' . ($sub['plan_name'] ?? 'a plan') . ' did not go through.',
+                Notifications::add(__('membership_notif_payment_failed', 'Membership payment failed') . ' · ' . ($cust['name'] ?? __('membership_notif_a_customer', 'A customer')), [
+                    'body' => sprintf(
+                        __('membership_notif_payment_failed_body', 'Payment for %s did not go through.'),
+                        (self::planName(['name' => $sub['plan_name'] ?? '', 'name_fr' => $sub['plan_name_fr'] ?? '']) ?: __('membership_notif_a_plan', 'a plan'))
+                    ),
                     'url'  => function_exists('plugin_url') ? plugin_url('membership', 'admin/members.php') . '?id=' . (int)$sub['customer_id'] : '',
                     'icon' => 'alert-triangle',
                 ]);

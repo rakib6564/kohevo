@@ -391,8 +391,11 @@ class GoogleCalendarSync
                 if (!in_array($appt['status'], ['cancelled', 'completed', 'no_show'], true)) {
                     BookingAPI::cancelAppointment($slateId, 'Cancelled via Google Calendar', true);
                     if (class_exists('Notifications')) {
-                        Notifications::add('Booking cancelled via Google Calendar · ' . $appt['ref'], [
-                            'body' => 'Removed directly from Google Calendar by ' . ($appt['customer_name'] ?: 'the provider') . '\'s connected calendar.',
+                        Notifications::add(__('booking_notif_gcal_cancelled', 'Booking cancelled via Google Calendar') . ' · ' . $appt['ref'], [
+                            'body' => sprintf(
+                                __('booking_notif_gcal_cancelled_body', 'Removed directly from Google Calendar by %s\'s connected calendar.'),
+                                ($appt['customer_name'] ?: __('booking_notif_the_provider', 'the provider'))
+                            ),
                             'url'  => plugin_url('booking', 'admin/appointment.php') . '?id=' . $slateId,
                             'icon' => 'x-circle',
                         ]);
@@ -413,8 +416,11 @@ class GoogleCalendarSync
                 if (empty($moveResult['ok'])) {
                     slate_log("GoogleCalendarSync: appointment {$slateId} was moved in Google to {$newStart} but Slate rejected it ({$moveResult['error']}) — left at its original time.", 'warning');
                 } elseif (class_exists('Notifications')) {
-                    Notifications::add('Booking rescheduled via Google Calendar · ' . $appt['ref'], [
-                        'body' => 'Moved directly in Google Calendar to ' . I18n::localDate('D j M, g:ia', strtotime($newStart)) . '.',
+                    Notifications::add(__('booking_notif_gcal_rescheduled', 'Booking rescheduled via Google Calendar') . ' · ' . $appt['ref'], [
+                        'body' => sprintf(
+                            __('booking_notif_gcal_rescheduled_body', 'Moved directly in Google Calendar to %s.'),
+                            I18n::localDate('D j M, g:ia', strtotime($newStart))
+                        ),
                         'url'  => plugin_url('booking', 'admin/appointment.php') . '?id=' . $slateId,
                         'icon' => 'calendar',
                     ]);

@@ -213,4 +213,23 @@ return [
     'times_hh_mm' => 'Les horaires doivent être au format HH:MM.',
     'view_all' => 'Tout afficher',
     'waiting_reply' => 'En attente de réponse',
+
+    // Admin notifications
+    'booking_notif_awaiting_approval' => 'Réservation en attente d\'approbation',
+    'booking_notif_new_booking' => 'Nouvelle réservation',
+    'booking_notif_a_customer' => 'Un client',
+    'booking_notif_requested' => 'a demandé',
+    'booking_notif_booked' => 'a réservé',
+    'booking_notif_a_service' => 'un service',
+    'booking_notif_needs_approval' => 'nécessite votre validation.',
+    'booking_notif_payment_failed' => 'Échec du paiement',
+    'booking_notif_payment_failed_body' => 'Le paiement de %s pour %s n\'a pas abouti%s.',
+    'booking_notif_a_booking' => 'une réservation',
+    'booking_notif_gcal_cancelled' => 'Réservation annulée via Google Agenda',
+    'booking_notif_gcal_cancelled_body' => 'Supprimée directement depuis l\'agenda Google connecté de %s.',
+    'booking_notif_the_provider' => 'le praticien',
+    'booking_notif_gcal_rescheduled' => 'Réservation déplacée via Google Agenda',
+    'booking_notif_gcal_rescheduled_body' => 'Déplacée directement dans Google Agenda au %s.',
+    'booking_notif_new_message' => 'Nouveau message',
+    'booking_notif_a_client' => 'Un client',
 ];

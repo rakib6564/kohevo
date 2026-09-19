@@ -349,4 +349,13 @@ return [
     'membership_overview' => 'Aperçu',
     'settings_general_link' => 'Réglages → Général',
     'view_all' => 'Tout afficher',
+    'membership_notif_new_member' => 'Nouveau membre',
+    'membership_notif_a_customer' => 'Un client',
+    'membership_notif_new_member_body' => '%s s\'est inscrit(e) à %s',
+    'membership_notif_a_plan' => 'un forfait',
+    'membership_notif_cancelled' => 'Adhésion annulée par le membre',
+    'membership_notif_cancelled_body' => '%s a annulé %s',
+    'membership_notif_their_plan' => 'son forfait',
+    'membership_notif_payment_failed' => 'Échec du paiement de l\'adhésion',
+    'membership_notif_payment_failed_body' => 'Le paiement pour %s n\'a pas abouti.',
 ];

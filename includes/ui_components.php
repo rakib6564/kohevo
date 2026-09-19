@@ -393,15 +393,18 @@ if (!function_exists('slate_pagination')) {
 
         if (!empty($opts['total'])) {
             $perPage = (int)($opts['per_page'] ?? 0);
-            $label   = (string)($opts['label'] ?? 'items');
+            $label   = (string)($opts['label'] ?? __('items', 'items'));
             $total   = (int)$opts['total'];
             if ($perPage > 0 && $total > 0) {
                 $start = ($page - 1) * $perPage + 1;
                 $end   = min($total, $page * $perPage);
-                echo '<span class="slate-pager-summary">' . $start . '–' . $end
-                   . ' of ' . number_format($total) . ' ' . e($label) . '</span>';
+                echo '<span class="slate-pager-summary">'
+                   . e(sprintf(__('pager_range_summary', '%s–%s of %s %s'), $start, $end, number_format($total), $label))
+                   . '</span>';
             } else {
-                echo '<span class="slate-pager-summary">' . number_format($total) . ' ' . e($label) . '</span>';
+                echo '<span class="slate-pager-summary">'
+                   . e(sprintf(__('pager_total_summary', '%s %s'), number_format($total), $label))
+                   . '</span>';
             }
         }
 

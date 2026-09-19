@@ -242,8 +242,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $enrolled) {
             CoachingAPI::sendMessage($threadId, 'customer', $body, $photo, null);
             if (class_exists('Notifications')) {
                 $clientName = (string) Database::value('SELECT display_name FROM contacts WHERE id = ?', [$cid]);
-                Notifications::add('New message · ' . ($clientName ?: 'A client'), [
-                    'body' => $body !== '' ? mb_substr($body, 0, 140) : 'Sent a photo.',
+                Notifications::add(__('coaching_notif_new_message', 'New message') . ' · ' . ($clientName ?: __('coaching_notif_a_client', 'A client')), [
+                    'body' => $body !== '' ? mb_substr($body, 0, 140) : __('coaching_notif_sent_photo', 'Sent a photo.'),
                     'url'  => function_exists('plugin_url') ? plugin_url('coaching', 'admin/chat.php') . '?thread=' . $threadId : '',
                     'icon' => 'message-circle',
                 ]);

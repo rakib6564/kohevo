@@ -49,4 +49,8 @@ return [
     'forms_email_confirmation' => 'Confirmation',
     'forms_email_your_reference' => 'Votre référence :',
     'forms_email_signature' => 'Signature',
+    'forms_notif_new_submission' => 'Nouvelle soumission',
+    'forms_notif_new_submission_body' => '%s a soumis « %s »',
+    'forms_notif_someone' => 'Quelqu\'un',
+    'forms_notif_a_form' => 'un formulaire',
 ];
