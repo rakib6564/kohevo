@@ -845,7 +845,7 @@ class BookingAPI {
                 if ($awaits) {
                     self::sendAwaitingApprovalNotice([
                         'ref' => $ref, 'customer_name' => $name, 'customer_email' => $email,
-                        'service_name' => $service['name'], 'provider_name' => (string)($providerRow['name'] ?? ''),
+                        'service_name' => self::serviceName($service), 'provider_name' => (string)($providerRow['name'] ?? ''),
                         'starts_at' => $startsAtSql, 'manage_token' => $manageToken,
                     ]);
                 } else {
@@ -854,7 +854,7 @@ class BookingAPI {
                         'customer_name'   => $name,
                         'customer_email'  => $email,
                         'customer_phone'  => $phone,
-                        'service_name'    => $service['name'],
+                        'service_name'    => self::serviceName($service),
                         'provider_name'   => (string)($providerRow['name'] ?? ''),
                         'starts_at'       => $startsAtSql,
                         'manage_token'    => $manageToken,
@@ -869,7 +869,7 @@ class BookingAPI {
                 try {
                     self::sendStaffNotification($providerRow, [
                         'ref'           => $ref,
-                        'service_name'  => $service['name'],
+                        'service_name'  => self::serviceName($service),
                         'customer_name' => $name,
                         'customer_email'=> $email,
                         'customer_phone'=> $phone,
@@ -1537,29 +1537,31 @@ class BookingAPI {
     /** Best-effort human-readable reason for a Stripe payment failure event. */
     private static function stripeFailureReason(array $obj, string $eventType): string {
         if ($eventType === 'checkout.session.expired') {
-            return 'La session de paiement a expiré avant que le paiement ne soit finalisé.';
+            return __('booking_email_payment_session_expired', 'The payment session expired before the payment was completed.');
         }
         $lastErr = $obj['last_payment_error']['message'] ?? null;
         if (is_string($lastErr) && $lastErr !== '') return $lastErr; // Stripe's own message, passed through as-is
         $declineCode = $obj['last_payment_error']['decline_code'] ?? null;
-        if (is_string($declineCode) && $declineCode !== '') return 'Refusé (' . $declineCode . ').';
-        return 'Le paiement a été refusé.';
+        if (is_string($declineCode) && $declineCode !== '') return sprintf(__('booking_email_payment_declined_code', 'Declined (%s).'), $declineCode);
+        return __('booking_email_payment_declined', 'Payment was declined.');
     }
 
     /** Email the customer that their payment attempt didn't go through. */
     public static function sendPaymentFailedNotice(array $a, string $reason = ''): bool {
         $manageUrl = defined('SLATE_URL') && !empty($a['manage_token'])
                    ? SLATE_URL . '/book/manage?token=' . rawurlencode((string)$a['manage_token']) : '';
-        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Problème de paiement</h2>'
-              . '<p style="margin:0 0 14px;">Bonjour ' . e($a['customer_name']) . ',</p>'
-              . '<p style="margin:0 0 14px;">Nous n\'avons pas pu traiter votre paiement pour <strong>' . e($a['service_name'] ?? '') . '</strong>'
-              . ($reason !== '' ? ' (' . e($reason) . ')' : '') . '.</p>'
-              . '<p style="margin:0 0 8px;">Aucun montant n\'a été débité. Votre créneau est toujours réservé, mais un paiement réussi '
-              . 'est nécessaire pour le confirmer.</p>'
-              . self::emailInfoCard([['Référence', '<code>' . e($a['ref']) . '</code>']])
-              . ($manageUrl !== '' ? self::emailButton($manageUrl, 'Réessayer le paiement') : '');
-        $body = self::brandedEmailShell($inner, 'Action requise : votre paiement n\'a pas abouti');
-        return (bool) Mailer::send($a['customer_email'], 'Nous n\'avons pas pu traiter votre paiement (' . $a['ref'] . ')', $body, $a['customer_name']);
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_payment_issue_heading', 'Payment issue')) . '</h2>'
+              . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($a['customer_name'])) . '</p>'
+              . '<p style="margin:0 0 14px;">' . sprintf(
+                    __('booking_email_payment_failed_body_html', 'We couldn\'t process your payment for <strong>%s</strong>%s.'),
+                    e($a['service_name'] ?? ''),
+                    ($reason !== '' ? ' (' . e($reason) . ')' : '')
+                ) . '</p>'
+              . '<p style="margin:0 0 8px;">' . e(__('booking_email_payment_no_charge', 'No amount was charged. Your slot is still held, but a successful payment is required to confirm it.')) . '</p>'
+              . self::emailInfoCard([[__('booking_email_label_reference', 'Reference'), '<code>' . e($a['ref']) . '</code>']])
+              . ($manageUrl !== '' ? self::emailButton($manageUrl, __('booking_email_retry_payment_btn', 'Retry payment')) : '');
+        $body = self::brandedEmailShell($inner, __('booking_email_payment_action_required_preheader', "Action required: your payment didn't go through"));
+        return (bool) Mailer::send($a['customer_email'], sprintf(__('booking_email_payment_failed_subject', "We couldn't process your payment (%s)"), $a['ref']), $body, $a['customer_name']);
     }
 
     /**
@@ -1861,33 +1863,33 @@ class BookingAPI {
         // inner message, so admins editing it never have to touch the
         // header/footer chrome) or a branded default.
         if (!empty($args['confirm_body'])) {
-            $subject = self::renderTemplate((string)($args['confirm_subject'] ?: 'Confirmation de votre rendez-vous ({{ref}})'), $args);
+            $subject = self::renderTemplate((string)($args['confirm_subject'] ?: __('booking_email_confirm_subject_default', 'Confirmation of your appointment ({{ref}})')), $args);
             $inner   = self::renderTemplate((string)$args['confirm_body'], $args);
         } else {
-            $subject = 'Confirmation de votre rendez-vous (' . $args['ref'] . ')';
-            $inner   = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rendez-vous confirmé</h2>'
-                     . '<p style="margin:0 0 14px;">Bonjour ' . e($args['customer_name']) . ',</p>'
-                     . '<p style="margin:0 0 4px;">Votre rendez-vous est confirmé — au plaisir de vous accueillir.</p>'
+            $subject = sprintf(__('booking_email_confirm_subject', 'Your appointment confirmation (%s)'), $args['ref']);
+            $inner   = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_confirmed_heading', 'Appointment confirmed')) . '</h2>'
+                     . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($args['customer_name'])) . '</p>'
+                     . '<p style="margin:0 0 4px;">' . e(__('booking_email_confirmed_body', 'Your appointment is confirmed — we look forward to seeing you.')) . '</p>'
                      . self::emailInfoCard([
-                           ['Service', e($args['service_name'])],
-                           ['Praticien(ne)', e($args['provider_name'])],
-                           ['Date', e($when)],
-                           ['Référence', '<code>' . e($args['ref']) . '</code>'],
+                           [__('service', 'Service'), e($args['service_name'])],
+                           [__('booking_email_label_provider', 'Practitioner'), e($args['provider_name'])],
+                           [__('booking_email_label_date', 'Date'), e($when)],
+                           [__('booking_email_label_reference', 'Reference'), '<code>' . e($args['ref']) . '</code>'],
                        ]);
             if (!empty($args['manage_token']) && defined('SLATE_URL')) {
                 $manageUrl = SLATE_URL . '/book/manage?token=' . rawurlencode((string)$args['manage_token']);
-                $inner .= self::emailButton($manageUrl, 'Gérer ma réservation');
-                $inner .= '<p style="margin:6px 0 0;font-size:13px;color:#8a7d61;">Annuler ou reprogrammer en un clic.</p>';
+                $inner .= self::emailButton($manageUrl, __('booking_email_manage_booking_btn', 'Manage my booking'));
+                $inner .= '<p style="margin:6px 0 0;font-size:13px;color:#8a7d61;">' . e(__('booking_email_manage_hint', 'Cancel or reschedule in one click.')) . '</p>';
             } else {
-                $inner .= '<p style="margin:18px 0 0;">Pour annuler ou reprogrammer, répondez simplement à cet e-mail.</p>';
+                $inner .= '<p style="margin:18px 0 0;">' . e(__('booking_email_reply_to_change', 'To cancel or reschedule, simply reply to this email.')) . '</p>';
             }
         }
-        $body = self::brandedEmailShell($inner, 'Votre rendez-vous est confirmé — ' . $args['service_name']);
+        $body = self::brandedEmailShell($inner, sprintf(__('booking_email_confirmed_preheader', 'Your appointment is confirmed — %s'), $args['service_name']));
         $ok = (bool) Mailer::send($args['customer_email'], $subject, $body, $args['customer_name']);
 
         if (!empty($args['customer_phone'])) {
             self::notifySms((string)$args['customer_phone'],
-                $siteName . ' : réservation confirmée pour ' . $args['service_name'] . ' le ' . $when . '. Réf ' . $args['ref']);
+                sprintf(__('booking_sms_confirmed', '%s: booking confirmed for %s on %s. Ref %s'), $siteName, $args['service_name'], $when, $args['ref']));
         }
         return $ok;
     }
@@ -1900,57 +1902,63 @@ class BookingAPI {
      */
     public static function sendAwaitingApprovalNotice(array $args): bool {
         $when = self::frenchDate(slate_format_datetime($args['starts_at'] ?? '', 'l, j F Y'));
-        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Demande reçue</h2>'
-              . '<p style="margin:0 0 14px;">Bonjour ' . e($args['customer_name']) . ',</p>'
-              . '<p style="margin:0 0 4px;">Merci — nous avons bien reçu votre demande de réservation. Elle n\'est pas encore confirmée : notre '
-              . 'équipe examine chaque demande avant validation, et nous vous enverrons un e-mail dès qu\'elle sera approuvée.</p>'
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_request_received_heading', 'Request received')) . '</h2>'
+              . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($args['customer_name'])) . '</p>'
+              . '<p style="margin:0 0 4px;">' . e(__('booking_email_awaiting_approval_body', "Thank you — we've received your booking request. It isn't confirmed yet: our team reviews every request before approval, and we'll email you as soon as it's approved.")) . '</p>'
               . self::emailInfoCard([
-                    ['Service', e($args['service_name'] ?? '')],
-                    ['Avec', e($args['provider_name'] ?? '')],
-                    ['Créneau demandé', e($when)],
-                    ['Référence', '<code>' . e($args['ref'] ?? '') . '</code>'],
+                    [__('service', 'Service'), e($args['service_name'] ?? '')],
+                    [__('booking_email_label_with', 'With'), e($args['provider_name'] ?? '')],
+                    [__('booking_email_label_requested_slot', 'Requested slot'), e($when)],
+                    [__('booking_email_label_reference', 'Reference'), '<code>' . e($args['ref'] ?? '') . '</code>'],
                 ]);
         if (!empty($args['manage_token']) && defined('SLATE_URL')) {
             $manageUrl = SLATE_URL . '/book/manage?token=' . rawurlencode((string)$args['manage_token']);
-            $inner .= self::emailButton($manageUrl, 'Gérer ma demande');
-            $inner .= '<p style="margin:6px 0 0;font-size:13px;color:#8a7d61;">Consulter ou annuler à tout moment.</p>';
+            $inner .= self::emailButton($manageUrl, __('booking_email_manage_request_btn', 'Manage my request'));
+            $inner .= '<p style="margin:6px 0 0;font-size:13px;color:#8a7d61;">' . e(__('booking_email_view_or_cancel_anytime', 'View or cancel anytime.')) . '</p>';
         }
-        $body = self::brandedEmailShell($inner, 'Votre demande de réservation est en cours d\'examen');
-        return (bool) Mailer::send($args['customer_email'], 'Nous avons bien reçu votre demande de réservation (' . $args['ref'] . ')', $body, $args['customer_name']);
+        $body = self::brandedEmailShell($inner, __('booking_email_awaiting_approval_preheader', 'Your booking request is under review'));
+        return (bool) Mailer::send($args['customer_email'], sprintf(__('booking_email_awaiting_approval_subject', "We've received your booking request (%s)"), $args['ref']), $body, $args['customer_name']);
     }
 
     public static function sendReminder(array $appt, string $when, int $leadMinutes = 0): void {
-        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rappel de rendez-vous</h2>'
-              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
-              . '<p style="margin:0 0 4px;">Ceci est un rappel : votre rendez-vous pour <strong>' . e($appt['service_name']) . '</strong> '
-              . 'avec ' . e($appt['provider_name']) . ' a lieu dans ' . e($when) . '.</p>'
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_reminder_heading', 'Appointment reminder')) . '</h2>'
+              . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($appt['customer_name'])) . '</p>'
+              . '<p style="margin:0 0 4px;">' . sprintf(
+                    __('booking_email_reminder_body', 'This is a reminder: your appointment for <strong>%s</strong> with %s is in %s.'),
+                    e($appt['service_name']), e($appt['provider_name']), e($when)
+                ) . '</p>'
               . self::emailInfoCard([
-                    ['Début', '<strong>' . e(self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'))) . '</strong>'],
-                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                    [__('booking_email_label_starts', 'Starts'), '<strong>' . e(self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'))) . '</strong>'],
+                    [__('booking_email_label_reference', 'Reference'), '<code>' . e($appt['ref']) . '</code>'],
                 ]);
         // Extension point: companion plugins (e.g. Booking+) may override the
         // inner content per-service and per-lead-time. No-op when nothing
         // listens. Still runs through brandedEmailShell() below either way.
         $inner = Hook::applyFilters('booking_reminder_body', $inner, $appt, $leadMinutes);
-        $body  = self::brandedEmailShell($inner, 'Votre rendez-vous approche — ' . $appt['service_name']);
-        Mailer::send($appt['customer_email'], 'Rappel : ' . $appt['service_name'] . ' dans ' . $when, $body, $appt['customer_name']);
+        $body  = self::brandedEmailShell($inner, sprintf(__('booking_email_reminder_preheader', 'Your appointment is coming up — %s'), $appt['service_name']));
+        Mailer::send($appt['customer_email'], sprintf(__('booking_email_reminder_subject', 'Reminder: %s in %s'), $appt['service_name'], $when), $body, $appt['customer_name']);
 
         if (!empty($appt['customer_phone'])) {
             $siteName = Database::setting('site_name') ?: 'Kohevo';
             self::notifySms((string)$appt['customer_phone'],
-                $siteName . ' rappel : ' . $appt['service_name'] . ' ' . $when . ' ('
-                . self::frenchDate(slate_format_datetime($appt['starts_at'], 'j M')) . '). Réf ' . $appt['ref']);
+                sprintf(
+                    __('booking_sms_reminder', '%s reminder: %s %s (%s). Ref %s'),
+                    $siteName, $appt['service_name'], $when,
+                    self::frenchDate(slate_format_datetime($appt['starts_at'], 'j M')), $appt['ref']
+                ));
         }
     }
 
     /** Feedback / follow-up email sent after an appointment completes. */
     public static function sendFollowup(array $appt): void {
-        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Votre avis compte pour nous</h2>'
-              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
-              . '<p style="margin:0;">Merci de votre visite pour <strong>' . e($appt['service_name']) . '</strong>. '
-              . 'Votre avis nous intéresse — répondez simplement à cet e-mail.</p>';
-        $body = self::brandedEmailShell($inner, 'Comment s\'est passé votre rendez-vous ?');
-        Mailer::send($appt['customer_email'], 'Comment s\'est passé votre rendez-vous · ' . $appt['service_name'] . ' ?', $body, $appt['customer_name']);
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_feedback_heading', 'Your feedback matters to us')) . '</h2>'
+              . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($appt['customer_name'])) . '</p>'
+              . '<p style="margin:0;">' . sprintf(
+                    __('booking_email_feedback_body', "Thank you for your visit for <strong>%s</strong>. We'd love your feedback — just reply to this email."),
+                    e($appt['service_name'])
+                ) . '</p>';
+        $body = self::brandedEmailShell($inner, __('booking_email_feedback_preheader', 'How did your appointment go?'));
+        Mailer::send($appt['customer_email'], sprintf(__('booking_email_feedback_subject', 'How did it go · %s?'), $appt['service_name']), $body, $appt['customer_name']);
     }
 
     /**
@@ -1963,51 +1971,60 @@ class BookingAPI {
         if (empty($provider['email'])) return false;
         $when = self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'));
         $badge = $needsApproval
-            ? '<span style="display:inline-block;padding:4px 10px;border-radius:20px;background-color:#fdf0e0;color:#9a6a1a;font-size:12px;font-weight:700;margin-bottom:14px;">APPROBATION REQUISE</span><br>'
-            : '<span style="display:inline-block;padding:4px 10px;border-radius:20px;background-color:#eef7ee;color:#2f7d3c;font-size:12px;font-weight:700;margin-bottom:14px;">NOUVELLE RÉSERVATION</span><br>';
+            ? '<span style="display:inline-block;padding:4px 10px;border-radius:20px;background-color:#fdf0e0;color:#9a6a1a;font-size:12px;font-weight:700;margin-bottom:14px;">' . e(__('booking_email_badge_approval_needed', 'APPROVAL NEEDED')) . '</span><br>'
+            : '<span style="display:inline-block;padding:4px 10px;border-radius:20px;background-color:#eef7ee;color:#2f7d3c;font-size:12px;font-weight:700;margin-bottom:14px;">' . e(__('booking_email_badge_new_booking', 'NEW BOOKING')) . '</span><br>';
         $inner = $badge
               . '<h2 style="margin:10px 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">'
-              . ($needsApproval ? 'Une réservation attend votre validation' : 'Vous avez une nouvelle réservation') . '</h2>'
-              . '<p style="margin:0 0 4px;">Bonjour ' . e($provider['name'] ?? '') . ',</p>'
+              . e($needsApproval ? __('booking_email_staff_needs_approval_heading', 'A booking is waiting for your approval') : __('booking_email_staff_new_booking_heading', 'You have a new booking')) . '</h2>'
+              . '<p style="margin:0 0 4px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($provider['name'] ?? '')) . '</p>'
               . self::emailInfoCard(array_filter([
-                    ['Service', e($appt['service_name'])],
-                    ['Date', e($when)],
-                    ['Client', e($appt['customer_name']) . ' &lt;' . e($appt['customer_email']) . '&gt;'
+                    [__('service', 'Service'), e($appt['service_name'])],
+                    [__('booking_email_label_date', 'Date'), e($when)],
+                    [__('booking_email_label_client', 'Client'), e($appt['customer_name']) . ' &lt;' . e($appt['customer_email']) . '&gt;'
                         . (!empty($appt['customer_phone']) ? ' · ' . e($appt['customer_phone']) : '')],
-                    (($appt['party_size'] ?? 1) > 1) ? ['Participants', (int)$appt['party_size']] : null,
-                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                    (($appt['party_size'] ?? 1) > 1) ? [__('booking_email_label_attendees', 'Attendees'), (int)$appt['party_size']] : null,
+                    [__('booking_email_label_reference', 'Reference'), '<code>' . e($appt['ref']) . '</code>'],
                 ]));
-        $body = self::brandedEmailShell($inner, ($needsApproval ? 'Approbation requise · ' : 'Nouvelle réservation · ') . $appt['service_name']);
-        $subject = ($needsApproval ? 'Approbation requise · ' : 'Nouvelle réservation · ') . $appt['service_name'] . ' (' . $appt['ref'] . ')';
+        $prefix = $needsApproval
+            ? __('booking_email_approval_required_prefix', 'Approval required · ')
+            : __('booking_email_new_booking_prefix', 'New booking · ');
+        $body = self::brandedEmailShell($inner, $prefix . $appt['service_name']);
+        $subject = $prefix . $appt['service_name'] . ' (' . $appt['ref'] . ')';
         return (bool) Mailer::send($provider['email'], $subject, $body, (string)($provider['name'] ?? ''));
     }
 
     /** Email the customer that their appointment was cancelled. */
     public static function sendCancellation(array $appt, string $reason = ''): bool {
         $when = self::frenchDate(slate_format_datetime($appt['starts_at'], 'l, j F Y'));
-        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rendez-vous annulé</h2>'
-              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
-              . '<p style="margin:0 0 4px;">Votre rendez-vous pour <strong>' . e($appt['service_name']) . '</strong> du ' . e($when) . ' a été annulé.</p>'
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_cancelled_heading', 'Appointment cancelled')) . '</h2>'
+              . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($appt['customer_name'])) . '</p>'
+              . '<p style="margin:0 0 4px;">' . sprintf(
+                    __('booking_email_cancelled_body', 'Your appointment for <strong>%s</strong> on %s has been cancelled.'),
+                    e($appt['service_name']), e($when)
+                ) . '</p>'
               . self::emailInfoCard(array_filter([
-                    $reason !== '' ? ['Motif', e($reason)] : null,
-                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                    $reason !== '' ? [__('booking_email_label_reason', 'Reason'), e($reason)] : null,
+                    [__('booking_email_label_reference', 'Reference'), '<code>' . e($appt['ref']) . '</code>'],
                 ]));
-        $body = self::brandedEmailShell($inner, 'Votre rendez-vous a été annulé');
-        return (bool) Mailer::send($appt['customer_email'], 'Votre réservation a été annulée (' . $appt['ref'] . ')', $body, $appt['customer_name']);
+        $body = self::brandedEmailShell($inner, __('booking_email_cancelled_preheader', 'Your appointment has been cancelled'));
+        return (bool) Mailer::send($appt['customer_email'], sprintf(__('booking_email_cancelled_subject', 'Your booking has been cancelled (%s)'), $appt['ref']), $body, $appt['customer_name']);
     }
 
     /** Email the customer that their appointment was moved. */
     public static function sendReschedule(array $appt, string $newStartsAt): bool {
         $when = self::frenchDate(slate_format_datetime($newStartsAt, 'l, j F Y'));
-        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">Rendez-vous reprogrammé</h2>'
-              . '<p style="margin:0 0 14px;">Bonjour ' . e($appt['customer_name']) . ',</p>'
-              . '<p style="margin:0 0 4px;">Votre rendez-vous pour <strong>' . e($appt['service_name']) . '</strong> a été déplacé.</p>'
+        $inner = '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#2d2a26;">' . e(__('booking_email_rescheduled_heading', 'Appointment rescheduled')) . '</h2>'
+              . '<p style="margin:0 0 14px;">' . sprintf(__('booking_email_greeting', 'Hello %s,'), e($appt['customer_name'])) . '</p>'
+              . '<p style="margin:0 0 4px;">' . sprintf(
+                    __('booking_email_rescheduled_body', 'Your appointment for <strong>%s</strong> has been moved.'),
+                    e($appt['service_name'])
+                ) . '</p>'
               . self::emailInfoCard([
-                    ['Nouvel horaire', '<strong>' . e($when) . '</strong>'],
-                    ['Référence', '<code>' . e($appt['ref']) . '</code>'],
+                    [__('booking_email_label_new_time', 'New time'), '<strong>' . e($when) . '</strong>'],
+                    [__('booking_email_label_reference', 'Reference'), '<code>' . e($appt['ref']) . '</code>'],
                 ]);
-        $body = self::brandedEmailShell($inner, 'Votre rendez-vous a été reprogrammé');
-        return (bool) Mailer::send($appt['customer_email'], 'Votre réservation a été replanifiée (' . $appt['ref'] . ')', $body, $appt['customer_name']);
+        $body = self::brandedEmailShell($inner, __('booking_email_rescheduled_preheader', 'Your appointment has been rescheduled'));
+        return (bool) Mailer::send($appt['customer_email'], sprintf(__('booking_email_rescheduled_subject', 'Your booking has been rescheduled (%s)'), $appt['ref']), $body, $appt['customer_name']);
     }
 
     // ── Notification config + channels ────────────────────────────

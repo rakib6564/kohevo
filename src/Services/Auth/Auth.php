@@ -884,14 +884,14 @@ class Auth {
         $verifyUrl = SLATE_URL . '/customer/verify-email.php?token=' . urlencode($token);
         $siteName  = \Database::setting('site_name') ?: 'Kohevo';
 
-        $bodyHtml = '<p>Welcome to ' . e($siteName) . '.</p>'
-                  . '<p>Please confirm your email address by clicking the link below. The link is valid for 3 days.</p>'
+        $bodyHtml = '<p>' . sprintf(__('auth_email_welcome_to', 'Welcome to %s.'), e($siteName)) . '</p>'
+                  . '<p>' . e(__('auth_email_verify_instructions', 'Please confirm your email address by clicking the link below. The link is valid for 3 days.')) . '</p>'
                   . '<p><a href="' . e($verifyUrl) . '">' . e($verifyUrl) . '</a></p>'
-                  . '<p>If you didn\'t create an account, you can safely ignore this email.</p>';
+                  . '<p>' . e(__('auth_email_verify_ignore', "If you didn't create an account, you can safely ignore this email.")) . '</p>';
 
         return (bool) \Mailer::send(
             $cust['email'],
-            'Confirm your email address',
+            __('auth_email_verify_subject', 'Confirm your email address'),
             $bodyHtml,
             $cust['name'] ?? ''
         );
@@ -941,14 +941,14 @@ class Auth {
         $resetUrl = SLATE_URL . '/customer/reset-password.php?token=' . urlencode($token);
         $siteName = \Database::setting('site_name') ?: 'Kohevo';
 
-        $bodyHtml = '<p>You requested a password reset for your ' . e($siteName) . ' account.</p>'
-                  . '<p>Click the link below to set a new password. The link is valid for 2 hours.</p>'
+        $bodyHtml = '<p>' . sprintf(__('auth_email_reset_requested', 'You requested a password reset for your %s account.'), e($siteName)) . '</p>'
+                  . '<p>' . e(__('auth_email_reset_instructions', 'Click the link below to set a new password. The link is valid for 2 hours.')) . '</p>'
                   . '<p><a href="' . e($resetUrl) . '">' . e($resetUrl) . '</a></p>'
-                  . '<p>If you didn\'t request this, you can safely ignore this email — your password won\'t change.</p>';
+                  . '<p>' . e(__('auth_email_reset_ignore', "If you didn't request this, you can safely ignore this email — your password won't change.")) . '</p>';
 
         \Mailer::send(
             $cust['email'],
-            'Reset your password',
+            __('auth_email_reset_subject', 'Reset your password'),
             $bodyHtml,
             $cust['name'] ?? ''
         );

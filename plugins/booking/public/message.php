@@ -176,28 +176,33 @@ function bookingplus_notify_therapist(array $appt, string $message): void {
     ));
     if ($to === '') return;
 
-    $subj = $siteName . ' · new message from ' . ($appt['customer_name'] ?? 'a client')
-          . ' · ' . $appt['service_name'];
+    $subj = sprintf(
+        __('booking_email_new_message_subject_fmt', '%s · new message from %s · %s'),
+        $siteName,
+        ($appt['customer_name'] ?? __('booking_email_a_client', 'a client')),
+        $appt['service_name']
+    );
 
     $when = I18n::localDate('l, j F Y, H:i', strtotime($appt['starts_at']));
-    $body = '<p>A client just left you a message about their upcoming booking.</p>'
+    $body = '<p>' . e(__('booking_email_new_message_intro', "A client just left you a message about their upcoming booking.")) . '</p>'
           . '<table style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">'
-          . '<tr><td style="padding:6px 12px;color:#555;">Client</td><td style="padding:6px 12px;">'
+          . '<tr><td style="padding:6px 12px;color:#555;">' . e(__('booking_email_label_client', 'Client')) . '</td><td style="padding:6px 12px;">'
           . e((string)$appt['customer_name']) . ' &lt;' . e((string)$appt['customer_email']) . '&gt;'
           . (!empty($appt['customer_phone']) ? ' · ' . e((string)$appt['customer_phone']) : '')
           . '</td></tr>'
-          . '<tr><td style="padding:6px 12px;color:#555;">Service</td><td style="padding:6px 12px;">'
+          . '<tr><td style="padding:6px 12px;color:#555;">' . e(__('service', 'Service')) . '</td><td style="padding:6px 12px;">'
           . e((string)$appt['service_name']) . '</td></tr>'
-          . '<tr><td style="padding:6px 12px;color:#555;">Session</td><td style="padding:6px 12px;">'
+          . '<tr><td style="padding:6px 12px;color:#555;">' . e(__('booking_email_label_session', 'Session')) . '</td><td style="padding:6px 12px;">'
           . e($when) . '</td></tr>'
-          . '<tr><td style="padding:6px 12px;color:#555;">Reference</td><td style="padding:6px 12px;"><code>'
+          . '<tr><td style="padding:6px 12px;color:#555;">' . e(__('booking_email_label_reference', 'Reference')) . '</td><td style="padding:6px 12px;"><code>'
           . e((string)$appt['ref']) . '</code></td></tr>'
           . '</table>'
-          . '<h3 style="margin-top:16px;">Message</h3>'
+          . '<h3 style="margin-top:16px;">' . e(__('booking_email_message_heading', 'Message')) . '</h3>'
           . '<blockquote style="border-left:3px solid #ccc;padding:8px 12px;color:#333;">'
           . nl2br(e($message)) . '</blockquote>'
           . '<p><a href="' . e(SLATE_URL . '/plugins/booking/admin/messages.php')
-          . '">Open Booking+ Messages</a> to mark this replied.</p>';
+          . '">' . e(__('booking_email_open_messages_link', 'Open Booking+ Messages')) . '</a> '
+          . e(__('booking_email_mark_replied_suffix', 'to mark this replied.')) . '</p>';
 
     Mailer::send($to, $subj, $body);
 }

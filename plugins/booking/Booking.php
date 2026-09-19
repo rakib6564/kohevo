@@ -938,16 +938,16 @@ class Booking extends Plugin {
                 'message_url'   => $messageUrl,
             ];
 
-            $subject = trim((string)($cfg['auto_response_subject'] ?? '')) ?: 'A little more about your booking';
+            $subject = trim((string)($cfg['auto_response_subject'] ?? '')) ?: __('booking_email_auto_response_subject_default', 'A little more about your booking');
             $subject = BookingPlusAPI::renderTemplate($subject, $ctx);
             $html    = BookingPlusAPI::renderTemplate($body, $ctx);
 
             if ($messageUrl !== '' && strpos($body, '{{message_url}}') === false) {
                 $html .= '<hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0;">'
-                       . '<p style="margin:0 0 6px;font-weight:600;">Anything you\'d like me to know?</p>'
-                       . '<p style="margin:0 0 10px;color:#555;">Leave me a short personal note about what brings you — questions, concerns, context. I read every one.</p>'
+                       . '<p style="margin:0 0 6px;font-weight:600;">' . e(__('booking_email_note_prompt_heading', "Anything you'd like me to know?")) . '</p>'
+                       . '<p style="margin:0 0 10px;color:#555;">' . e(__('booking_email_note_prompt_body', 'Leave me a short personal note about what brings you — questions, concerns, context. I read every one.')) . '</p>'
                        . '<p style="margin:0;"><a href="' . e($messageUrl)
-                       . '" style="display:inline-block;padding:10px 18px;background:#2563EB;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Send me a message</a></p>';
+                       . '" style="display:inline-block;padding:10px 18px;background:#2563EB;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">' . e(__('booking_email_send_message_btn', 'Send me a message')) . '</a></p>';
             }
 
             Mailer::send(
@@ -986,14 +986,14 @@ class Booking extends Plugin {
             $siteName = Database::setting('site_name') ?: 'Kohevo';
 
             foreach ($rows as $m) {
-                $subj = $siteName . ' · client message still waiting for your reply';
-                $body = '<p>A client sent you a message ' . $hours . 'h+ ago and no reply is recorded yet.</p>'
+                $subj = $siteName . ' · ' . __('booking_email_nudge_subject', 'client message still waiting for your reply');
+                $body = '<p>' . sprintf(__('booking_email_nudge_body_intro', 'A client sent you a message %sh+ ago and no reply is recorded yet.'), $hours) . '</p>'
                       . '<p><strong>' . e((string)$m['customer_name']) . '</strong> · '
                       . e((string)$m['service_name']) . '</p>'
                       . '<blockquote style="border-left:3px solid #ccc;padding:8px 12px;color:#444;">'
                       . nl2br(e((string)$m['client_message']))
                       . '</blockquote>'
-                      . '<p><a href="' . e($this->url('admin/messages.php')) . '">Open Booking messages</a></p>';
+                      . '<p><a href="' . e($this->url('admin/messages.php')) . '">' . e(__('booking_email_nudge_open_link', 'Open Booking messages')) . '</a></p>';
                 Mailer::send($to, $subj, $body);
                 Database::update('bookingplus_appointment_meta',
                     ['nudge_sent_at' => slate_db_now()],

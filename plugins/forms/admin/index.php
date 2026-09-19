@@ -19,7 +19,7 @@ $tid = current_tenant_id();
 $flash = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('csrf_failed', 'Security check failed.')];
     } else {
         $action = $_POST['_action'] ?? '';
         $id     = (int)($_POST['id'] ?? 0);
@@ -29,27 +29,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Database::delete('forms_webhooks',    'form_id = ? AND tenant_id = ?', [$id, $tid]);
                 Database::delete('forms_definitions', 'id = ? AND tenant_id = ?',     [$id, $tid]);
                 AuditLog::record('forms.deleted', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Form deleted.'];
+                $flash = ['type' => 'success', 'msg' => __('forms_list_deleted', 'Form deleted.')];
             } elseif ($action === 'publish' && Auth::can('forms.manage')) {
                 Database::update('forms_definitions', ['status' => 'published'],
                     'id = ? AND tenant_id = ?', [$id, $tid]);
                 AuditLog::record('forms.published', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Form published.'];
+                $flash = ['type' => 'success', 'msg' => __('forms_list_published', 'Form published.')];
             } elseif ($action === 'unpublish' && Auth::can('forms.manage')) {
                 Database::update('forms_definitions', ['status' => 'draft'],
                     'id = ? AND tenant_id = ?', [$id, $tid]);
                 AuditLog::record('forms.unpublished', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Form moved to draft.'];
+                $flash = ['type' => 'success', 'msg' => __('forms_list_unpublished', 'Form moved to draft.')];
             } elseif ($action === 'archive' && Auth::can('forms.manage')) {
                 Database::update('forms_definitions', ['status' => 'archived'],
                     'id = ? AND tenant_id = ?', [$id, $tid]);
                 AuditLog::record('forms.archived', (string)$id);
-                $flash = ['type' => 'success', 'msg' => 'Form archived.'];
+                $flash = ['type' => 'success', 'msg' => __('forms_list_archived', 'Form archived.')];
             } elseif ($action === 'duplicate' && Auth::can('forms.manage')) {
                 $src = Database::row(
                     "SELECT * FROM forms_definitions WHERE id = ? AND tenant_id = ?", [$id, $tid]);
                 if ($src) {
-                    $newTitle = mb_substr($src['title'] . ' (copy)', 0, 200);
+                    $newTitle = mb_substr($src['title'] . ' ' . __('forms_list_copy_suffix', '(copy)'), 0, 200);
                     Database::insert('forms_definitions', [
                         'tenant_id'         => $tid,
                         'slug'              => FormsAPI::slugify($newTitle),
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'settings_json'     => $src['settings_json'],
                     ]);
                     AuditLog::record('forms.duplicated', (string)$id);
-                    $flash = ['type' => 'success', 'msg' => 'Form duplicated as a draft.'];
+                    $flash = ['type' => 'success', 'msg' => __('forms_list_duplicated', 'Form duplicated as a draft.')];
                 }
             }
         }
@@ -123,11 +123,11 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="page-header">
     <div>
         <h1><?= __('forms', 'Forms') ?></h1>
-        <p class="page-header-sub">Public forms you can embed or link to.</p>
+        <p class="page-header-sub"><?= e(__('forms_list_subtitle', 'Public forms you can embed or link to.')) ?></p>
     </div>
     <?php if (Auth::can('forms.manage')): ?>
-        <button type="button" class="btn btn-primary" data-forms-new>New form</button>
-        <noscript><a href="<?= e(plugin_url('forms', 'admin/edit.php')) ?>" class="btn btn-primary">New form</a></noscript>
+        <button type="button" class="btn btn-primary" data-forms-new><?= e(__('forms_list_new_form', 'New form')) ?></button>
+        <noscript><a href="<?= e(plugin_url('forms', 'admin/edit.php')) ?>" class="btn btn-primary"><?= e(__('forms_list_new_form', 'New form')) ?></a></noscript>
     <?php endif; ?>
 </div>
 
@@ -152,19 +152,19 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="fl-stats">
     <div class="fl-stat">
         <div class="fl-stat-num"><?= number_format($statForms) ?></div>
-        <div class="fl-stat-label">Forms</div>
+        <div class="fl-stat-label"><?= e(__('forms', 'Forms')) ?></div>
     </div>
     <div class="fl-stat">
         <div class="fl-stat-num"><?= number_format($statPublished) ?></div>
-        <div class="fl-stat-label">Published</div>
+        <div class="fl-stat-label"><?= e(__('forms_list_published_label', 'Published')) ?></div>
     </div>
     <div class="fl-stat">
         <div class="fl-stat-num"><?= number_format($statSubs) ?></div>
-        <div class="fl-stat-label">Submissions</div>
+        <div class="fl-stat-label"><?= e(__('forms_submissions', 'Submissions')) ?></div>
     </div>
     <div class="fl-stat<?= $statUnread > 0 ? ' is-alert' : '' ?>">
         <div class="fl-stat-num"><?= number_format($statUnread) ?></div>
-        <div class="fl-stat-label">Unread</div>
+        <div class="fl-stat-label"><?= e(__('forms_unread', 'Unread')) ?></div>
     </div>
 </div>
 <?php endif; ?>
@@ -173,21 +173,21 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <div class="card tight">
     <form method="get" class="filter-row">
         <div class="field filter-search">
-            <label class="field-label" for="q">Search</label>
-            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="Form name or slug…">
+            <label class="field-label" for="q"><?= e(__('search', 'Search')) ?></label>
+            <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('forms_list_search_ph', 'Form name or slug…')) ?>">
         </div>
         <div class="field">
-            <label class="field-label" for="status">Status</label>
+            <label class="field-label" for="status"><?= e(__('status', 'Status')) ?></label>
             <select id="status" name="status">
-                <option value=""          <?= $statusFilter === ''          ? 'selected' : '' ?>>Any status</option>
-                <option value="published" <?= $statusFilter === 'published' ? 'selected' : '' ?>>Published</option>
-                <option value="draft"     <?= $statusFilter === 'draft'     ? 'selected' : '' ?>>Draft</option>
-                <option value="archived"  <?= $statusFilter === 'archived'  ? 'selected' : '' ?>>Archived</option>
+                <option value=""          <?= $statusFilter === ''          ? 'selected' : '' ?>><?= e(__('forms_list_any_status', 'Any status')) ?></option>
+                <option value="published" <?= $statusFilter === 'published' ? 'selected' : '' ?>><?= e(__('forms_list_published_label', 'Published')) ?></option>
+                <option value="draft"     <?= $statusFilter === 'draft'     ? 'selected' : '' ?>><?= e(__('forms_list_draft_label', 'Draft')) ?></option>
+                <option value="archived"  <?= $statusFilter === 'archived'  ? 'selected' : '' ?>><?= e(__('forms_list_archived_label', 'Archived')) ?></option>
             </select>
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn">Filter</button>
-            <a href="<?= e(plugin_url('forms', 'admin/index.php')) ?>" class="btn btn-ghost">Reset</a>
+            <button type="submit" class="btn"><?= e(__('filter', 'Filter')) ?></button>
+            <a href="<?= e(plugin_url('forms', 'admin/index.php')) ?>" class="btn btn-ghost"><?= e(__('reset', 'Reset')) ?></a>
         </div>
     </form>
 </div>
@@ -202,15 +202,15 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 </svg>
             </div>
             <?php if ($statForms > 0): ?>
-                <div class="empty-title">No matching forms</div>
-                <p class="text-sm">Try a different search or reset the filters.</p>
-                <a href="<?= e(plugin_url('forms', 'admin/index.php')) ?>" class="btn btn-ghost mt-3">Reset filters</a>
+                <div class="empty-title"><?= e(__('forms_list_no_match', 'No matching forms')) ?></div>
+                <p class="text-sm"><?= e(__('forms_list_try_different_search', 'Try a different search or reset the filters.')) ?></p>
+                <a href="<?= e(plugin_url('forms', 'admin/index.php')) ?>" class="btn btn-ghost mt-3"><?= e(__('forms_list_reset_filters', 'Reset filters')) ?></a>
             <?php else: ?>
-                <div class="empty-title">No forms yet</div>
-                <p class="text-sm">Create your first form and we'll give you a public URL + an embed snippet.</p>
+                <div class="empty-title"><?= e(__('forms_list_no_forms_yet', 'No forms yet')) ?></div>
+                <p class="text-sm"><?= e(__('forms_list_create_first_hint', 'Create your first form and we\'ll give you a public URL + an embed snippet.')) ?></p>
                 <?php if (Auth::can('forms.manage')): ?>
-                    <button type="button" class="btn btn-primary mt-3" data-forms-new>Create a form</button>
-                    <noscript><a href="<?= e(plugin_url('forms', 'admin/edit.php')) ?>" class="btn btn-primary mt-3">Create a form</a></noscript>
+                    <button type="button" class="btn btn-primary mt-3" data-forms-new><?= e(__('forms_list_create_a_form', 'Create a form')) ?></button>
+                    <noscript><a href="<?= e(plugin_url('forms', 'admin/edit.php')) ?>" class="btn btn-primary mt-3"><?= e(__('forms_list_create_a_form', 'Create a form')) ?></a></noscript>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
@@ -249,80 +249,87 @@ require SLATE_ROOT . '/admin/partials/header.php';
             $isPub     = $f['status'] === 'published';
 
             $badgeMap = [
-                'published' => ['Published', 'active'],
-                'draft'     => ['Draft',     'warning'],
-                'archived'  => ['Archived',  'inactive'],
+                'published' => [__('forms_list_published_label', 'Published'), 'active'],
+                'draft'     => [__('forms_list_draft_label', 'Draft'),     'warning'],
+                'archived'  => [__('forms_list_archived_label', 'Archived'),  'inactive'],
             ];
-            $badge = $badgeMap[$f['status']] ?? ['Draft', 'warning'];
+            $badge = $badgeMap[$f['status']] ?? [__('forms_list_draft_label', 'Draft'), 'warning'];
 
             $fieldCount = count(json_decode($f['fields_json'] ?? '[]', true) ?: []);
             $embedSnippet = '<iframe src="' . $publicUrl . '?embed=1" style="width:100%;border:0;min-height:520px"></iframe>';
 
+            $publishedOnlyHtml = '<span class="text-muted">' . e(__('forms_list_published_only', '— published forms only —')) . '</span>';
             $detail = [
-                'Public URL' => ['label' => 'Public URL',
+                'Public URL' => ['label' => __('forms_list_public_url', 'Public URL'),
                     'html' => $isPub
                         ? '<a href="' . e($publicUrl) . '" target="_blank" rel="noopener">' . e($publicUrl) . '</a>'
-                          . ' <button type="button" class="btn btn-xs btn-ghost" data-copy="' . e($publicUrl) . '">Copy</button>'
-                        : '<span class="text-muted">— published forms only —</span>',
+                          . ' <button type="button" class="btn btn-xs btn-ghost" data-copy="' . e($publicUrl) . '">' . e(__('copy', 'Copy')) . '</button>'
+                        : $publishedOnlyHtml,
                 ],
-                'Embed snippet' => ['label' => 'Embed snippet',
+                'Embed snippet' => ['label' => __('forms_list_embed_snippet', 'Embed snippet'),
                     'html' => $isPub
                         ? '<code style="word-break:break-all;">' . e($embedSnippet) . '</code>'
-                          . ' <button type="button" class="btn btn-xs btn-ghost" data-copy="' . e($embedSnippet) . '">Copy</button>'
-                        : '<span class="text-muted">— published forms only —</span>',
+                          . ' <button type="button" class="btn btn-xs btn-ghost" data-copy="' . e($embedSnippet) . '">' . e(__('copy', 'Copy')) . '</button>'
+                        : $publishedOnlyHtml,
                 ],
-                'Submissions' => (int)$f['submission_count'] . ' total'
-                    . ((int)$f['unread_count'] > 0 ? ' · ' . (int)$f['unread_count'] . ' unread' : ''),
-                'Last submission' => $f['last_submission_at']
-                    ? I18n::localDate('j M Y, H:i', strtotime($f['last_submission_at'])) : '— none yet —',
-                'Fields'    => $fieldCount . ' configured',
-                'Updated'   => I18n::localDate('j M Y, H:i', strtotime($f['updated_at'])),
-                'Notify'    => $f['notify_email'] ?: '— none —',
+                'Submissions' => [
+                    'label' => __('forms_submissions', 'Submissions'),
+                    'value' => sprintf(__('forms_list_n_total', '%d total'), (int)$f['submission_count'])
+                        . ((int)$f['unread_count'] > 0 ? ' · ' . sprintf(__('forms_list_n_unread', '%d unread'), (int)$f['unread_count']) : ''),
+                ],
+                'Last submission' => [
+                    'label' => __('forms_list_last_submission', 'Last submission'),
+                    'value' => $f['last_submission_at']
+                        ? I18n::localDate('j M Y, H:i', strtotime($f['last_submission_at'])) : __('forms_list_none_yet', '— none yet —'),
+                ],
+                'Fields'    => ['label' => __('forms_list_fields', 'Fields'), 'value' => sprintf(__('forms_list_n_configured', '%d configured'), $fieldCount)],
+                'Updated'   => ['label' => __('updated', 'Updated'), 'value' => I18n::localDate('j M Y, H:i', strtotime($f['updated_at']))],
+                'Notify'    => ['label' => __('forms_list_notify', 'Notify'), 'value' => $f['notify_email'] ?: __('forms_list_notify_none', '— none —')],
             ];
 
             $actions = '';
             if ($isPub) {
-                $actions .= '<a href="' . e($publicUrl) . '" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">Open ↗</a> '
-                          . '<button type="button" class="btn btn-sm btn-ghost" data-copy="' . e($publicUrl) . '">Copy link</button> ';
+                $actions .= '<a href="' . e($publicUrl) . '" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">' . e(__('forms_list_open', 'Open ↗')) . '</a> '
+                          . '<button type="button" class="btn btn-sm btn-ghost" data-copy="' . e($publicUrl) . '">' . e(__('forms_list_copy_link', 'Copy link')) . '</button> ';
             }
-            $actions .= '<a href="' . e($editUrl)  . '" class="btn btn-sm">Edit</a> '
-                      . '<a href="' . e($inboxUrl) . '" class="btn btn-sm btn-ghost">View submissions</a>';
+            $actions .= '<a href="' . e($editUrl)  . '" class="btn btn-sm">' . e(__('edit', 'Edit')) . '</a> '
+                      . '<a href="' . e($inboxUrl) . '" class="btn btn-sm btn-ghost">' . e(__('forms_list_view_submissions', 'View submissions')) . '</a>';
 
             if (Auth::can('forms.manage')) {
                 $actions .= ' <form method="post" style="display:inline; margin:0;">' . csrf_field()
                           . '<input type="hidden" name="id" value="' . (int)$f['id'] . '">';
                 if ($isPub) {
-                    $actions .= '<button name="_action" value="unpublish" class="btn btn-sm btn-ghost">Unpublish</button>';
+                    $actions .= '<button name="_action" value="unpublish" class="btn btn-sm btn-ghost">' . e(__('forms_list_unpublish', 'Unpublish')) . '</button>';
                 } elseif ($f['status'] === 'draft') {
-                    $actions .= '<button name="_action" value="publish" class="btn btn-sm btn-primary">Publish</button>';
+                    $actions .= '<button name="_action" value="publish" class="btn btn-sm btn-primary">' . e(__('forms_list_publish', 'Publish')) . '</button>';
                 } elseif ($f['status'] === 'archived') {
-                    $actions .= '<button name="_action" value="publish" class="btn btn-sm">Restore &amp; publish</button>';
+                    $actions .= '<button name="_action" value="publish" class="btn btn-sm">' . e(__('forms_list_restore_publish', 'Restore & publish')) . '</button>';
                 }
                 $actions .= '</form>';
 
                 // Duplicate
                 $actions .= ' <form method="post" style="display:inline; margin:0;">' . csrf_field()
                           . '<input type="hidden" name="id" value="' . (int)$f['id'] . '">'
-                          . '<button name="_action" value="duplicate" class="btn btn-sm btn-ghost">Duplicate</button>'
+                          . '<button name="_action" value="duplicate" class="btn btn-sm btn-ghost">' . e(__('duplicate', 'Duplicate')) . '</button>'
                           . '</form>';
 
                 // Archive (only when not already archived)
                 if ($f['status'] !== 'archived') {
                     $actions .= ' <form method="post" style="display:inline; margin:0;">' . csrf_field()
                               . '<input type="hidden" name="id" value="' . (int)$f['id'] . '">'
-                              . '<button name="_action" value="archive" class="btn btn-sm btn-ghost">Archive</button>'
+                              . '<button name="_action" value="archive" class="btn btn-sm btn-ghost">' . e(__('archive', 'Archive')) . '</button>'
                               . '</form>';
                 }
 
-                $actions .= ' <form method="post" style="display:inline; margin:0;" onsubmit="return confirm(\'Delete this form and all its submissions?\')">' . csrf_field()
+                $actions .= ' <form method="post" style="display:inline; margin:0;" onsubmit="return confirm(\'' . e(__('forms_list_confirm_delete', 'Delete this form and all its submissions?')) . '\')">' . csrf_field()
                           . '<input type="hidden" name="id" value="' . (int)$f['id'] . '">'
-                          . '<button name="_action" value="delete" class="btn btn-sm btn-danger">Delete</button>'
+                          . '<button name="_action" value="delete" class="btn btn-sm btn-danger">' . e(__('delete', 'Delete')) . '</button>'
                           . '</form>';
             }
 
             $titleHtml = e($f['title']);
             if ($f['unread_count'] > 0) {
-                $titleHtml .= ' <span class="badge badge-accent">' . (int)$f['unread_count'] . ' unread</span>';
+                $titleHtml .= ' <span class="badge badge-accent">' . sprintf(e(__('forms_list_n_unread', '%d unread')), (int)$f['unread_count']) . '</span>';
             }
 
             slate_data_row([
@@ -342,6 +349,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     (function () {
         if (window.__formsCopy) return;
         window.__formsCopy = true;
+        var copiedLabel = <?= json_encode(__('copied', 'Copied!')) ?>;
         document.addEventListener('click', function (e) {
             var btn = e.target.closest('[data-copy]');
             if (!btn) return;
@@ -349,7 +357,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
             var text = btn.getAttribute('data-copy') || '';
             var done = function () {
                 var orig = btn.textContent;
-                btn.textContent = 'Copied!';
+                btn.textContent = copiedLabel;
                 btn.classList.add('is-copied');
                 setTimeout(function () { btn.textContent = orig; btn.classList.remove('is-copied'); }, 1300);
             };
@@ -370,18 +378,18 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <?php if (Auth::can('forms.manage') && class_exists('FormTemplates')):
     $blankUrl = plugin_url('forms', 'admin/edit.php');
 ?>
-<dialog class="tpl-modal" id="forms-tpl-modal" aria-label="Choose a starting point">
+<dialog class="tpl-modal" id="forms-tpl-modal" aria-label="<?= e(__('forms_list_choose_starting_point', 'Choose a starting point')) ?>">
     <div class="tpl-head">
         <div>
-            <div class="tpl-eyebrow">Start a form</div>
-            <h2 class="tpl-title">Choose a starting point</h2>
+            <div class="tpl-eyebrow"><?= e(__('forms_list_start_a_form', 'Start a form')) ?></div>
+            <h2 class="tpl-title"><?= e(__('forms_list_choose_starting_point', 'Choose a starting point')) ?></h2>
         </div>
-        <button type="button" class="tpl-x" data-tpl-close aria-label="Close">
+        <button type="button" class="tpl-x" data-tpl-close aria-label="<?= e(__('close', 'Close')) ?>">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
     </div>
     <div class="tpl-cats" id="tpl-cats">
-        <button type="button" class="tpl-cat is-on" data-cat="">All</button>
+        <button type="button" class="tpl-cat is-on" data-cat=""><?= e(__('all', 'All')) ?></button>
         <?php foreach (FormTemplates::categories() as $cat): ?>
             <button type="button" class="tpl-cat" data-cat="<?= e($cat) ?>"><?= e($cat) ?></button>
         <?php endforeach; ?>
@@ -389,8 +397,8 @@ require SLATE_ROOT . '/admin/partials/header.php';
     <div class="tpl-grid" id="tpl-grid">
         <a class="tpl-card tpl-card-blank" data-cat="" href="<?= e($blankUrl) ?>">
             <span class="tpl-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
-            <span class="tpl-name">Blank form</span>
-            <span class="tpl-desc">Start from scratch and build it your way.</span>
+            <span class="tpl-name"><?= e(__('forms_list_blank_form', 'Blank form')) ?></span>
+            <span class="tpl-desc"><?= e(__('forms_list_blank_form_desc', 'Start from scratch and build it your way.')) ?></span>
         </a>
         <?php foreach (FormTemplates::all() as $t): ?>
         <a class="tpl-card" data-cat="<?= e($t['category'] ?? '') ?>" href="<?= e($blankUrl . '?template=' . urlencode($t['slug'])) ?>">

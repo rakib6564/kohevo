@@ -174,7 +174,7 @@ class BrandedEmail
         ]);
         $footBiz  = $footBits ? '<div style="margin-bottom:4px;">' . e(implode('  ·  ', $footBits)) . '</div>' : '';
         $footRef  = $footerRef !== '' ? ' · ' . e($footerRef) : '';
-        $footFrom = 'Sent by <strong style="color:#64748b;">' . e($site) . '</strong>' . ($senderLabel !== '' ? ' ' . e($senderLabel) : '');
+        $footFrom = sprintf(__('email_sent_by', 'Sent by %s'), '<strong style="color:#64748b;">' . e($site) . '</strong>') . ($senderLabel !== '' ? ' ' . e($senderLabel) : '');
 
         return '<!DOCTYPE html><html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head>'
             . '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
