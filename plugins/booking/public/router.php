@@ -350,6 +350,18 @@ function bookpub_provider_step_hidden(array $service): bool {
     return count(BookingAPI::getProvidersForService((int)$service['id'])) === 1;
 }
 
+/**
+ * Whether the "Provider" step should already read as hidden on step 1 —
+ * before any service is picked, so there's nothing to check per-service
+ * yet. Only true when the whole business has exactly one active provider,
+ * since that's the one case where the answer can't change once a service
+ * IS picked (every service can have at most that one provider linked).
+ */
+function bookpub_provider_step_hidden_upfront(): bool {
+    if (!bookpub_book_setting('auto_skip_single_provider', false)) return false;
+    return count(BookingAPI::getAllProviders()) === 1;
+}
+
 /** Admin-configured cap on how many times one multi-slot booking can hold. */
 function bookpub_multislot_max(): int {
     return max(2, min(20, (int)(Database::setting('booking.multislot_max') ?? 4)));
@@ -579,7 +591,7 @@ function bookpub_stepper(int $current, bool $embed, bool $hideProvider = false):
 
 function bookpub_render_step1(bool $embed): void {
     bookpub_layout_start(__('booking_page_title', 'Book an appointment'), $embed);
-    bookpub_stepper(1, $embed);
+    bookpub_stepper(1, $embed, bookpub_provider_step_hidden_upfront());
     echo '<h1>' . e(__('booking_pick_a_service', 'Pick a service')) . '</h1>';
     // One implementation of the cards, shared with the booking BLOCK — see
     // BookingAPI::renderServiceCatalogue(). The href keeps this page's embed and
