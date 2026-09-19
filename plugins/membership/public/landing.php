@@ -103,6 +103,9 @@ $brandMark = function (string $cls = 'mlp-brand') use ($logoUrl, $siteName): str
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="<?= e($accent) ?>">
     <title><?= e(__('membership_lp_title', 'Membership')) ?> — <?= e($siteName) ?></title>
+    <?php if (function_exists('slate_favicon_url')): ?>
+    <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
+    <?php endif; ?>
     <meta name="description" content="<?= e(__('membership_lp_meta', 'Become a member — choose a plan, manage it online, and book your sessions.')) ?>">
     <?php slate_ui_emit_css(); ?>
     <style>

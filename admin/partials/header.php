@@ -643,9 +643,7 @@ if (!function_exists('slate_admin_nav_icon')) {
     <!-- Apply the saved sidebar-collapsed state before first paint (no flash). -->
     <script>try{if(localStorage.getItem('slate_sidebar_collapsed')==='1')document.documentElement.classList.add('sidebar-collapsed');}catch(e){}</script>
     <title><?= e($pageTitle) ?> — <?= e($siteName) ?></title>
-    <?php $faviconPath = (string) Database::setting('brand_favicon_path'); if ($faviconPath !== ''): ?>
-        <link rel="icon" href="<?= e(SLATE_URL . '/' . ltrim($faviconPath, '/')) ?>">
-    <?php endif; ?>
+    <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
     <meta name="csrf" content="<?= e(csrf_token()) ?>">
     <?php slate_ui_emit_css(); ?>
     <?php slate_brand_accent_emit(); ?>

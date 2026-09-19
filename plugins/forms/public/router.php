@@ -245,9 +245,7 @@ function forms_public_layout_start(string $title, bool $embed): void {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title><?= e($title) ?> — <?= e($siteName) ?></title>
-        <?php $faviconPath = (string) Database::setting('brand_favicon_path'); if ($faviconPath !== ''): ?>
-            <link rel="icon" href="<?= e(SLATE_URL . '/' . ltrim($faviconPath, '/')) ?>">
-        <?php endif; ?>
+        <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
         <meta name="csrf" content="<?= e(csrf_token()) ?>">
         <link rel="stylesheet" href="<?= e(plugin_url('forms', 'assets/css/public.css')) ?>?v=<?= e(FormsAPI::ASSET_VERSION) ?>">
         <?php if (forms_is_bare()): ?>

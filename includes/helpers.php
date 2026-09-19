@@ -720,3 +720,22 @@ if (!function_exists('slate_logo_urls')) {
         ];
     }
 }
+
+// ── Favicon (tenant-uploaded, falling back to the platform default) ──────
+if (!function_exists('slate_default_favicon_url')) {
+    /** The platform's own mark, used wherever no tenant branding applies. */
+    function slate_default_favicon_url(): string {
+        return rtrim((string) SLATE_URL, '/') . '/assets/img/kohevo-favicon.ico';
+    }
+}
+if (!function_exists('slate_favicon_url')) {
+    /**
+     * Matches the `Database::setting('site_name') ?: 'Kohevo'` fallback
+     * pattern used everywhere else: an unbranded tenant gets the platform's
+     * own mark instead of no favicon at all.
+     */
+    function slate_favicon_url(): string {
+        $path = trim((string) Database::setting('brand_favicon_path'));
+        return $path !== '' ? SLATE_URL . '/' . ltrim($path, '/') : slate_default_favicon_url();
+    }
+}

@@ -44,6 +44,11 @@ if (!function_exists('slate_render_error')) {
         $bg = $hero !== ''
             ? 'background:url("' . $e($hero) . '") center/cover no-repeat;'
             : 'background:radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 45%, #0b1c2c), #0b1c2c);';
+        // Self-contained (no template engine, no plugin code, may run
+        // before helpers.php loads — see the 500.php minimal bootstrap),
+        // so the default fallback is inlined rather than calling
+        // slate_favicon_url().
+        $favicon = $logo !== '' ? $logo : ($home !== '' ? $home . '/assets/img/kohevo-favicon.ico' : '');
         ?>
 <!doctype html>
 <html lang="en">
@@ -51,7 +56,7 @@ if (!function_exists('slate_render_error')) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $status ?> · <?= $e($title) ?></title>
-<?php if ($logo !== ''): ?><link rel="icon" href="<?= $e($logo) ?>"><?php endif; ?>
+<?php if ($favicon !== ''): ?><link rel="icon" href="<?= $e($favicon) ?>"><?php endif; ?>
 <style>
     :root { --accent: <?= $e($accent) ?>; }
     * { box-sizing: border-box; }

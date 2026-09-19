@@ -497,6 +497,7 @@ function bookpub_layout_start(string $title, bool $embed): void {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title><?= e($title) ?> — <?= e($siteName) ?></title>
+        <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
         <meta name="csrf" content="<?= e(csrf_token()) ?>">
         <?php
         if ($bookCss !== false && $bookCss !== '') {

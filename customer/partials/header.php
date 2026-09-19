@@ -42,6 +42,7 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#FAFAFA">
     <title><?= e($pageTitle) ?> — <?= e($siteName) ?></title>
+    <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
     <meta name="csrf" content="<?= e(csrf_token()) ?>">
     <?php slate_ui_emit_css(); ?>
     <?php slate_brand_accent_emit(); ?>

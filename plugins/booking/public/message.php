@@ -236,6 +236,7 @@ function bookingplus_render_page(string $title, string $bodyHtml): void {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?> — <?= e($siteName) ?></title>
+    <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
     <style>
         :root { --bp-accent: <?= e($accent) ?>; }
         * { box-sizing: border-box; }

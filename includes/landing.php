@@ -151,7 +151,7 @@ function slate_render_landing(): void {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $e($title) ?> — <?= $e($eyebrow) ?></title>
-<?php if ($logoUrl !== ''): ?><link rel="icon" href="<?= $e($logoUrl) ?>"><?php endif; ?>
+<link rel="icon" href="<?= $e($logoUrl !== '' ? $logoUrl : slate_default_favicon_url()) ?>">
 <style>
     :root { --accent: <?= $e($accent) ?>; --radius: 18px; }
     * { box-sizing: border-box; }

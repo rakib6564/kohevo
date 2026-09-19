@@ -185,6 +185,7 @@ if (!function_exists('slate_portal_shell_head')) {
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="<?= e($accent) ?>">
     <title><?= e($title) ?> — <?= e($siteName) ?></title>
+    <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
     <meta name="csrf" content="<?= e(csrf_token()) ?>">
     <?php slate_ui_emit_css(); ?>
     <link rel="stylesheet" href="<?= e(slate_portal_asset_url('assets/css/portal-app.css')) ?>">

@@ -83,6 +83,7 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0E1117">
     <title><?= __('login', 'Log in') ?> — <?= e($siteName) ?></title>
+    <link rel="icon" href="<?= e(slate_favicon_url()) ?>">
     <?php slate_ui_emit_css(); ?>
     <?php require SLATE_ROOT . '/includes/a11y_head.php'; ?>
     <style>
