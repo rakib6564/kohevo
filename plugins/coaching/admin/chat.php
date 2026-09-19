@@ -34,7 +34,7 @@ function coaching_admin_render_bubble_html(array $m, bool $mine): string {
                 <?php endif; ?>
                 <div class="coach-msg-time">
                     <?= e(date('H:i', strtotime($m['sent_at']))) ?>
-                    <?php if ($mine && !empty($m['seen_at'])): ?> · <span style="opacity:0.9;">✓ seen</span><?php endif; ?>
+                    <?php if ($mine && !empty($m['seen_at'])): ?> · <span style="opacity:0.9;">✓ <?= e(__('cc_chat_seen', 'seen')) ?></span><?php endif; ?>
                 </div>
             </div>
         </div>
@@ -43,13 +43,13 @@ function coaching_admin_render_bubble_html(array $m, bool $mine): string {
 }
 
 $threadId = (int)($_GET['thread'] ?? 0);
-$pageTitle  = 'Coaching · Chat';
+$pageTitle  = 'Coaching · ' . __('cc_chat_page_title', 'Chat');
 $currentNav = 'coaching-chat';
 
 $flash = null;
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('cc_security_check_failed', 'Security check failed.')];
     } else {
         $action = (string)($_POST['_action'] ?? '');
         if ($action === 'reply' && $threadId > 0) {
@@ -114,8 +114,8 @@ if (isset($_GET['poll']) && $activeThread) {
             'id'       => (int)$m['id'],
             'mine'     => $m['sender'] === 'practitioner',
             'day'      => date('Y-m-d', strtotime($m['sent_at'])),
-            'dayLabel' => $m['sent_at'] && date('Y-m-d', strtotime($m['sent_at'])) === date('Y-m-d') ? 'Today'
-                          : (date('Y-m-d', strtotime($m['sent_at'])) === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday'
+            'dayLabel' => $m['sent_at'] && date('Y-m-d', strtotime($m['sent_at'])) === date('Y-m-d') ? __('cc_chat_today', 'Today')
+                          : (date('Y-m-d', strtotime($m['sent_at'])) === date('Y-m-d', strtotime('-1 day')) ? __('cc_chat_yesterday', 'Yesterday')
                              : I18n::localDate('l, j F', strtotime($m['sent_at']))),
             'html'     => coaching_admin_render_bubble_html($m, $m['sender'] === 'practitioner'),
         ];
@@ -131,9 +131,9 @@ require SLATE_ROOT . '/admin/partials/header.php';
 coaching_emit_css('admin.css');
 
 slate_breadcrumbs([
-    ['label' => 'Dashboard', 'href' => SLATE_URL . '/admin/'],
-    ['label' => 'Coaching',  'href' => plugin_url('coaching', 'admin/index.php')],
-    ['label' => 'Chat'],
+    ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
+    ['label' => __('cc_coaching_title', 'Coaching'),  'href' => plugin_url('coaching', 'admin/index.php')],
+    ['label' => __('cc_chat_page_title', 'Chat')],
 ]);
 
 $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
@@ -141,10 +141,10 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
 
 <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
     <div>
-        <h1 style="margin:0;">Client chat</h1>
+        <h1 style="margin:0;"><?= __('cc_chat_client_chat', 'Client chat') ?></h1>
         <p style="margin:4px 0 0;color:var(--coach-muted);font-size:14px;">
-            <?= count($threads) ?> thread<?= count($threads) === 1 ? '' : 's' ?>
-            <?php if ($totalUnread > 0): ?> · <span style="color:var(--coach-brand);font-weight:600;"><?= (int)$totalUnread ?> unread</span><?php endif; ?>
+            <?= e(sprintf(__('cc_chat_thread_count', '%d thread(s)'), count($threads))) ?>
+            <?php if ($totalUnread > 0): ?> · <span style="color:var(--coach-brand);font-weight:600;"><?= e(sprintf(__('cc_chat_unread_count', '%d unread'), (int)$totalUnread)) ?></span><?php endif; ?>
         </p>
     </div>
 </div>
@@ -158,20 +158,20 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
     <!-- LEFT: threads list -->
     <div class="coach-chat-side">
         <div class="coach-chat-side-head">
-            <h3>Threads</h3>
+            <h3><?= __('cc_chat_threads', 'Threads') ?></h3>
             <span class="coach-pill is-brand"><?= count($threads) ?></span>
         </div>
         <div class="coach-chat-side-list">
             <?php if (!$threads): ?>
                 <div class="coach-empty" style="padding:32px 20px;">
                     <div class="coach-empty-icon"><?= slate_admin_nav_icon('message') ?></div>
-                    <div class="coach-empty-title">No threads yet</div>
-                    <div class="coach-empty-sub">Threads spin up automatically when a client is enrolled.</div>
+                    <div class="coach-empty-title"><?= __('cc_chat_no_threads', 'No threads yet') ?></div>
+                    <div class="coach-empty-sub"><?= __('cc_chat_no_threads_hint', 'Threads spin up automatically when a client is enrolled.') ?></div>
                 </div>
             <?php else: foreach ($threads as $t):
                 $preview = trim((string)$t['last_body']);
-                if ($preview === '' && !empty($t['last_message_at'])) $preview = slate_admin_nav_icon('camera') . ' Photo';
-                $senderTag = $t['last_sender'] === 'practitioner' ? 'You: ' : '';
+                if ($preview === '' && !empty($t['last_message_at'])) $preview = slate_admin_nav_icon('camera') . ' ' . __('cc_photo', 'Photo');
+                $senderTag = $t['last_sender'] === 'practitioner' ? __('cc_chat_you_prefix', 'You: ') : '';
                 $unread = (int)$t['unread_practitioner'];
                 $when = $t['last_message_at']
                     ? (date('Y-m-d', strtotime($t['last_message_at'])) === date('Y-m-d')
@@ -189,7 +189,7 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                             <span class="coach-chat-thread-name"><?= e($t['customer_name']) ?></span>
                             <span class="coach-chat-thread-time"><?= e($when) ?></span>
                         </div>
-                        <div class="coach-chat-thread-preview"><?= e($senderTag . ($preview ?: 'No messages yet')) ?></div>
+                        <div class="coach-chat-thread-preview"><?= e($senderTag . ($preview ?: __('cc_chat_no_messages_yet', 'No messages yet'))) ?></div>
                     </div>
                     <?php if ($unread > 0): ?><span class="coach-chat-unread-badge"><?= $unread ?></span><?php endif; ?>
                 </a>
@@ -202,8 +202,8 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
         <?php if (!$activeThread): ?>
             <div class="coach-empty" style="margin:auto;padding:40px 24px;">
                 <div class="coach-empty-icon"><?= slate_admin_nav_icon('message') ?></div>
-                <div class="coach-empty-title">Select a thread</div>
-                <div class="coach-empty-sub">Pick a conversation from the left to start replying.</div>
+                <div class="coach-empty-title"><?= __('cc_chat_select_thread', 'Select a thread') ?></div>
+                <div class="coach-empty-sub"><?= __('cc_chat_select_thread_hint', 'Pick a conversation from the left to start replying.') ?></div>
             </div>
         <?php else: ?>
             <div class="coach-chat-main-head">
@@ -212,7 +212,7 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                     <div style="font-weight:600;font-size:15px;color:var(--coach-text);"><?= e($activeThread['customer_name']) ?></div>
                     <div style="font-size:12px;color:var(--coach-muted);"><?= e($activeThread['customer_email']) ?></div>
                 </div>
-                <a href="<?= e(plugin_url('coaching', 'admin/client.php')) ?>?id=<?= (int)$activeThread['customer_id'] ?>" class="btn btn-sm btn-secondary">Open client</a>
+                <a href="<?= e(plugin_url('coaching', 'admin/client.php')) ?>?id=<?= (int)$activeThread['customer_id'] ?>" class="btn btn-sm btn-secondary"><?= __('cc_chat_open_client', 'Open client') ?></a>
             </div>
 
             <div class="coach-chat-main-body" id="chat-scroll"
@@ -222,8 +222,8 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                 <?php if (!$delivered): ?>
                     <div class="coach-empty" style="padding:40px 20px;">
                         <div class="coach-empty-icon"><?= slate_admin_nav_icon('edit-3') ?></div>
-                        <div class="coach-empty-title">No messages exchanged yet</div>
-                        <div class="coach-empty-sub">Break the ice below.</div>
+                        <div class="coach-empty-title"><?= __('cc_chat_no_messages_exchanged', 'No messages exchanged yet') ?></div>
+                        <div class="coach-empty-sub"><?= __('cc_chat_break_the_ice', 'Break the ice below.') ?></div>
                     </div>
                 <?php else:
                     $lastDay = '';
@@ -232,8 +232,8 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                         if ($day !== $lastDay):
                             $lastDay = $day;
                             $dayLabel = $day === date('Y-m-d')
-                                ? 'Today'
-                                : ($day === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday' : I18n::localDate('l, j F', strtotime($day)));
+                                ? __('cc_chat_today', 'Today')
+                                : ($day === date('Y-m-d', strtotime('-1 day')) ? __('cc_chat_yesterday', 'Yesterday') : I18n::localDate('l, j F', strtotime($day)));
                             ?>
                             <div class="coach-msg-day-divider"><?= e($dayLabel) ?></div>
                         <?php endif;
@@ -244,19 +244,19 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
             <?php if ($scheduled): ?>
                 <div style="padding:12px 20px;background:rgba(245,158,11,0.06);border-top:1px solid rgba(245,158,11,0.2);">
                     <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--coach-warn);font-weight:700;margin-bottom:8px;">
-                        <?= slate_admin_nav_icon('calendar') ?> Scheduled to send · <?= count($scheduled) ?>
+                        <?= slate_admin_nav_icon('calendar') ?> <?= e(__('cc_chat_scheduled_to_send', 'Scheduled to send')) ?> · <?= count($scheduled) ?>
                     </div>
                     <?php foreach ($scheduled as $m): ?>
                         <div class="coach-scheduled">
                             <div style="flex:1;min-width:0;">
-                                <div style="font-size:13px;color:var(--coach-text);white-space:pre-wrap;overflow:hidden;text-overflow:ellipsis;"><?= e($m['body'] ?? '') !== '' ? e($m['body']) : slate_admin_nav_icon('camera') . ' Photo' ?></div>
-                                <div style="font-size:11px;color:var(--coach-warn);margin-top:2px;">Fires <?= e(I18n::localDate('l, j M · H:i', strtotime($m['send_at']))) ?></div>
+                                <div style="font-size:13px;color:var(--coach-text);white-space:pre-wrap;overflow:hidden;text-overflow:ellipsis;"><?= e($m['body'] ?? '') !== '' ? e($m['body']) : slate_admin_nav_icon('camera') . ' ' . e(__('cc_photo', 'Photo')) ?></div>
+                                <div style="font-size:11px;color:var(--coach-warn);margin-top:2px;"><?= e(__('cc_chat_fires_at', 'Fires')) ?> <?= e(I18n::localDate('l, j M · H:i', strtotime($m['send_at']))) ?></div>
                             </div>
-                            <form method="post" style="margin:0;" onsubmit="return confirm('Cancel this scheduled message?');">
+                            <form method="post" style="margin:0;" onsubmit="return confirm('<?= e(__('cc_chat_confirm_cancel_scheduled', 'Cancel this scheduled message?')) ?>');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="_action" value="cancel_scheduled">
                                 <input type="hidden" name="message_id" value="<?= (int)$m['id'] ?>">
-                                <button style="border:0;background:none;color:var(--coach-warn);cursor:pointer;font-size:12px;font-weight:600;">Cancel</button>
+                                <button style="border:0;background:none;color:var(--coach-warn);cursor:pointer;font-size:12px;font-weight:600;"><?= __('cancel', 'Cancel') ?></button>
                             </form>
                         </div>
                     <?php endforeach; ?>
@@ -267,11 +267,11 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                 <form method="post" enctype="multipart/form-data" id="composer">
                     <?= csrf_field() ?>
                     <input type="hidden" name="_action" value="reply">
-                    <textarea name="body" rows="2" placeholder="Write a reply…" style="width:100%;padding:10px 14px;border:1px solid var(--coach-border-2);border-radius:var(--coach-r-sm);font-size:14px;resize:vertical;font-family:inherit;background:#fff;"></textarea>
+                    <textarea name="body" rows="2" placeholder="<?= e(__('cc_chat_write_a_reply', 'Write a reply…')) ?>" style="width:100%;padding:10px 14px;border:1px solid var(--coach-border-2);border-radius:var(--coach-r-sm);font-size:14px;resize:vertical;font-family:inherit;background:#fff;"></textarea>
                     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap;">
                         <div style="display:flex;gap:8px;align-items:center;">
                             <label style="cursor:pointer;padding:6px 12px;background:#fff;border:1px solid var(--coach-border-2);border-radius:var(--coach-r-sm);font-size:13px;">
-                                <?= slate_admin_nav_icon('camera') ?> Photo
+                                <?= slate_admin_nav_icon('camera') ?> <?= __('cc_photo', 'Photo') ?>
                                 <input type="file" name="photo" accept="image/*" style="display:none;">
                             </label>
                             <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--coach-muted);">
@@ -279,7 +279,7 @@ $totalUnread = array_sum(array_column($threads, 'unread_practitioner'));
                                 <input type="datetime-local" name="send_at" style="padding:5px 8px;border:1px solid var(--coach-border-2);border-radius:6px;font-size:12px;background:#fff;">
                             </label>
                         </div>
-                        <button type="submit" class="btn btn-primary">Send</button>
+                        <button type="submit" class="btn btn-primary"><?= __('cc_send', 'Send') ?></button>
                     </div>
                 </form>
             </div>

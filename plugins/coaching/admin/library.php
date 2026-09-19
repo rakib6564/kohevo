@@ -27,7 +27,7 @@ $flash = null;
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (!csrf_verify()) {
-        $flash = ['type' => 'error', 'msg' => 'Security check failed.'];
+        $flash = ['type' => 'error', 'msg' => __('cc_security_check_failed', 'Security check failed.')];
     } else {
         $action = (string)($_POST['_action'] ?? '');
 
@@ -42,15 +42,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 'sort_order' => (int)($_POST['sort_order'] ?? 0),
                 'customer_id'=> null,
             ]);
-            $flash = ['type' => 'success', 'msg' => 'Meal structure saved.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_lib_structure_saved', 'Meal structure saved.')];
         }
         elseif ($action === 'delete_structure') {
             CoachingAPI::deleteMealStructure((int)($_POST['id'] ?? 0));
-            $flash = ['type' => 'success', 'msg' => 'Removed.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_removed', 'Removed.')];
         }
         elseif ($action === 'copy_structure') {
             CoachingAPI::copyMealStructureToClient((int)($_POST['id'] ?? 0), (int)($_POST['customer_id'] ?? 0));
-            $flash = ['type' => 'success', 'msg' => 'Copied to client.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_lib_copied_to_client', 'Copied to client.')];
         }
         elseif ($action === 'save_shopping') {
             $sections = [];
@@ -68,15 +68,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 'tags'        => $tags,
                 'customer_id' => null,
             ]);
-            $flash = ['type' => 'success', 'msg' => 'Shopping list saved.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_lib_shopping_saved', 'Shopping list saved.')];
         }
         elseif ($action === 'delete_shopping') {
             CoachingAPI::deleteShoppingList((int)($_POST['id'] ?? 0));
-            $flash = ['type' => 'success', 'msg' => 'Removed.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_removed', 'Removed.')];
         }
         elseif ($action === 'copy_shopping') {
             CoachingAPI::copyShoppingListToClient((int)($_POST['id'] ?? 0), (int)($_POST['customer_id'] ?? 0));
-            $flash = ['type' => 'success', 'msg' => 'Copied to client.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_lib_copied_to_client', 'Copied to client.')];
         }
         elseif ($action === 'save_recipe') {
             $ingredients = array_filter(array_map('trim', explode("\n", (string)($_POST['ingredients_text'] ?? ''))));
@@ -106,15 +106,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 'tags'              => $tags,
                 'customer_id'       => null,
             ]);
-            $flash = ['type' => 'success', 'msg' => 'Recipe saved.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_lib_recipe_saved', 'Recipe saved.')];
         }
         elseif ($action === 'delete_recipe') {
             CoachingAPI::deleteRecipe((int)($_POST['id'] ?? 0));
-            $flash = ['type' => 'success', 'msg' => 'Removed.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_removed', 'Removed.')];
         }
         elseif ($action === 'copy_recipe') {
             CoachingAPI::copyRecipeToClient((int)($_POST['id'] ?? 0), (int)($_POST['customer_id'] ?? 0));
-            $flash = ['type' => 'success', 'msg' => 'Copied to client.'];
+            $flash = ['type' => 'success', 'msg' => __('cc_lib_copied_to_client', 'Copied to client.')];
         }
         elseif ($action === 'save_customer_recipe_note') {
             // Every sibling action in this file (saveRecipe/deleteRecipe, and
@@ -127,7 +127,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $r = Database::row("SELECT * FROM coaching_recipe WHERE id = ? AND tenant_id = ?", [$rid, $tid]);
             if ($r) {
                 Database::update('coaching_recipe', ['notes' => trim((string)($_POST['notes'] ?? ''))], 'id = ? AND tenant_id = ?', [$rid, $tid]);
-                $flash = ['type' => 'success', 'msg' => 'Note saved.'];
+                $flash = ['type' => 'success', 'msg' => __('cc_lib_note_saved', 'Note saved.')];
             }
         }
     }
@@ -142,16 +142,16 @@ require SLATE_ROOT . '/admin/partials/header.php';
 coaching_emit_css('admin.css');
 
 slate_breadcrumbs([
-    ['label' => 'Dashboard', 'href' => SLATE_URL . '/admin/'],
-    ['label' => 'Coaching',  'href' => plugin_url('coaching', 'admin/index.php')],
-    ['label' => 'Library'],
+    ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
+    ['label' => __('cc_coaching_title', 'Coaching'),  'href' => plugin_url('coaching', 'admin/index.php')],
+    ['label' => __('cc_library', 'Library')],
 ]);
 ?>
 
 <div class="page-header">
     <div>
-        <h1>Library</h1>
-        <p class="text-muted">Reusable meal structures, shopping lists and recipes. "Copy to client" spins off an editable copy.</p>
+        <h1><?= __('cc_library', 'Library') ?></h1>
+        <p class="text-muted"><?= __('cc_lib_subtitle', 'Reusable meal structures, shopping lists and recipes. "Copy to client" spins off an editable copy.') ?></p>
     </div>
 </div>
 
@@ -162,7 +162,7 @@ slate_breadcrumbs([
 <?php endif; ?>
 
 <div style="display:flex;gap:8px;margin-bottom:var(--space-3);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
-    <?php foreach (['structure'=>'Meal structures','shopping'=>'Shopping lists','recipes'=>'Recipes','submitted'=>'Client-submitted'] as $key => $lbl): ?>
+    <?php foreach (['structure'=>__('cc_lib_tab_structure', 'Meal structures'),'shopping'=>__('cc_lib_tab_shopping', 'Shopping lists'),'recipes'=>__('cc_recipes', 'Recipes'),'submitted'=>__('cc_lib_tab_submitted', 'Client-submitted')] as $key => $lbl): ?>
         <a href="?tab=<?= e($key) ?>" style="padding:8px 14px;text-decoration:none;white-space:nowrap;flex-shrink:0;border-bottom:2px solid <?= $tab === $key ? 'var(--coach-brand)' : 'transparent' ?>;color:<?= $tab === $key ? '#0f172a' : '#64748b' ?>;font-weight:<?= $tab === $key ? '600' : '400' ?>;">
             <?= e($lbl) ?>
         </a>
@@ -190,7 +190,7 @@ function coaching_client_copy_form(string $action, int $rowId, array $clients): 
                 <option value="<?= (int)$c['id'] ?>"><?= e($c['name']) ?></option>
             <?php endforeach; ?>
         </select>
-        <button class="btn btn-sm btn-primary">Copy to client</button>
+        <button class="btn btn-sm btn-primary"><?= __('cc_lib_copy_to_client_btn', 'Copy to client') ?></button>
     </form>
     <?php
 }
@@ -205,45 +205,45 @@ function coaching_lib_render_structure(array $clients): void {
     $items = CoachingAPI::listMealStructure(null);
     ?>
     <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
-        <h3 style="margin-top:0;"><?= $editing ? 'Edit meal structure' : 'New meal structure' ?></h3>
+        <h3 style="margin-top:0;"><?= $editing ? __('cc_lib_edit_structure', 'Edit meal structure') : __('cc_lib_new_structure', 'New meal structure') ?></h3>
         <form method="post">
             <?= csrf_field() ?>
             <input type="hidden" name="_action" value="save_structure">
             <input type="hidden" name="id" value="<?= (int)($editing['id'] ?? 0) ?>">
             <div class="field-row field-row-title">
-                <div class="field"><label class="field-label" for="title">Title</label>
-                    <input type="text" id="title" name="title" required maxlength="200" value="<?= e((string)($editing['title'] ?? '')) ?>" placeholder="Balanced breakfast">
+                <div class="field"><label class="field-label" for="title"><?= __('title', 'Title') ?></label>
+                    <input type="text" id="title" name="title" required maxlength="200" value="<?= e((string)($editing['title'] ?? '')) ?>" placeholder="<?= e(__('cc_lib_placeholder_balanced_breakfast', 'Balanced breakfast')) ?>">
                 </div>
-                <div class="field"><label class="field-label" for="slot">Slot</label>
+                <div class="field"><label class="field-label" for="slot"><?= __('cc_lib_slot', 'Slot') ?></label>
                     <select id="slot" name="slot">
-                        <?php foreach (['breakfast'=>'Breakfast','lunch'=>'Lunch','dinner'=>'Dinner','snack'=>'Snack','note'=>'Note'] as $v=>$lbl): ?>
+                        <?php foreach (['breakfast'=>__('cc_lib_breakfast', 'Breakfast'),'lunch'=>__('cc_lib_lunch', 'Lunch'),'dinner'=>__('cc_lib_dinner', 'Dinner'),'snack'=>__('cc_lib_snack', 'Snack'),'note'=>__('cc_lib_note_slot', 'Note')] as $v=>$lbl): ?>
                             <option value="<?= e($v) ?>" <?= (($editing['slot'] ?? 'note') === $v) ? 'selected' : '' ?>><?= e($lbl) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="field"><label class="field-label" for="sort_order">Sort</label>
+                <div class="field"><label class="field-label" for="sort_order"><?= __('cc_lib_sort', 'Sort') ?></label>
                     <input type="number" id="sort_order" name="sort_order" value="<?= (int)($editing['sort_order'] ?? 0) ?>">
                 </div>
             </div>
             <div class="field">
-                <label class="field-label" for="notes_html">Notes (HTML)</label>
+                <label class="field-label" for="notes_html"><?= __('cc_lib_notes_html', 'Notes (HTML)') ?></label>
                 <textarea id="notes_html" name="notes_html" rows="5" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;"><?= e((string)($editing['notes_html'] ?? '')) ?></textarea>
-                <div class="field-hint">You can use basic HTML: <code>&lt;ul&gt; &lt;li&gt; &lt;strong&gt; &lt;em&gt;</code>.</div>
+                <div class="field-hint"><?= __('cc_lib_html_hint', 'You can use basic HTML:') ?> <code>&lt;ul&gt; &lt;li&gt; &lt;strong&gt; &lt;em&gt;</code>.</div>
             </div>
             <div class="field">
-                <label class="field-label" for="tags_csv">Tags</label>
-                <input type="text" id="tags_csv" name="tags_csv" value="<?= e(implode(', ', (array)($editing['tags'] ?? []))) ?>" placeholder="gluten-free, low-gi, quick">
-                <div class="field-hint">Comma-separated. Used to filter the library later.</div>
+                <label class="field-label" for="tags_csv"><?= __('cc_lib_tags', 'Tags') ?></label>
+                <input type="text" id="tags_csv" name="tags_csv" value="<?= e(implode(', ', (array)($editing['tags'] ?? []))) ?>" placeholder="<?= e(__('cc_lib_tags_placeholder_structure', 'gluten-free, low-gi, quick')) ?>">
+                <div class="field-hint"><?= __('cc_lib_tags_hint', 'Comma-separated. Used to filter the library later.') ?></div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <?php if ($editing): ?><a href="?tab=structure" class="btn btn-ghost">Cancel</a><?php endif; ?>
-                <button class="btn btn-primary"><?= $editing ? 'Update' : 'Add to library' ?></button>
+                <?php if ($editing): ?><a href="?tab=structure" class="btn btn-ghost"><?= __('cancel', 'Cancel') ?></a><?php endif; ?>
+                <button class="btn btn-primary"><?= $editing ? __('cc_update', 'Update') : __('cc_lib_add_to_library', 'Add to library') ?></button>
             </div>
         </form>
     </div>
 
     <?php if (!$items): ?>
-        <div class="card"><div class="empty"><div class="empty-title">No meal structures yet</div><p class="text-sm">Add one above — it becomes reusable across all your clients.</p></div></div>
+        <div class="card"><div class="empty"><div class="empty-title"><?= __('cc_lib_no_structures', 'No meal structures yet') ?></div><p class="text-sm"><?= __('cc_lib_no_structures_hint', 'Add one above — it becomes reusable across all your clients.') ?></p></div></div>
     <?php else: ?>
         <div class="card">
             <?php foreach ($items as $it): ?>
@@ -257,12 +257,12 @@ function coaching_lib_render_structure(array $clients): void {
                             <?php endforeach; ?>
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                            <a class="btn btn-sm btn-ghost" href="?tab=structure&edit=<?= (int)$it['id'] ?>">Edit</a>
-                            <form method="post" style="margin:0;" onsubmit="return confirm('Remove from library?');">
+                            <a class="btn btn-sm btn-ghost" href="?tab=structure&edit=<?= (int)$it['id'] ?>"><?= __('edit', 'Edit') ?></a>
+                            <form method="post" style="margin:0;" onsubmit="return confirm('<?= e(__('cc_lib_confirm_remove_library', 'Remove from library?')) ?>');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="_action" value="delete_structure">
                                 <input type="hidden" name="id" value="<?= (int)$it['id'] ?>">
-                                <button class="btn btn-sm btn-danger">Delete</button>
+                                <button class="btn btn-sm btn-danger"><?= __('delete', 'Delete') ?></button>
                             </form>
                             <?php coaching_client_copy_form('copy_structure', (int)$it['id'], $clients); ?>
                         </div>
@@ -289,53 +289,53 @@ function coaching_lib_render_shopping(array $clients): void {
     $lists = CoachingAPI::listShoppingLists(null);
     ?>
     <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
-        <h3 style="margin-top:0;"><?= $editing ? 'Edit shopping list' : 'New shopping list' ?></h3>
+        <h3 style="margin-top:0;"><?= $editing ? __('cc_lib_edit_shopping', 'Edit shopping list') : __('cc_lib_new_shopping', 'New shopping list') ?></h3>
         <form method="post">
             <?= csrf_field() ?>
             <input type="hidden" name="_action" value="save_shopping">
             <input type="hidden" name="id" value="<?= (int)($editing['id'] ?? 0) ?>">
             <div class="field">
-                <label class="field-label" for="name">Name</label>
-                <input type="text" id="name" name="name" required maxlength="200" value="<?= e((string)($editing['name'] ?? '')) ?>" placeholder="Gluten-free basic weekly">
+                <label class="field-label" for="name"><?= __('name', 'Name') ?></label>
+                <input type="text" id="name" name="name" required maxlength="200" value="<?= e((string)($editing['name'] ?? '')) ?>" placeholder="<?= e(__('cc_lib_placeholder_shopping_name', 'Gluten-free basic weekly')) ?>">
             </div>
             <div id="sections-list">
                 <?php foreach ($editingSections as $i => $sec): ?>
                     <div class="field-row field-row-wide" style="margin-bottom:12px;padding:12px;background:rgba(148,163,184,0.05);border-radius:8px;">
                         <div class="field" style="margin:0;">
-                            <label class="field-label">Section heading</label>
-                            <input type="text" name="section_heading[]" maxlength="100" value="<?= e((string)($sec['heading'] ?? '')) ?>" placeholder="Staples">
+                            <label class="field-label"><?= __('cc_lib_section_heading', 'Section heading') ?></label>
+                            <input type="text" name="section_heading[]" maxlength="100" value="<?= e((string)($sec['heading'] ?? '')) ?>" placeholder="<?= e(__('cc_lib_placeholder_staples', 'Staples')) ?>">
                         </div>
                         <div class="field" style="margin:0;">
-                            <label class="field-label">Items (one per line)</label>
+                            <label class="field-label"><?= __('cc_lib_items_one_per_line', 'Items (one per line)') ?></label>
                             <textarea name="section_items[]" rows="4" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;"><?= e(implode("\n", (array)($sec['items'] ?? []))) ?></textarea>
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
-            <p style="margin:4px 0;"><small class="text-muted">Add another section by editing the empty rows below.</small></p>
+            <p style="margin:4px 0;"><small class="text-muted"><?= __('cc_lib_add_section_hint', 'Add another section by editing the empty rows below.') ?></small></p>
             <?php for ($i = 0; $i < 3; $i++): ?>
                 <div style="display:grid;grid-template-columns:1fr 3fr;gap:12px;margin-bottom:12px;padding:12px;background:rgba(148,163,184,0.05);border-radius:8px;">
                     <div class="field" style="margin:0;">
-                        <input type="text" name="section_heading[]" maxlength="100" placeholder="e.g. Suitable alternatives">
+                        <input type="text" name="section_heading[]" maxlength="100" placeholder="<?= e(__('cc_lib_placeholder_suitable_alt', 'e.g. Suitable alternatives')) ?>">
                     </div>
                     <div class="field" style="margin:0;">
-                        <textarea name="section_items[]" rows="3" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;" placeholder="one item per line"></textarea>
+                        <textarea name="section_items[]" rows="3" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;" placeholder="<?= e(__('cc_lib_placeholder_one_item_per_line', 'one item per line')) ?>"></textarea>
                     </div>
                 </div>
             <?php endfor; ?>
             <div class="field">
-                <label class="field-label" for="tags_csv">Tags</label>
-                <input type="text" id="tags_csv" name="tags_csv" value="<?= e(implode(', ', $editingTags)) ?>" placeholder="gluten-free, vegetarian, low-gi">
+                <label class="field-label" for="tags_csv"><?= __('cc_lib_tags', 'Tags') ?></label>
+                <input type="text" id="tags_csv" name="tags_csv" value="<?= e(implode(', ', $editingTags)) ?>" placeholder="<?= e(__('cc_lib_tags_placeholder_shopping', 'gluten-free, vegetarian, low-gi')) ?>">
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <?php if ($editing): ?><a href="?tab=shopping" class="btn btn-ghost">Cancel</a><?php endif; ?>
-                <button class="btn btn-primary"><?= $editing ? 'Update' : 'Add to library' ?></button>
+                <?php if ($editing): ?><a href="?tab=shopping" class="btn btn-ghost"><?= __('cancel', 'Cancel') ?></a><?php endif; ?>
+                <button class="btn btn-primary"><?= $editing ? __('cc_update', 'Update') : __('cc_lib_add_to_library', 'Add to library') ?></button>
             </div>
         </form>
     </div>
 
     <?php if (!$lists): ?>
-        <div class="card"><div class="empty"><div class="empty-title">No shopping lists yet</div></div></div>
+        <div class="card"><div class="empty"><div class="empty-title"><?= __('cc_lib_no_shopping', 'No shopping lists yet') ?></div></div></div>
     <?php else: ?>
         <div class="card">
             <?php foreach ($lists as $l): ?>
@@ -347,17 +347,17 @@ function coaching_lib_render_shopping(array $clients): void {
                                 <span style="display:inline-block;font-size:11px;background:#e2e8f0;color:#475569;padding:2px 8px;border-radius:8px;margin-left:6px;"><?= e($t) ?></span>
                             <?php endforeach; ?>
                             <div class="text-muted" style="font-size:13px;margin-top:4px;">
-                                <?= count($l['sections']) ?> section<?= count($l['sections']) === 1 ? '' : 's' ?> ·
-                                <?= array_sum(array_map(fn($s) => count($s['items'] ?? []), $l['sections'])) ?> items
+                                <?= e(sprintf(__('cc_lib_sections_count', '%d section(s)'), count($l['sections']))) ?> ·
+                                <?= e(sprintf(__('cc_lib_items_count', '%d item(s)'), array_sum(array_map(fn($s) => count($s['items'] ?? []), $l['sections'])))) ?>
                             </div>
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                            <a class="btn btn-sm btn-ghost" href="?tab=shopping&edit=<?= (int)$l['id'] ?>">Edit</a>
-                            <form method="post" style="margin:0;" onsubmit="return confirm('Remove?');">
+                            <a class="btn btn-sm btn-ghost" href="?tab=shopping&edit=<?= (int)$l['id'] ?>"><?= __('edit', 'Edit') ?></a>
+                            <form method="post" style="margin:0;" onsubmit="return confirm('<?= e(__('cc_confirm_remove', 'Remove?')) ?>');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="_action" value="delete_shopping">
                                 <input type="hidden" name="id" value="<?= (int)$l['id'] ?>">
-                                <button class="btn btn-sm btn-danger">Delete</button>
+                                <button class="btn btn-sm btn-danger"><?= __('delete', 'Delete') ?></button>
                             </form>
                             <?php coaching_client_copy_form('copy_shopping', (int)$l['id'], $clients); ?>
                         </div>
@@ -387,29 +387,29 @@ function coaching_lib_render_recipes(array $clients): void {
         <script src="<?= e(plugin_url('media-library', 'assets/js/picker.js')) ?>"></script>
     <?php endif; ?>
     <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
-        <h3 style="margin-top:0;"><?= $editing ? 'Edit recipe' : 'New recipe' ?></h3>
+        <h3 style="margin-top:0;"><?= $editing ? __('cc_lib_edit_recipe', 'Edit recipe') : __('cc_lib_new_recipe', 'New recipe') ?></h3>
         <form method="post" enctype="multipart/form-data">
             <?= csrf_field() ?>
             <input type="hidden" name="_action" value="save_recipe">
             <input type="hidden" name="id" value="<?= (int)($editing['id'] ?? 0) ?>">
             <div class="field-row field-row-recipe">
-                <div class="field"><label class="field-label" for="title">Title</label>
+                <div class="field"><label class="field-label" for="title"><?= __('title', 'Title') ?></label>
                     <input type="text" id="title" name="title" required maxlength="200" value="<?= e((string)($editing['title'] ?? '')) ?>">
                 </div>
-                <div class="field"><label class="field-label" for="video_url">Video URL (optional)</label>
+                <div class="field"><label class="field-label" for="video_url"><?= __('cc_lib_video_url', 'Video URL (optional)') ?></label>
                     <input type="url" id="video_url" name="video_url" maxlength="500" value="<?= e((string)($editing['video_url'] ?? '')) ?>" placeholder="https://youtu.be/…">
                 </div>
             </div>
             <div class="field">
-                <label class="field-label" for="ingredients_text">Ingredients (one per line)</label>
+                <label class="field-label" for="ingredients_text"><?= __('cc_lib_ingredients_label', 'Ingredients (one per line)') ?></label>
                 <textarea id="ingredients_text" name="ingredients_text" rows="6" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;"><?= e(implode("\n", $editingIngredients)) ?></textarea>
             </div>
             <div class="field">
-                <label class="field-label" for="instructions_html">Instructions (HTML)</label>
+                <label class="field-label" for="instructions_html"><?= __('cc_lib_instructions_label', 'Instructions (HTML)') ?></label>
                 <textarea id="instructions_html" name="instructions_html" rows="8" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;"><?= e((string)($editing['instructions_html'] ?? '')) ?></textarea>
             </div>
             <div class="field">
-                <label class="field-label" for="photo">Photo (optional)</label>
+                <label class="field-label" for="photo"><?= __('cc_lib_photo_optional', 'Photo (optional)') ?></label>
                 <input type="file" id="photo" name="photo" accept="image/*">
                 <input type="hidden" name="existing_photo_path" value="<?= e((string)($editing['photo_path'] ?? '')) ?>">
                 <?php if ($mediaLibraryActive): ?>
@@ -417,7 +417,7 @@ function coaching_lib_render_recipes(array $clients): void {
                     <button type="button" class="mlp-trigger-btn"
                             data-mlp-target="picked_photo_path"
                             data-mlp-mode="single">
-                        Or pick from media library&hellip;
+                        <?= __('cc_lib_pick_media', 'Or pick from media library&hellip;') ?>
                     </button>
                 <?php endif; ?>
                 <?php if (!empty($editing['photo_path'])): ?>
@@ -427,27 +427,27 @@ function coaching_lib_render_recipes(array $clients): void {
                 <?php endif; ?>
             </div>
             <div class="field">
-                <label class="field-label" for="tags_csv">Tags</label>
-                <input type="text" id="tags_csv" name="tags_csv" value="<?= e(implode(', ', $editingTags)) ?>" placeholder="quick, budget, low-gi">
+                <label class="field-label" for="tags_csv"><?= __('cc_lib_tags', 'Tags') ?></label>
+                <input type="text" id="tags_csv" name="tags_csv" value="<?= e(implode(', ', $editingTags)) ?>" placeholder="<?= e(__('cc_lib_tags_placeholder_recipe', 'quick, budget, low-gi')) ?>">
             </div>
             <div class="field">
-                <label class="field-label" for="notes">Practitioner note</label>
+                <label class="field-label" for="notes"><?= __('cc_lib_practitioner_note', 'Practitioner note') ?></label>
                 <textarea id="notes" name="notes" rows="2"><?= e((string)($editing['notes'] ?? '')) ?></textarea>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <?php if ($editing): ?><a href="?tab=recipes" class="btn btn-ghost">Cancel</a><?php endif; ?>
-                <button class="btn btn-primary"><?= $editing ? 'Update' : 'Add to library' ?></button>
+                <?php if ($editing): ?><a href="?tab=recipes" class="btn btn-ghost"><?= __('cancel', 'Cancel') ?></a><?php endif; ?>
+                <button class="btn btn-primary"><?= $editing ? __('cc_update', 'Update') : __('cc_lib_add_to_library', 'Add to library') ?></button>
             </div>
         </form>
     </div>
 
     <?php if (!$recipes): ?>
-        <div class="card"><div class="empty"><div class="empty-title">No recipes yet</div></div></div>
+        <div class="card"><div class="empty"><div class="empty-title"><?= __('cc_lib_no_recipes', 'No recipes yet') ?></div></div></div>
     <?php else: ?>
         <div class="data-list" data-single-open>
             <?php foreach ($recipes as $r):
                 $ingredientCount = count($r['ingredients']);
-                $meta = $ingredientCount . ' ingredient' . ($ingredientCount === 1 ? '' : 's');
+                $meta = sprintf(__('cc_lib_ingredient_count', '%d ingredient(s)'), $ingredientCount);
                 if (!empty($r['tags'])) {
                     $meta .= ' - ' . implode(', ', $r['tags']);
                 }
@@ -459,12 +459,12 @@ function coaching_lib_render_recipes(array $clients): void {
                 }
 
                 ob_start(); ?>
-                <a class="btn btn-sm btn-ghost" href="?tab=recipes&edit=<?= (int)$r['id'] ?>">Edit</a>
-                <form method="post" style="margin:0;" onsubmit="return confirm('Remove?');">
+                <a class="btn btn-sm btn-ghost" href="?tab=recipes&edit=<?= (int)$r['id'] ?>"><?= __('edit', 'Edit') ?></a>
+                <form method="post" style="margin:0;" onsubmit="return confirm('<?= e(__('cc_confirm_remove', 'Remove?')) ?>');">
                     <?= csrf_field() ?>
                     <input type="hidden" name="_action" value="delete_recipe">
                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                    <button class="btn btn-sm btn-danger">Delete</button>
+                    <button class="btn btn-sm btn-danger"><?= __('delete', 'Delete') ?></button>
                 </form>
                 <?php $rowActions = ob_get_clean();
 
@@ -494,7 +494,7 @@ function coaching_lib_render_recipes(array $clients): void {
                     'avatar_color' => 'accent',
                     'title'        => (string)$r['title'],
                     'meta'         => $meta,
-                    'detail'       => [['label' => 'Details', 'html' => $tagsAndIngredientsHtml]],
+                    'detail'       => [['label' => __('cc_lib_details', 'Details'), 'html' => $tagsAndIngredientsHtml]],
                     'actions'      => $rowActions,
                 ]);
             endforeach; ?>
@@ -508,7 +508,7 @@ function coaching_lib_render_submitted(): void {
     $rows = CoachingAPI::recentCustomerRecipes(30);
     ?>
     <?php if (!$rows): ?>
-        <div class="card"><div class="empty"><div class="empty-title">No client submissions yet</div><p class="text-sm">Recipes clients share with you appear here.</p></div></div>
+        <div class="card"><div class="empty"><div class="empty-title"><?= __('cc_lib_no_submissions', 'No client submissions yet') ?></div><p class="text-sm"><?= __('cc_lib_no_submissions_hint', 'Recipes clients share with you appear here.') ?></p></div></div>
     <?php else: ?>
         <div class="card">
             <?php foreach ($rows as $r):
@@ -522,11 +522,11 @@ function coaching_lib_render_submitted(): void {
                         <div style="flex:1;min-width:280px;">
                             <strong><?= e($r['title']) ?></strong>
                             <div class="text-muted" style="font-size:13px;">
-                                From <?= e($r['customer_name']) ?> · <?= e(I18n::localDate('j M Y', strtotime($r['created_at']))) ?>
+                                <?= e(__('cc_lib_from_prefix', 'From')) ?> <?= e($r['customer_name']) ?> · <?= e(I18n::localDate('j M Y', strtotime($r['created_at']))) ?>
                             </div>
                             <?php if ($ingredients): ?>
                                 <details style="margin-top:6px;font-size:13px;">
-                                    <summary><?= count($ingredients) ?> ingredients</summary>
+                                    <summary><?= e(sprintf(__('cc_lib_ingredient_count', '%d ingredient(s)'), count($ingredients))) ?></summary>
                                     <ul><?php foreach ($ingredients as $it): ?><li><?= e($it) ?></li><?php endforeach; ?></ul>
                                 </details>
                             <?php endif; ?>
@@ -534,8 +534,8 @@ function coaching_lib_render_submitted(): void {
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="_action" value="save_customer_recipe_note">
                                 <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                                <textarea name="notes" rows="2" style="width:100%;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);" placeholder="Comment or correction for the client…"><?= e((string)($r['notes'] ?? '')) ?></textarea>
-                                <button class="btn btn-sm btn-primary" style="margin-top:6px;">Save comment</button>
+                                <textarea name="notes" rows="2" style="width:100%;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);" placeholder="<?= e(__('cc_lib_comment_placeholder', 'Comment or correction for the client…')) ?>"><?= e((string)($r['notes'] ?? '')) ?></textarea>
+                                <button class="btn btn-sm btn-primary" style="margin-top:6px;"><?= __('cc_lib_save_comment', 'Save comment') ?></button>
                             </form>
                         </div>
                     </div>
