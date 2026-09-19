@@ -286,12 +286,12 @@ function slate_tpl_pill(string $label, string $color): string
 }
 ?>
 
-<div class="content-header" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+<div class="page-header" style="margin-bottom:24px;">
     <div>
         <h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:var(--text);"><?= __('templates_library', 'Template Library') ?></h1>
         <p style="margin:0;color:var(--muted);font-size:14px;"><?= __('templates_library_sub', 'Standard page structures, section presets, and reusable design layouts.') ?></p>
     </div>
-    <div style="display:flex;gap:10px;">
+    <div class="toolbar">
         <a href="<?= e(SLATE_URL) ?>/admin/editor.php" class="btn btn-primary">
             <?= slate_admin_nav_icon('layout') ?>
             <span><?= __('open_editor', 'New Page in Editor') ?></span>
@@ -358,8 +358,8 @@ function slate_tpl_pill(string $label, string $color): string
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <div style="font-size:13px;color:var(--text);font-weight:600;"><?= __('import_template', 'Import Template') ?></div>
             <div style="font-size:12px;color:var(--subtle);"><?= __('import_template_hint', 'Upload a .json file exported from this Template Library.') ?></div>
-            <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
-                <input type="file" name="template_file" accept="application/json,.json" required>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin-top:4px;max-width:100%;">
+                <input type="file" name="template_file" accept="application/json,.json" required style="max-width:100%;">
                 <button type="submit" class="btn btn-sm btn-primary"><?= __('import', 'Import') ?></button>
             </div>
         </form>

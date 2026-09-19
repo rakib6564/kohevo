@@ -60,15 +60,15 @@ require __DIR__ . '/partials/header.php';
         <?php endif; ?>
 
         <style>
-        .wiz-steps { display:flex; align-items:center; gap:6px; margin:0 0 22px; }
-        .wiz-steps .s { display:flex; align-items:center; gap:8px; flex:1; }
+        .wiz-steps { display:flex; align-items:center; gap:6px; margin:0 0 22px; max-width:100%; overflow:hidden; }
+        .wiz-steps .s { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
         .wiz-steps .s .n {
             width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
             font-size:12px; font-weight:700; background:var(--surface-2); color:var(--muted);
             border:1px solid var(--border); flex:none; transition:.15s;
         }
-        .wiz-steps .s .t { font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap; }
-        .wiz-steps .s .bar { flex:1; height:2px; background:var(--border); border-radius:2px; }
+        .wiz-steps .s .t { font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+        .wiz-steps .s .bar { flex:1 1 12px; min-width:12px; height:2px; background:var(--border); border-radius:2px; }
         .wiz-steps .s.is-active .n, .wiz-steps .s.is-done .n { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
         .wiz-steps .s.is-active .t, .wiz-steps .s.is-done .t { color:var(--text); }
         .wiz-steps .s.is-done .bar { background:var(--accent); }
