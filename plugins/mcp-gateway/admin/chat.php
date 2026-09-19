@@ -25,7 +25,7 @@ Auth::require();
 Auth::requirePerm('mcp-gateway.manage');
 McpGatewayAPI::ensureSchema();
 
-$pageTitle  = 'AI Assistant';
+$pageTitle  = __('mcp_gateway_chat_title', 'AI Assistant');
 $currentNav = 'mcp-gateway-chat';
 
 if (!isset($_SESSION['mcp_chat_messages']) || !is_array($_SESSION['mcp_chat_messages'])) {
@@ -143,7 +143,7 @@ function mcp_chat_render_field(int $callIdx, string $propName, array $propSchema
 
     if (!empty($propSchema['enum'])) {
         $html = '<select id="' . e($fieldId) . '" name="' . $inputName . '"' . ($required ? ' required' : '') . '>';
-        $html .= '<option value="">— choose —</option>';
+        $html .= '<option value="">' . e(__('mcp_gateway_chat_choose_placeholder', '— choose —')) . '</option>';
         foreach ($propSchema['enum'] as $opt) {
             $selected = ((string)$prefill === (string)$opt) ? ' selected' : '';
             $html .= '<option value="' . e((string)$opt) . '"' . $selected . '>' . e((string)$opt) . '</option>';
@@ -153,7 +153,7 @@ function mcp_chat_render_field(int $callIdx, string $propName, array $propSchema
         $checked = !empty($prefill) ? ' checked' : '';
         $html = '<label class="mcp-check">'
               . '<input type="hidden" name="' . $inputName . '" value="0">'
-              . '<input type="checkbox" id="' . e($fieldId) . '" name="' . $inputName . '" value="1"' . $checked . '> Yes</label>';
+              . '<input type="checkbox" id="' . e($fieldId) . '" name="' . $inputName . '" value="1"' . $checked . '> ' . e(__('yes', 'Yes')) . '</label>';
     } elseif (in_array($type, ['integer', 'number'], true)) {
         $step = $type === 'number' ? ' step="any"' : '';
         $html = '<input type="number"' . $step . ' id="' . e($fieldId) . '" name="' . $inputName . '" value="' . e((string)($prefill ?? '')) . '"' . ($required ? ' required' : '') . '>';
@@ -161,10 +161,10 @@ function mcp_chat_render_field(int $callIdx, string $propName, array $propSchema
         $itemsType = (string)($propSchema['items']['type'] ?? 'string');
         if ($itemsType === 'object') {
             $json = is_array($prefill) ? json_encode($prefill, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '';
-            $html = '<textarea id="' . e($fieldId) . '" name="' . $inputName . '" rows="4" placeholder="JSON array"' . ($required ? ' required' : '') . '>' . e($json) . '</textarea>';
+            $html = '<textarea id="' . e($fieldId) . '" name="' . $inputName . '" rows="4" placeholder="' . e(__('mcp_gateway_chat_json_array_placeholder', 'JSON array')) . '"' . ($required ? ' required' : '') . '>' . e($json) . '</textarea>';
         } else {
             $csv = is_array($prefill) ? implode(', ', $prefill) : (string)($prefill ?? '');
-            $html = '<input type="text" id="' . e($fieldId) . '" name="' . $inputName . '" value="' . e($csv) . '" placeholder="comma-separated"' . ($required ? ' required' : '') . '>';
+            $html = '<input type="text" id="' . e($fieldId) . '" name="' . $inputName . '" value="' . e($csv) . '" placeholder="' . e(__('mcp_gateway_chat_comma_separated_placeholder', 'comma-separated')) . '"' . ($required ? ' required' : '') . '>';
         }
     } else {
         $isLong = (bool) preg_match('/html|notes|description|body|instructions|message/i', $propName);
@@ -227,7 +227,7 @@ function mcp_chat_advance(array &$messages): ?array {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
-        $error = 'Security check failed.';
+        $error = __('mcp_gateway_security_check_failed', 'Security check failed.');
     } else {
         $action = (string)($_POST['_action'] ?? '');
         $messages = &$_SESSION['mcp_chat_messages'];
@@ -271,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($_SESSION['mcp_chat_pending'] as $tc) {
                     $messages[] = [
                         'role' => 'tool', 'tool_call_id' => $tc['id'] ?? '',
-                        'content' => json_encode(['ok' => false, 'declined' => true, 'reason' => 'The admin declined this action.']),
+                        'content' => json_encode(['ok' => false, 'declined' => true, 'reason' => __('mcp_gateway_chat_declined_reason', 'The admin declined this action.')]),
                     ];
                 }
                 $_SESSION['mcp_chat_pending'] = null;
@@ -304,48 +304,48 @@ $pending    = $_SESSION['mcp_chat_pending'];
 function mcp_chat_prompt_library(): array {
     return [
         'Membership' => [
-            'List all active membership plans.',
-            "Create a membership plan named \"Founding Member\" at 99, course-specific, linked to [service name], 12 sessions, 90 days.",
-            'Show me the membership status for customer [email or id].',
-            'Assign the [plan name] plan to customer [email or id].',
-            'List all members and their current plan.',
+            __('mcp_gateway_chat_prompt_membership_1', 'List all active membership plans.'),
+            __('mcp_gateway_chat_prompt_membership_2', "Create a membership plan named \"Founding Member\" at 99, course-specific, linked to [service name], 12 sessions, 90 days."),
+            __('mcp_gateway_chat_prompt_membership_3', 'Show me the membership status for customer [email or id].'),
+            __('mcp_gateway_chat_prompt_membership_4', 'Assign the [plan name] plan to customer [email or id].'),
+            __('mcp_gateway_chat_prompt_membership_5', 'List all members and their current plan.'),
         ],
         'Booking' => [
-            'List all active booking services with their price and duration.',
-            'Create a new 45-minute service named "[name]" at [price].',
-            'Add a new provider named "[name]" with timezone [Europe/Paris].',
-            'Show available slots for [service name] on [YYYY-MM-DD].',
-            'Update [service name] to link it to provider [name].',
+            __('mcp_gateway_chat_prompt_booking_1', 'List all active booking services with their price and duration.'),
+            __('mcp_gateway_chat_prompt_booking_2', 'Create a new 45-minute service named "[name]" at [price].'),
+            __('mcp_gateway_chat_prompt_booking_3', 'Add a new provider named "[name]" with timezone [Europe/Paris].'),
+            __('mcp_gateway_chat_prompt_booking_4', 'Show available slots for [service name] on [YYYY-MM-DD].'),
+            __('mcp_gateway_chat_prompt_booking_5', 'Update [service name] to link it to provider [name].'),
         ],
         'Coaching' => [
-            'List currently enrolled coaching clients.',
-            'Show the chat thread with client [email or id].',
-            'Send this message to client [email or id]: "[message]".',
-            'Create a breakfast meal-structure template titled "[title]" with notes: [notes].',
-            'Create a recipe titled "[title]" with ingredients: [ingredient list].',
-            'Create a shopping list template named "[name]" with sections: [heading: items].',
+            __('mcp_gateway_chat_prompt_coaching_1', 'List currently enrolled coaching clients.'),
+            __('mcp_gateway_chat_prompt_coaching_2', 'Show the chat thread with client [email or id].'),
+            __('mcp_gateway_chat_prompt_coaching_3', 'Send this message to client [email or id]: "[message]".'),
+            __('mcp_gateway_chat_prompt_coaching_4', 'Create a breakfast meal-structure template titled "[title]" with notes: [notes].'),
+            __('mcp_gateway_chat_prompt_coaching_5', 'Create a recipe titled "[title]" with ingredients: [ingredient list].'),
+            __('mcp_gateway_chat_prompt_coaching_6', 'Create a shopping list template named "[name]" with sections: [heading: items].'),
         ],
         'Forms' => [
-            'List all forms and how many submissions each has.',
-            'Create a contact form titled "[title]" with fields: full name (text, required), email (required), message (textarea).',
-            'Show the latest submissions for [form title].',
-            'Mark submission #[id] as done.',
+            __('mcp_gateway_chat_prompt_forms_1', 'List all forms and how many submissions each has.'),
+            __('mcp_gateway_chat_prompt_forms_2', 'Create a contact form titled "[title]" with fields: full name (text, required), email (required), message (textarea).'),
+            __('mcp_gateway_chat_prompt_forms_3', 'Show the latest submissions for [form title].'),
+            __('mcp_gateway_chat_prompt_forms_4', 'Mark submission #[id] as done.'),
         ],
         'Translation' => [
-            'List all configured languages.',
-            'Add [Spanish] as a new language.',
-            'List untranslated strings containing "[keyword]".',
-            'Show the first 20 strings that still need a French translation.',
-            'Translate string #[id] into [French]: "[translated text]".',
-            'Save that as a draft, don\'t publish yet.',
-            'Publish all draft [French] translations.',
+            __('mcp_gateway_chat_prompt_translation_1', 'List all configured languages.'),
+            __('mcp_gateway_chat_prompt_translation_2', 'Add [Spanish] as a new language.'),
+            __('mcp_gateway_chat_prompt_translation_3', 'List untranslated strings containing "[keyword]".'),
+            __('mcp_gateway_chat_prompt_translation_4', 'Show the first 20 strings that still need a French translation.'),
+            __('mcp_gateway_chat_prompt_translation_5', 'Translate string #[id] into [French]: "[translated text]".'),
+            __('mcp_gateway_chat_prompt_translation_6', "Save that as a draft, don't publish yet."),
+            __('mcp_gateway_chat_prompt_translation_7', 'Publish all draft [French] translations.'),
         ],
         'Core / System' => [
-            'What are the current site settings?',
-            'Set the site currency to [EUR].',
-            'Show the last 20 audit log entries.',
-            'Give me a business report for this month.',
-            'Check the database migration status.',
+            __('mcp_gateway_chat_prompt_core_1', 'What are the current site settings?'),
+            __('mcp_gateway_chat_prompt_core_2', 'Set the site currency to [EUR].'),
+            __('mcp_gateway_chat_prompt_core_3', 'Show the last 20 audit log entries.'),
+            __('mcp_gateway_chat_prompt_core_4', 'Give me a business report for this month.'),
+            __('mcp_gateway_chat_prompt_core_5', 'Check the database migration status.'),
         ],
     ];
 }
@@ -355,35 +355,38 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
 <?php slate_breadcrumbs([
     ['label' => __('dashboard', 'Dashboard'), 'href' => SLATE_URL . '/admin/'],
-    ['label' => 'AI Assistant'],
+    ['label' => __('mcp_gateway_chat_title', 'AI Assistant')],
 ]); ?>
 
 <div class="page-header">
     <div>
-        <h1>AI Assistant</h1>
-        <p class="page-header-sub">Ask it to look things up or make changes — anything that writes data shows you the exact call first.</p>
+        <h1><?= e(__('mcp_gateway_chat_title', 'AI Assistant')) ?></h1>
+        <p class="page-header-sub"><?= e(__('mcp_gateway_chat_sub', 'Ask it to look things up or make changes — anything that writes data shows you the exact call first.')) ?></p>
     </div>
     <form method="post">
         <input type="hidden" name="_action" value="reset">
         <?= csrf_field() ?>
-        <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Clear this conversation?');">Clear chat</button>
+        <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm(<?= e(json_encode(__('mcp_gateway_chat_clear_confirm', 'Clear this conversation?'))) ?>);"><?= e(__('mcp_gateway_chat_clear_btn', 'Clear chat')) ?></button>
     </form>
 </div>
 
 <?php if (!$configured): ?>
     <div class="alert alert-warning" role="status">
-        AI provider isn't configured yet. Set it up in <a href="<?= e(plugin_url('mcp-gateway', 'admin/ai-settings.php')) ?>">AI Connection</a> first.
+        <?= sprintf(
+            __('mcp_gateway_chat_not_configured', "AI provider isn't configured yet. Set it up in %s first."),
+            '<a href="' . e(plugin_url('mcp-gateway', 'admin/ai-settings.php')) . '">' . e(__('mcp_gateway_ai_settings_nav', 'AI Connection')) . '</a>'
+        ) ?>
     </div>
 <?php endif; ?>
 
 <?php if ($error): ?><div class="alert alert-error" role="status"><?= e($error) ?></div><?php endif; ?>
 
 <details class="card mcp-prompt-library" <?= $messages ? '' : 'open' ?>>
-    <summary>Prompt library — click a prompt to load it into the message box</summary>
+    <summary><?= e(__('mcp_gateway_chat_prompt_library_summary', 'Prompt library — click a prompt to load it into the message box')) ?></summary>
     <div class="mcp-prompt-groups">
-        <?php foreach (mcp_chat_prompt_library() as $group => $prompts): ?>
+        <?php foreach (mcp_chat_prompt_library() as $group => $prompts): $groupKey = 'mcp_gateway_chat_group_' . preg_replace('/[^a-z]+/', '_', strtolower($group)); ?>
             <div class="mcp-prompt-group">
-                <div class="mcp-prompt-group-title"><?= e($group) ?></div>
+                <div class="mcp-prompt-group-title"><?= e(__($groupKey, $group)) ?></div>
                 <div class="mcp-prompt-chips">
                     <?php foreach ($prompts as $p): ?>
                         <button type="button" class="mcp-prompt-chip" data-prompt="<?= e($p) ?>"><?= e($p) ?></button>
@@ -397,7 +400,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 <section class="card">
     <div class="mcp-chat-log" id="mcpChatLog">
         <?php if (!$messages): ?>
-            <p class="text-muted" style="text-align:center;padding:24px 0;">Ask it something — e.g. "Create a 60-minute Deep Tissue Massage service at 90 EUR" or "List active membership plans".</p>
+            <p class="text-muted" style="text-align:center;padding:24px 0;"><?= e(__('mcp_gateway_chat_empty_state', 'Ask it something — e.g. "Create a 60-minute Deep Tissue Massage service at 90 EUR" or "List active membership plans".')) ?></p>
         <?php endif; ?>
         <?php foreach ($messages as $m): ?>
             <?php if ($m['role'] === 'user'): ?>
@@ -406,12 +409,15 @@ require SLATE_ROOT . '/admin/partials/header.php';
                 <div class="mcp-bubble mcp-bubble-ai"><?= nl2br(e((string)$m['content'])) ?></div>
             <?php elseif ($m['role'] === 'assistant' && !empty($m['tool_calls'])): ?>
                 <?php foreach ($m['tool_calls'] as $tc): ?>
-                    <div class="mcp-tool-note">→ called <code><?= e((string)($tc['function']['name'] ?? '')) ?></code></div>
+                    <div class="mcp-tool-note"><?= sprintf(__('mcp_gateway_chat_tool_called', '→ called %s'), '<code>' . e((string)($tc['function']['name'] ?? '')) . '</code>') ?></div>
                 <?php endforeach; ?>
             <?php elseif ($m['role'] === 'tool'): ?>
                 <?php $res = json_decode((string)$m['content'], true); ?>
                 <div class="mcp-tool-note <?= (is_array($res) && !empty($res['error'])) ? 'mcp-tool-note-err' : '' ?>">
-                    ✓ result: <code><?= e(mb_substr((string)$m['content'], 0, 200)) ?><?= mb_strlen((string)$m['content']) > 200 ? '…' : '' ?></code>
+                    <?= sprintf(
+                        __('mcp_gateway_chat_tool_result', '✓ result: %s'),
+                        '<code>' . e(mb_substr((string)$m['content'], 0, 200)) . (mb_strlen((string)$m['content']) > 200 ? '…' : '') . '</code>'
+                    ) ?>
                 </div>
             <?php endif; ?>
         <?php endforeach; ?>
@@ -420,7 +426,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
     <?php if ($pending): ?>
         <?php $toolDefs = mcp_chat_tool_defs(); ?>
         <div class="mcp-confirm">
-            <p><strong><?= count($pending) === 1 && mcp_chat_is_read_tool((string)($pending[0]['function']['name'] ?? '')) ? 'Fill in the details to run this:' : 'Review and confirm before running:' ?></strong></p>
+            <p><strong><?= count($pending) === 1 && mcp_chat_is_read_tool((string)($pending[0]['function']['name'] ?? '')) ? e(__('mcp_gateway_chat_fill_details', 'Fill in the details to run this:')) : e(__('mcp_gateway_chat_review_confirm', 'Review and confirm before running:')) ?></strong></p>
             <form method="post" class="mcp-loading-form" id="mcpConfirmForm">
                 <input type="hidden" name="_action" value="confirm">
                 <?= csrf_field() ?>
@@ -437,7 +443,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
                             <p class="mcp-field-hint" style="margin:4px 0 10px;"><?= e($toolDefs[$toolName]['description']) ?></p>
                         <?php endif; ?>
                         <?php if (!$props): ?>
-                            <p class="text-muted" style="font-size:.85rem;">No input needed — ready to run.</p>
+                            <p class="text-muted" style="font-size:.85rem;"><?= e(__('mcp_gateway_chat_no_input_needed', 'No input needed — ready to run.')) ?></p>
                         <?php endif; ?>
                         <?php foreach ($props as $propName => $propSchema): ?>
                             <?= mcp_chat_render_field($idx, (string)$propName, $propSchema, $guessed[$propName] ?? null, in_array($propName, $required, true)) ?>
@@ -445,19 +451,19 @@ require SLATE_ROOT . '/admin/partials/header.php';
                     </div>
                 <?php endforeach; ?>
                 <div style="display:flex;gap:10px;">
-                    <button type="submit" class="btn btn-primary">Confirm & run</button>
+                    <button type="submit" class="btn btn-primary"><?= e(__('mcp_gateway_chat_confirm_run_btn', 'Confirm & run')) ?></button>
                 </div>
             </form>
             <form method="post" class="mcp-loading-form" style="margin-top:8px;"><input type="hidden" name="_action" value="cancel"><?= csrf_field() ?>
-                <button type="submit" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-ghost"><?= e(__('cancel', 'Cancel')) ?></button>
             </form>
         </div>
     <?php else: ?>
         <form method="post" class="mcp-chat-input" id="mcpSendForm">
             <input type="hidden" name="_action" value="send">
             <?= csrf_field() ?>
-            <textarea name="message" id="mcpChatInput" rows="2" placeholder="Ask the assistant to look something up or make a change…" <?= $configured ? '' : 'disabled' ?> required></textarea>
-            <button type="submit" class="btn btn-primary" id="mcpSendBtn" <?= $configured ? '' : 'disabled' ?>>Send</button>
+            <textarea name="message" id="mcpChatInput" rows="2" placeholder="<?= e(__('mcp_gateway_chat_input_placeholder', 'Ask the assistant to look something up or make a change…')) ?>" <?= $configured ? '' : 'disabled' ?> required></textarea>
+            <button type="submit" class="btn btn-primary" id="mcpSendBtn" <?= $configured ? '' : 'disabled' ?>><?= e(__('mcp_gateway_chat_send_btn', 'Send')) ?></button>
         </form>
     <?php endif; ?>
 </section>
@@ -500,6 +506,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 </style>
 <script>
 (function(){
+  var runningLabel = <?= json_encode(__('mcp_gateway_chat_running_label', 'Running…')) ?>;
   var log = document.getElementById('mcpChatLog');
   if (log) log.scrollTop = log.scrollHeight;
 
@@ -532,7 +539,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
   document.querySelectorAll('.mcp-loading-form').forEach(function (f) {
     f.addEventListener('submit', function () {
       var btn = f.querySelector('button[type=submit]');
-      if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+      if (btn) { btn.disabled = true; btn.textContent = runningLabel; }
     });
   });
 })();
