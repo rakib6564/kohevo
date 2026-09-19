@@ -14,7 +14,7 @@ Auth::requirePerm('media.view');
 
 header('Location: ' . SLATE_URL . '/admin/media.php', true, 302);
 echo '<!doctype html><meta charset="utf-8">'
-   . '<title>Media library</title>'
-   . '<p>The media library has moved. '
-   . '<a href="' . e(SLATE_URL . '/admin/media.php') . '">Open the media library</a>.</p>';
+   . '<title>' . e(__('media_library', 'Media library')) . '</title>'
+   . '<p>' . e(__('media_library_moved', 'The media library has moved.')) . ' '
+   . '<a href="' . e(SLATE_URL . '/admin/media.php') . '">' . e(__('media_open_library', 'Open the media library')) . '</a>.</p>';
 exit;

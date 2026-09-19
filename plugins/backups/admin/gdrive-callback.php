@@ -10,7 +10,7 @@ require_once dirname(__DIR__) . '/GoogleDriveClient.php';
 Auth::require();
 if (!Auth::isSuperAdmin()) {
     http_response_code(403);
-    echo '<h1>403 Forbidden</h1><p>Super Admin only.</p>';
+    echo '<h1>' . e(__('backups_forbidden_title', '403 Forbidden')) . '</h1><p>' . e(__('only_super_admin', 'Super Admin only.')) . '</p>';
     exit;
 }
 
@@ -24,7 +24,7 @@ function bgd_back(array $params): void {
 // admin declines consent on Google's side.
 if (!empty($_GET['error'])) {
     unset($_SESSION['backups_gdrive_nonce']);
-    bgd_back(['gdrive_error' => 'Connection cancelled.']);
+    bgd_back(['gdrive_error' => __('backups_connection_cancelled', 'Connection cancelled.')]);
 }
 
 $code  = (string)($_GET['code'] ?? '');
@@ -34,11 +34,11 @@ unset($_SESSION['backups_gdrive_nonce']); // one-time use regardless of outcome
 
 if ($code === '' || $nonce === '' || !hash_equals($nonce, $state)) {
     http_response_code(400);
-    exit('This connection link has expired or was tampered with. Please try connecting again from Backups settings.');
+    exit(__('backups_link_expired', 'This connection link has expired or was tampered with. Please try connecting again from Backups settings.'));
 }
 
 $result = GoogleDriveClient::connect($code);
 if (!empty($result['ok'])) {
     bgd_back(['gdrive_connected' => (string)($result['email'] ?? '1')]);
 }
-bgd_back(['gdrive_error' => (string)($result['error'] ?? 'Something went wrong connecting to Google.')]);
+bgd_back(['gdrive_error' => (string)($result['error'] ?? __('backups_gdrive_generic_error', 'Something went wrong connecting to Google.'))]);
