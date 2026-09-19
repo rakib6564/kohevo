@@ -47,7 +47,7 @@ slate_breadcrumbs([
         <h1><?= __('cc_coaching_title', 'Coaching') ?></h1>
         <p class="text-muted"><?= __('cc_admin_overview_sub', 'The 3-month Body &amp; Soul Program surface. Clients here are gated on their membership.') ?></p>
     </div>
-    <div class="page-actions">
+    <div class="toolbar">
         <a href="<?= e(plugin_url('coaching', 'admin/clients.php')) ?>" class="btn btn-secondary"><?= __('cc_program_clients', 'Program clients') ?></a>
         <a href="<?= e(plugin_url('coaching', 'admin/settings.php')) ?>" class="btn btn-primary"><?= __('settings', 'Settings') ?></a>
     </div>

@@ -73,8 +73,8 @@ require SLATE_ROOT . '/admin/partials/header.php';
     <div class="card">
         <div class="card-header"><h2><?= __('membership_pick_customer', 'Pick a customer') ?></h2></div>
         <p class="text-sm text-muted"><?= __('membership_pick_customer_hint', 'Search for the existing customer to put on a plan.') ?></p>
-        <form method="get" class="flex gap-2" style="margin-bottom:var(--space-3);">
-            <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('membership_search', 'Search name or email')) ?>" style="min-width:240px;">
+        <form method="get" class="toolbar" style="margin-bottom:var(--space-3);">
+            <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= e(__('membership_search', 'Search name or email')) ?>">
             <button class="btn"><?= __('membership_search_btn', 'Search') ?></button>
         </form>
 

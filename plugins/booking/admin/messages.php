@@ -78,7 +78,7 @@ slate_breadcrumbs([
         <h1><?= __('booking_messages', 'Booking Messages') ?></h1>
         <p class="text-muted"><?= __('booking_messages_sub', 'Human-message threads routed from client bookings. Reply directly to client, then click "Mark replied" here.') ?></p>
     </div>
-    <div class="page-actions">
+    <div class="toolbar">
         <a href="<?= e(plugin_url('booking', 'admin/services.php')) ?>" class="btn btn-ghost"><?= __('services', 'Services') ?></a>
         <a href="<?= e(plugin_url('booking', 'admin/settings.php')) ?>" class="btn btn-ghost"><?= __('settings', 'Settings') ?></a>
     </div>

@@ -526,7 +526,8 @@ main.content .pv-edit textarea { min-height: 33px; padding: 6px 10px; font-size:
 @media (max-width: 600px) {
     .pv-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .pv-day { grid-template-columns: 1fr; gap: 9px; align-items: start; }
-    .pv-days .pv-day { align-items: center; gap: 10px; }
+    .pv-days .pv-day { flex-direction: column; align-items: stretch; gap: 6px; }
+    .pv-days .pv-day-name { width: auto; }
     .pv-days .pv-day-times { flex-wrap: wrap; justify-content: flex-start; }
     .pv-days .pv-day-times input[type="time"] { width: auto; flex: 1 1 42%; min-width: 0; }
     .pv-svc-fields { padding-left: 0; }
