@@ -196,7 +196,7 @@ RedirectMatch 403 ^/data/
     # activation check belongs in the request path, where it can see the
     # database, not in a slug list in the web server that no deployment step
     # keeps honest.
-    RewriteRule ^plugins/(clientdesk|flat-rate-shipping|react-site-bridge|restaurant|seo|shipping-flat-rate|shop|shop-emails|sitehub|slate-mcp|studio|timeclock)/(public|storefront)/ - [F,L]
+    RewriteRule ^plugins/(clientdesk|flat-rate-shipping|restaurant|seo|shipping-flat-rate|shop|shop-emails|sitehub|slate-mcp|studio|timeclock)/(public|storefront)/ - [F,L]
 
     # Don't rewrite real files or directories — they're served direct.
     RewriteCond %{REQUEST_FILENAME} !-f
