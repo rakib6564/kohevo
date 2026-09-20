@@ -1275,6 +1275,30 @@ if (!function_exists('slate_admin_nav_icon')) {
         /* Rounded-square avatar tile (matches the reference's nav icon tiles). */
         .sidebar-footer .topbar-avatar { border-radius: 10px; }
 
+        /* ── Platform signature (Kohevo) — one small row above the tenant's own
+           sidebar-footer, deliberately smaller/muted than everything above it
+           so it reads as platform attribution, not a second brand. */
+        .sidebar-signature {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 8px 6px;
+            margin-top: 4px;
+            border-top: 1px solid var(--sidebar-border);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: var(--sidebar-subtle);
+        }
+        .sidebar-signature img { display: block; height: 14px; width: auto; }
+        /* Same problem as .sidebar-brand-logo.is-tiled (dark themes need a light
+           tile behind the dark-ink mark) — same fix, sized for this smaller icon. */
+        .sidebar-signature.is-tiled img {
+            background: #fff;
+            border-radius: 4px;
+            padding: 2px 3px;
+        }
+
         /* ── Collapsed sidebar → icon rail ─────────────────────── */
         html.sidebar-collapsed .sidebar { padding-left: 10px; padding-right: 10px; }
         /* Hide every text label; keep the icon tiles. */
@@ -1737,6 +1761,18 @@ if (!function_exists('slate_admin_nav_icon')) {
                     </ul>
                 </details>
             <?php endforeach; ?>
+
+            <?php /* Kohevo platform signature — persistent, secondary to the tenant
+                     brand above. Routed entirely through PlatformSignature/
+                     PlatformIdentity; this file never names an asset path or the
+                     platform name directly. $sidebarLogoTile (already computed above
+                     for the tenant logo) is reused as-is: the sidebar can be dark or
+                     light depending on the tenant's chosen theme, and the mark needs
+                     the same white-tile treatment the tenant logo already gets on
+                     dark themes so it stays legible either way. */ ?>
+            <div class="sidebar-signature<?= $sidebarLogoTile ? ' is-tiled' : '' ?>">
+                <?= \Slate\Services\Content\PlatformSignature::render(\Slate\Services\Content\PlatformSignature::MODE_STANDARD) ?>
+            </div>
 
             <div class="sidebar-footer">
                 <span class="topbar-avatar" aria-hidden="true">

@@ -120,6 +120,22 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     }
     .auth-footer a { color: var(--accent); }
     .auth-footer a:hover { color: var(--accent-deep); text-decoration: underline; }
+    /* ── Platform signature (Kohevo) — closes the auth-split card (see
+       partials/footer.php); same small/muted treatment as the admin login's
+       platform signature, kept visually distinct from .auth-footer above it. */
+    .auth-platform-signature {
+        margin: 18px 0 0;
+        padding-top: 14px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+    }
+    .auth-platform-signature img { display: block; height: 14px; width: auto; }
 
     /* Customer pages sit on a solid surface where the admin's translucent
        --glass-border is nearly invisible. Use the solid hairline so inputs read
@@ -292,6 +308,17 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     .cust-topbar-user a { color: var(--muted); }
     .cust-topbar-user a:hover { color: var(--text); text-decoration: underline; }
 
+    /* ── Platform signature (Kohevo) — small, muted, after the tenant's own
+       brand/user cluster so it reads as platform attribution, not a second logo. */
+    .cust-topbar-signature {
+        display: flex;
+        align-items: center;
+        margin-left: 12px;
+        padding-left: 12px;
+        border-left: 1px solid var(--border);
+    }
+    .cust-topbar-signature img { display: block; height: 14px; width: auto; }
+
     main.cust-content {
         max-width: 900px;
         width: 100%;
@@ -337,6 +364,19 @@ $brandInitial   = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
                 <a href="<?= e(SLATE_URL) ?>/customer/logout.php?csrf=<?= e(csrf_token()) ?>"><?= __('sign_out', 'Sign out') ?></a>
             </div>
         <?php endif; ?>
+        <?php /* Kohevo platform signature — dashboard variant only (never auth-split,
+                 that's Phase 3/login work). Routed entirely through PlatformSignature/
+                 PlatformIdentity, never a literal path or name here. Compact (icon
+                 only, alt text still carries the name) rather than standard — the
+                 topbar is a single horizontal row already carrying tenant name +
+                 sublabel and, on wider screens, the signed-in user block, so a
+                 second text label would compete rather than stay subordinate. The
+                 mark's dark ink sits on this topbar's light background
+                 (rgba(245,244,241,.82)) with no legibility problem, unlike the
+                 admin sidebar, so no tile/variant treatment is needed here. */ ?>
+        <div class="cust-topbar-signature">
+            <?= \Slate\Services\Content\PlatformSignature::render(\Slate\Services\Content\PlatformSignature::MODE_COMPACT) ?>
+        </div>
     </header>
     <main class="cust-content" id="cust-content">
 

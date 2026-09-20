@@ -369,6 +369,20 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     }
     .auth-credit a { color: var(--accent); font-weight: 600; text-decoration: none; }
     .auth-credit a:hover { text-decoration: underline; }
+    /* ── Platform signature (Kohevo) — smaller and separate from .auth-credit
+       above it, so the developer attribution and the platform identity read as
+       two distinct things, not one merged line. */
+    .auth-platform-signature {
+        margin: 10px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted, #6b7280);
+    }
+    .auth-platform-signature img { display: block; height: 14px; width: auto; }
     .auth-pass-wrap { position: relative; }
     .auth-pass-wrap input { padding-right: 44px; }
     .auth-pass-toggle {
@@ -529,6 +543,19 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
                 © <?= e(date('Y')) ?> <?= e($siteName) ?> ·
                 <?= __('built_by', 'Built &amp; maintained by') ?>
                 <a href="<?= e($loginOwnerUrl) ?>" target="_blank" rel="noopener"><?= e($loginOwner) ?></a>
+            </p>
+
+            <?php /* Kohevo platform signature — secondary to, and separate from,
+                     the "Built & maintained by" developer attribution directly
+                     above (that credit is unchanged, not merged with this). Routed
+                     entirely through PlatformSignature/PlatformIdentity; this file
+                     never names a platform asset path or the literal platform name.
+                     MODE_SIGNATURE ("Powered by Kohevo") is the mode its own
+                     docblock names for this exact surface. Always the light card
+                     behind this row (same as .auth-logo above), so no tile/dark
+                     variant handling is needed here. */ ?>
+            <p class="auth-platform-signature">
+                <?= \Slate\Services\Content\PlatformSignature::render(\Slate\Services\Content\PlatformSignature::MODE_SIGNATURE) ?>
             </p>
         </div>
     </main>
