@@ -24,6 +24,12 @@ try {
     if (!defined('DB_CHARSET')) define('DB_CHARSET', $_ENV['DB_CHARSET'] ?? 'utf8mb4');
     require_once SLATE_ROOT . '/includes/helpers.php';
     require_once SLATE_ROOT . '/includes/Database.php';
+    // Phase 4 (Kohevo system/error identity): registers Slate\* class loading
+    // only (see the autoloader's own docblock — additive, no side effects, no
+    // plugin code) so error_page.php can render PlatformSignature even on this
+    // deliberately plugin-free path. Does not load config.php/PluginLoader,
+    // so it cannot reintroduce the failure this minimal bootstrap exists to avoid.
+    require_once SLATE_ROOT . '/src/autoload.php';
 } catch (\Throwable $e) {
     // Gradient fallback — the renderer guards every DB read.
 }

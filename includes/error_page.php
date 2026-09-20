@@ -41,6 +41,22 @@ if (!function_exists('slate_render_error')) {
             // DB unavailable (e.g. a real 500) — gradient fallback below.
         }
 
+        // Platform identity (Kohevo) — deliberately NOT inside the try/catch
+        // above: PlatformIdentity/PlatformSignature read no setting and touch
+        // no database, so tenant branding failing must never affect them (see
+        // docs/09-Roadmap/phase-kohevo-identity-p4.md §7). class_exists(),
+        // matching this file's own existing Database guard just above, covers
+        // the one real dependency: the Slate\ autoloader must have registered
+        // class loading (true for every current caller — 404.php/403.php via
+        // config.php, 500.php via its own minimal bootstrap, PublicRouter and
+        // the forms plugin via their normal full boot).
+        $platformSignature = '';
+        if (class_exists('\Slate\Services\Content\PlatformSignature')) {
+            $platformSignature = \Slate\Services\Content\PlatformSignature::render(
+                \Slate\Services\Content\PlatformSignature::MODE_SIGNATURE
+            );
+        }
+
         $bg = $hero !== ''
             ? 'background:url("' . $e($hero) . '") center/cover no-repeat;'
             : 'background:radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 45%, #0b1c2c), #0b1c2c);';
@@ -99,6 +115,15 @@ if (!function_exists('slate_render_error')) {
     .btn-ghost { background: rgba(255,255,255,.10); color: #fff; border: 1px solid rgba(255,255,255,.22); }
     .btn-ghost:hover { background: rgba(255,255,255,.18); }
     .biz { margin-top: 22px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.6); }
+    /* Platform signature (Kohevo) — secondary to the tenant .biz name above it,
+       always dark card, so (like the tenant logo above, which already prefers
+       its own dark variant) the mark needs a light tile behind it to stay
+       legible — same technique as the Phase 2 admin sidebar's dark themes. */
+    .platform-signature {
+        margin-top: 14px; display: flex; align-items: center; justify-content: center;
+        gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: rgba(255,255,255,.6);
+    }
+    .platform-signature img { display: block; height: 14px; width: auto; background: #fff; border-radius: 4px; padding: 2px 3px; }
 </style>
 </head>
 <body>
@@ -127,6 +152,10 @@ if (!function_exists('slate_render_error')) {
             <?php endif; ?>
         </div>
         <?php if ($biz !== ''): ?><div class="biz"><?= $e($biz) ?></div><?php endif; ?>
+        <?php // Always rendered, independent of $biz/tenant branding above — the
+              // platform identity must remain visible even when tenant branding
+              // is unavailable (a DB outage, an unbranded tenant, etc.). ?>
+        <?php if ($platformSignature !== ''): ?><div class="platform-signature"><?= $platformSignature ?></div><?php endif; ?>
     </div>
 </body>
 </html>
