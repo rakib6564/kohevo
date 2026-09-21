@@ -12,6 +12,12 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/error_page.php';
 slate_maintenance_gate();
 
+// Remote license gate: show the branded "license inactive" page to public
+// visitors when this install's remote license status is restricted
+// (admins pass, same as maintenance mode above). A no-op for every
+// install that has never configured remote licensing.
+slate_license_gate();
+
 require_once __DIR__ . '/includes/landing.php';
 
 slate_render_landing();

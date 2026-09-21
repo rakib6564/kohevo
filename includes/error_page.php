@@ -184,3 +184,52 @@ if (!function_exists('slate_maintenance_gate')) {
         exit;
     }
 }
+
+if (!function_exists('slate_license_gate')) {
+    /**
+     * Public-side remote-license gate (Phase 5 of the remote license
+     * server build — see plugins/licensing/ and
+     * Slate\Services\Licensing\SlateLicenseCacheStore, which this reads).
+     *
+     * An install that has never configured remote licensing has no cache
+     * row at all and is completely unaffected — matches the existing
+     * "no license row = unrestricted" convention already used by the
+     * local LicenseService/EntitlementService. Only an explicit, verified,
+     * remote-confirmed bad status restricts anything; going stale (no
+     * successful check-in past the grace period) restricts too, but
+     * silence itself is never treated as "suspended" — see
+     * RemoteLicenseClient, which never writes a failed check-in into this
+     * same cache.
+     *
+     * A logged-in admin always passes through, same as the maintenance
+     * gate above — restricting must never lock the one person who can
+     * actually act on it (contact the provider, etc.) out of their own
+     * install.
+     */
+    function slate_license_gate(): void {
+        $graceSeconds = 7 * 86400;
+        try {
+            if (!class_exists('\Slate\Services\Licensing\SlateLicenseCacheStore')) return;
+            $store = new \Slate\Services\Licensing\SlateLicenseCacheStore(current_tenant_id());
+            $cached = $store->load();
+            if ($cached === null) return; // never configured -- unrestricted
+
+            $licensedStatuses = ['trial', 'active'];
+            $restricted = !in_array($cached['status'], $licensedStatuses, true);
+
+            if (!$restricted) {
+                $fetchedAt = strtotime((string) $cached['fetched_at']);
+                $restricted = $fetchedAt === false || (time() - $fetchedAt) > $graceSeconds;
+            }
+            if (!$restricted) return;
+
+            if (class_exists('Auth') && Auth::check()) return; // admin passes through
+        } catch (\Throwable $e) {
+            return; // DB/table unavailable -- fail OPEN, never block on infra trouble
+        }
+        @http_response_code(403);
+        slate_render_error(403, 'License inactive',
+            "This installation's license is not currently active. Please contact your provider.");
+        exit;
+    }
+}
