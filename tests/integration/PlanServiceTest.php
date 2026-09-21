@@ -36,10 +36,21 @@ unit('PlanService::entitlementsFor() returns exactly the seeded features for the
     // difference, not a defect: EntitlementService::canAccess()'s own first
     // check, PluginLoader::isActive(), already makes an entitlement row for
     // a not-currently-installed plugin harmlessly inert).
-    $knownSlugs = ['forms', 'booking', 'coaching', 'membership', 'media-library', 'multilang-translate', 'stripe-payment'];
+    //
+    // 'white_label' (0021_white_label_entitlement.php, Kohevo Brand
+    // Persistence System — Phase 6) is the one deliberate exception: the
+    // platform's first non-plugin, non-PluginLoader-backed capability key,
+    // checked through EntitlementService::canAccessCapability() instead of
+    // canAccess() specifically because it is NOT a plugin slug — see that
+    // method's own docblock. This test's premise (every feature_key is a
+    // plugin slug) predates that and is intentionally updated here, the
+    // same way tests/integration/PlatformSignatureAuthShellTest.php's Phase
+    // 2 footer-touch assertion was updated once Phase 3 legitimately
+    // changed its premise.
+    $knownSlugs = ['forms', 'booking', 'coaching', 'membership', 'media-library', 'multilang-translate', 'stripe-payment', 'white_label'];
     $allFeatureKeys = Database::rows("SELECT DISTINCT feature_key FROM plan_entitlements");
     foreach ($allFeatureKeys as $row) {
-        assert_true(in_array($row['feature_key'], $knownSlugs, true), "feature_key '{$row['feature_key']}' must correspond to a known plugin slug, never an invented feature");
+        assert_true(in_array($row['feature_key'], $knownSlugs, true), "feature_key '{$row['feature_key']}' must correspond to a known plugin slug or the one documented non-plugin capability key (white_label)");
     }
 });
 

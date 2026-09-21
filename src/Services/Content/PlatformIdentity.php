@@ -3,11 +3,19 @@
  * Slate — PlatformIdentity: the single, deterministic source of the Kohevo
  * platform identity (name, mark/wordmark asset URLs, favicon, signature).
  *
- * Deliberately reads NOTHING from the database, settings table, or tenant
- * context — every value here is a fixed constant or derived from the
- * SLATE_URL constant only. A tenant's branding settings (see TenantBranding)
+ * Every value here is a fixed constant or derived from the SLATE_URL
+ * constant only — ORDINARY tenant branding settings (see TenantBranding)
  * can never edit, unset, or override any value this class returns; there is
- * no code path from `settings.setting_value` into this class at all.
+ * no code path from `settings.setting_value` into this class. The one
+ * exception, added in Phase 6, is signature(): it consults
+ * PlatformIdentityPolicy — never settings/TenantBranding directly — to
+ * decide whether the CURRENT TENANT holds the licensed white_label
+ * capability, and returns '' rather than the attribution line if so. Every
+ * other method (name/markUrl/wordmarkUrl/faviconUrl) stays unconditional:
+ * the underlying platform identity remains internally canonical regardless
+ * of white-label presentation state; only the one attribution-text output
+ * is gated. See PlatformIdentityPolicy's docblock for the licensing
+ * fail-safe contract.
  *
  * Deliberately NOT under Slate\Services\Identity — that namespace already
  * means the customer/contact authentication "identity spine"
@@ -92,9 +100,20 @@ final class PlatformIdentity
         return self::assetUrl(self::FAVICON_PATH);
     }
 
-    /** The platform's own attribution line — plain text, callers own their own markup. */
+    /**
+     * The platform's own attribution line — plain text, callers own their
+     * own markup. Empty when the current tenant is licensed to white-label
+     * (Phase 6 — see PlatformIdentityPolicy, the only caller this class
+     * makes into licensing; every other method here remains unconditional,
+     * since asset/name identity stays internally canonical regardless of
+     * white-label presentation state — see PlatformIdentityPolicy's own
+     * docblock and docs/09-Roadmap/phase-kohevo-identity-p6.md §16).
+     */
     public static function signature(): string
     {
+        if (PlatformIdentityPolicy::whiteLabelActive()) {
+            return '';
+        }
         return 'Powered by ' . self::NAME;
     }
 

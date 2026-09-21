@@ -41,9 +41,21 @@ final class PlatformSignature
      * their own wrapping element/CSS class; this returns only the mark
      * image plus whatever text the mode calls for. An unrecognized mode
      * falls back to MODE_SIGNATURE rather than throwing.
+     *
+     * Returns '' for EVERY mode (including MODE_COMPACT's mark-only image)
+     * when the current tenant holds the licensed white_label capability
+     * (Phase 6 — see PlatformIdentityPolicy): white-labeling suppresses the
+     * platform identity's presentation entirely, not just its "Powered by"
+     * text, so this checks up front rather than only gating the SIGNATURE
+     * mode's text portion (which would otherwise still show the mark image
+     * even when white-labeled).
      */
     public static function render(string $mode = self::MODE_SIGNATURE): string
     {
+        if (PlatformIdentityPolicy::whiteLabelActive()) {
+            return '';
+        }
+
         $mode = in_array($mode, self::MODES, true) ? $mode : self::MODE_SIGNATURE;
 
         $markImg = '<img src="' . self::escape(PlatformIdentity::markUrl()) . '"'

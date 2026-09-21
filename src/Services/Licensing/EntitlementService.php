@@ -68,6 +68,32 @@ final class EntitlementService
             return false;
         }
 
+        return self::licensedForFeature($tenantId, $featureKey);
+    }
+
+    /**
+     * Like canAccess(), but for a core platform capability that has no
+     * PluginLoader entry at all — e.g. 'white_label' (Kohevo Brand
+     * Persistence System — Phase 6). canAccess()'s layer 1/2 is a plugin
+     * activation gate keyed on the feature key; a capability like
+     * 'white_label' is never a plugin slug, so that gate would always
+     * return false and permanently deny it regardless of licensing — not a
+     * hypothetical, see plan_entitlements' own seeded feature_key values
+     * (db/migrations/0015_platform_plans.php), all real plugin slugs. This
+     * runs only the license -> plan -> tenant-toggle chain (layers 3-5),
+     * unchanged, on the SAME plan_entitlements table via PlanService — a
+     * capability entitlement is granted/managed exactly like a plugin
+     * entitlement (PlanService::save() from admin/plans.php), no new data
+     * model or second entitlement system.
+     */
+    public static function canAccessCapability(int $tenantId, string $featureKey): bool
+    {
+        return self::licensedForFeature($tenantId, $featureKey);
+    }
+
+    /** Layers 3-5 of the resolution chain: license -> plan -> tenant-toggle. Shared by canAccess() and canAccessCapability(). */
+    private static function licensedForFeature(int $tenantId, string $featureKey): bool
+    {
         // 3. Tenant licensed?
         $licenseStatus = LicenseService::effectiveStatus($tenantId);
         if (!in_array($licenseStatus, self::LICENSED_STATUSES, true)) {
