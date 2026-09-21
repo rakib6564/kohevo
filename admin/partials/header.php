@@ -379,6 +379,7 @@ static $groupPriorities = [
     'form-builder'  => 55,
     'plugins'       => 60,
     'mcp-ai-hub'    => 65,
+    'licensing'     => 66,
     'settings'      => 70,
     'system'        => 80,
 ];
@@ -413,6 +414,7 @@ if (!function_exists('slate_admin_group_label')) {
             'mcp-ai-hub'    => ['MCP & AI Hub',          'MCP et hub IA'],
             'nutrition-app' => ['Coaching',               'Coaching'],
             'form-builder'  => ['Forms',                  'Formulaires'],
+            'licensing'     => ['Licensing',              'Licences'],
         ];
         if (isset($defaults[$key])) {
             $locale = class_exists('I18n') ? I18n::currentLocale() : 'en';

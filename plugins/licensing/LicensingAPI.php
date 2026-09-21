@@ -223,4 +223,53 @@ class LicensingAPI {
     private static function checkInError(int $httpStatus, string $code): array {
         return ['http_status' => $httpStatus, 'body' => ['error' => $code]];
     }
+
+    // ── Admin UI support: issuing and rotating license keys ────────
+    //
+    // The raw key is generated here and handed back to the caller exactly
+    // once — only its SHA-256 hash is ever persisted (same rule the
+    // install.sql header states for `licensing_installs.license_key_hash`).
+    // Centralized here rather than in admin/installs.php so the admin
+    // screen and any future CLI/API path generate keys the same way.
+
+    /** A readable, high-entropy key: PRODUCTSLUG-XXXX-XXXX-XXXX-XXXX-XXXX. */
+    public static function generateLicenseKey(string $productSlug): string {
+        $prefix = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $productSlug) ?? '', 0, 12));
+        if ($prefix === '') $prefix = 'LIC';
+        $raw = strtoupper(bin2hex(random_bytes(10)));
+        return $prefix . '-' . implode('-', str_split($raw, 4));
+    }
+
+    /**
+     * Create a new install/license row. $data keys: client_id, product_id,
+     * plan_id (nullable), label, domain, status, expires_at (nullable),
+     * activation_limit. Returns ['id' => int, 'license_key' => string] —
+     * the caller must show license_key to the admin now; it cannot be
+     * retrieved again afterward.
+     */
+    public static function issueInstall(array $data, string $productSlug): array {
+        $licenseKey = self::generateLicenseKey($productSlug);
+        $id = Database::insert('licensing_installs', [
+            'client_id'        => (int) $data['client_id'],
+            'product_id'       => (int) $data['product_id'],
+            'plan_id'          => !empty($data['plan_id']) ? (int) $data['plan_id'] : null,
+            'label'            => (string) $data['label'],
+            'domain'           => (string) $data['domain'],
+            'license_key_hash' => hash('sha256', $licenseKey),
+            'status'           => (string) $data['status'],
+            'expires_at'       => $data['expires_at'] !== '' ? $data['expires_at'] : null,
+            'activation_limit' => max(1, (int) $data['activation_limit']),
+        ]);
+        return ['id' => $id, 'license_key' => $licenseKey];
+    }
+
+    /** Rotate an existing install's key. Old key stops working immediately. */
+    public static function regenerateLicenseKey(int $installId, string $productSlug): string {
+        $licenseKey = self::generateLicenseKey($productSlug);
+        Database::update('licensing_installs',
+            ['license_key_hash' => hash('sha256', $licenseKey)],
+            'id = ?', [$installId]
+        );
+        return $licenseKey;
+    }
 }

@@ -7,10 +7,9 @@
  * Runs on its own dedicated, single-tenant Kohevo install — never alongside
  * the product plugins (Booking/Forms/etc.) it issues licenses for.
  *
- * Phase 3 (this version): the check-in endpoint at /licensing/check joins
- * Phase 1's data model and Phase 2's Ed25519 signing. Still no admin UI —
- * products/clients/plans/installs are managed by hand (Database) until a
- * later phase.
+ * The check-in endpoint at /licensing/check, Ed25519 signing, and the data
+ * model are joined here by a minimal admin UI for managing products,
+ * clients, plans, and issuing/rotating license keys.
  */
 
 require_once __DIR__ . '/LicensingAPI.php';
@@ -25,6 +24,7 @@ class Licensing extends Plugin {
         }
 
         Hook::addFilter('public_routes', [$this, 'addPublicRoutes']);
+        Hook::addFilter('admin_nav_items', [$this, 'addAdminNav']);
     }
 
     public function addPublicRoutes(array $routes): array {
@@ -33,5 +33,26 @@ class Licensing extends Plugin {
             'methods' => ['POST'],
         ];
         return $routes;
+    }
+
+    public function addAdminNav(array $items): array {
+        if (!Auth::can('licensing.manage') && !Auth::isSuperAdmin()) return $items;
+
+        $items[] = ['slug' => 'licensing', 'label' => __('licensing_nav_dashboard', 'Dashboard'),
+                    'href' => $this->url('admin/index.php'),
+                    'icon' => 'key', 'perm' => 'licensing.manage', 'order' => 500, 'group' => 'licensing'];
+        $items[] = ['slug' => 'licensing-installs', 'label' => __('licensing_nav_installs', 'Licenses'),
+                    'href' => $this->url('admin/installs.php'),
+                    'icon' => 'shield', 'perm' => 'licensing.manage', 'order' => 501, 'group' => 'licensing'];
+        $items[] = ['slug' => 'licensing-clients', 'label' => __('licensing_nav_clients', 'Clients'),
+                    'href' => $this->url('admin/clients.php'),
+                    'icon' => 'users', 'perm' => 'licensing.manage', 'order' => 502, 'group' => 'licensing'];
+        $items[] = ['slug' => 'licensing-products', 'label' => __('licensing_nav_products', 'Products'),
+                    'href' => $this->url('admin/products.php'),
+                    'icon' => 'box', 'perm' => 'licensing.manage', 'order' => 503, 'group' => 'licensing'];
+        $items[] = ['slug' => 'licensing-plans', 'label' => __('licensing_nav_plans', 'Plans'),
+                    'href' => $this->url('admin/plans.php'),
+                    'icon' => 'tag', 'perm' => 'licensing.manage', 'order' => 504, 'group' => 'licensing'];
+        return $items;
     }
 }
