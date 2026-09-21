@@ -79,7 +79,7 @@ unit('plugins/react-site-bridge: every user-facing "Slate"/"Slate Media"/"Slate-
         'admin/index.php', 'admin/photography.php', 'admin/content.php',
         'admin/hosting.php', 'admin/site.php', 'admin/visual.php',
     ] as $file) {
-        $src = _p7_src('plugins/react-site-bridge/' . $file);
+        $src = _p7_src('archive/plugins/react-site-bridge/' . $file);
         // Every remaining "Slate" occurrence in these files must be one of
         // the known-internal patterns (SLATE_URL constant, Slate\ namespace,
         // slate_ helper functions, or an engineering-only doc comment) —
@@ -127,8 +127,8 @@ unit('plugins/backups/GoogleDriveClient.php: the default Google Drive backup fol
     assert_false(str_contains($src, 'Slate Backups'));
 });
 
-unit('plugins/react-site-bridge/ReactSiteBridgeAPI.php: every exception message shown as an admin flash banner says Kohevo, not Slate', function () {
-    $src = _p7_src('plugins/react-site-bridge/ReactSiteBridgeAPI.php');
+unit('archive/plugins/react-site-bridge/ReactSiteBridgeAPI.php: every exception message shown as an admin flash banner says Kohevo, not Slate', function () {
+    $src = _p7_src('archive/plugins/react-site-bridge/ReactSiteBridgeAPI.php');
     foreach ([
         'Kohevo Media is unavailable.', 'Kohevo Media did not register a usable image.',
         'Kohevo Media and Uploads must be available', 'Kohevo requires ZipArchive and Uploads',
@@ -144,9 +144,12 @@ unit('plugins/react-site-bridge/ReactSiteBridgeAPI.php: every exception message 
 });
 
 unit('every first-party plugin.json "author" field says Kohevo (multilang-translate, a real named third-party contributor, is correctly excluded)', function () {
+    // react-site-bridge moved to archive/plugins/ (deactivated, not shipping) —
+    // excluded from this active-manifest sweep, same reasoning as every other
+    // archived plugin never being in this list to begin with.
     foreach ([
         'backups', 'booking', 'coaching', 'forms', 'mcp-gateway',
-        'media-library', 'membership', 'react-site-bridge', 'stripe-payment',
+        'media-library', 'membership', 'stripe-payment',
     ] as $plugin) {
         $manifest = json_decode(_p7_src("plugins/$plugin/plugin.json"), true);
         assert_true($manifest !== null, "plugins/$plugin/plugin.json must remain valid JSON");
@@ -163,7 +166,7 @@ unit('the four plugin.json descriptions that mentioned Slate as product text now
     $media = json_decode(_p7_src('plugins/media-library/plugin.json'), true);
     assert_true(str_contains($media['description'], 'is now a built-in Kohevo feature'));
 
-    $rsb = json_decode(_p7_src('plugins/react-site-bridge/plugin.json'), true);
+    $rsb = json_decode(_p7_src('archive/plugins/react-site-bridge/plugin.json'), true);
     assert_true(str_contains($rsb['description'], 'Kohevo Media upload-and-map workflow'));
     assert_true(str_contains($rsb['description'], 'direct Kohevo-hosted React releases'));
     assert_true(str_contains($rsb['description'], 'Kohevo-domain preview links'));
@@ -226,15 +229,15 @@ unit('regression: no unrelated file was touched by this phase (only the specific
         'admin/login.php', 'admin/repair-settings.php', 'lang/fr.php',
         'plugins/booking/admin/providers.php', 'plugins/booking/admin/settings.php',
         'plugins/mcp-gateway/admin/index.php', 'plugins/mcp-gateway/admin/chat.php',
-        'plugins/react-site-bridge/admin/index.php', 'plugins/react-site-bridge/admin/photography.php',
-        'plugins/react-site-bridge/admin/content.php', 'plugins/react-site-bridge/admin/hosting.php',
-        'plugins/react-site-bridge/admin/site.php', 'plugins/react-site-bridge/admin/visual.php',
+        'archive/plugins/react-site-bridge/admin/index.php', 'archive/plugins/react-site-bridge/admin/photography.php',
+        'archive/plugins/react-site-bridge/admin/content.php', 'archive/plugins/react-site-bridge/admin/hosting.php',
+        'archive/plugins/react-site-bridge/admin/site.php', 'archive/plugins/react-site-bridge/admin/visual.php',
         'plugins/booking/lang/fr.php', 'plugins/mcp-gateway/lang/fr.php',
         'plugins/booking/GoogleCalendarSync.php', 'plugins/backups/GoogleDriveClient.php',
-        'plugins/react-site-bridge/ReactSiteBridgeAPI.php',
+        'archive/plugins/react-site-bridge/ReactSiteBridgeAPI.php',
         'plugins/backups/plugin.json', 'plugins/booking/plugin.json', 'plugins/coaching/plugin.json',
         'plugins/forms/plugin.json', 'plugins/mcp-gateway/plugin.json', 'plugins/media-library/plugin.json',
-        'plugins/membership/plugin.json', 'plugins/react-site-bridge/plugin.json', 'plugins/stripe-payment/plugin.json',
+        'plugins/membership/plugin.json', 'archive/plugins/react-site-bridge/plugin.json', 'plugins/stripe-payment/plugin.json',
         'src/Kernel/Module/PluginLoader.php', 'src/Kernel/Http/ApiRouter.php',
     ];
     foreach ($touchedFiles as $file) {

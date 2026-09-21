@@ -1547,6 +1547,20 @@ hr {
     font-family: var(--font-mono);
     font-size: 12px;
 }
+/* Opt-in modifier for a row whose value is a real phrase rather than a short
+   badge/number/arrow: label always keeps flex-shrink:0, so a long label
+   paired with a long value otherwise squeezes the value into a near-zero
+   width column, where word-break:break-word wraps it one character per
+   line. Stacking the value below the label sidesteps that instead of
+   fighting it. */
+.kv-row.kv-row-stack {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+.kv-row.kv-row-stack .kv-value {
+    text-align: left;
+}
 
 /* ─── Audit trail (vertical timeline) ─────────────────── */
 .audit-trail {

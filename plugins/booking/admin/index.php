@@ -259,8 +259,8 @@ require SLATE_ROOT . '/admin/partials/header.php';
             <ul class="kv-list">
                 <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_add_services', '1. Add services') ?></span><span class="kv-value"><a href="<?= e(plugin_url('booking', 'admin/services.php')) ?>">→</a></span></li>
                 <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_add_providers', '2. Add providers') ?></span><span class="kv-value"><a href="<?= e(plugin_url('booking', 'admin/providers.php')) ?>">→</a></span></li>
-                <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_set_hours', '3. Set weekly hours') ?></span><span class="kv-value"><?= __('booking_on_provider_edit', 'on provider edit') ?></span></li>
-                <li class="kv-row"><span class="kv-label"><?= __('booking_checklist_link_services', '4. Link services to providers') ?></span><span class="kv-value"><?= __('booking_on_provider_edit', 'on provider edit') ?></span></li>
+                <li class="kv-row kv-row-stack"><span class="kv-label"><?= __('booking_checklist_set_hours', '3. Set weekly hours') ?></span><span class="kv-value"><?= __('booking_on_provider_edit', 'on provider edit') ?></span></li>
+                <li class="kv-row kv-row-stack"><span class="kv-label"><?= __('booking_checklist_link_services', '4. Link services to providers') ?></span><span class="kv-value"><?= __('booking_on_provider_edit', 'on provider edit') ?></span></li>
             </ul>
         </div>
     </aside>
