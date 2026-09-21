@@ -36,7 +36,7 @@ $flash = null;
 // Known settings + safe defaults (only these get the "reset" treatment;
 // unknown keys, plugin-owned keys with a `<slug>.` prefix etc. are left alone).
 $KNOWN = [
-    'site_name'              => 'Slate',
+    'site_name'              => 'Kohevo',
     'default_language'       => 'en',
     'brand_sublabel'         => 'Pro Admin',
     'brand_accent_color'     => '#2563EB',

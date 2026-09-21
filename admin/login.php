@@ -474,7 +474,7 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
 
             <?php if ($installed): ?>
                 <div class="alert alert-success" role="status">
-                    <?= __('install_success', 'Slate is installed. Log in with the account you just created.') ?>
+                    <?= __('install_success', 'Kohevo is installed. Log in with the account you just created.') ?>
                     <?php if ($installedPlugins > 0): ?>
                         <?= ' ' . sprintf(__('install_plugins_activated', '%d plugin(s) activated.'), $installedPlugins) ?>
                     <?php endif; ?>

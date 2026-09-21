@@ -450,7 +450,7 @@ if (!$flash && isset($_GET['gcal_error']))        $flash = ['type' => 'error',  
                     <?php endif; ?>
                 </p>
                 <p class="text-sm text-muted" style="margin-bottom:12px;">
-                    <?= e(__('booking_provider_gcal_sync_desc', 'New and rescheduled bookings push to this calendar automatically, and events created or moved directly in Google flow back into Slate.')) ?>
+                    <?= e(__('booking_provider_gcal_sync_desc', 'New and rescheduled bookings push to this calendar automatically, and events created or moved directly in Google flow back into Kohevo.')) ?>
                     <?php if (!empty($editing['google_synced_at'])): ?><?= e(__('booking_provider_last_synced', 'Last synced')) ?> <?= e(I18n::localDate('M j, Y H:i', strtotime($editing['google_synced_at']))) ?>.<?php endif; ?>
                 </p>
                 <form method="post" action="<?= e(plugin_url('booking', 'admin/gcal-disconnect.php')) ?>" onsubmit="return confirm('<?= e(__('booking_provider_confirm_disconnect_gcal', 'Disconnect Google Calendar? Existing synced events on Google will not be deleted.')) ?>')">
@@ -459,7 +459,7 @@ if (!$flash && isset($_GET['gcal_error']))        $flash = ['type' => 'error',  
                     <button type="submit" class="btn btn-sm btn-danger"><?= e(__('booking_provider_disconnect', 'Disconnect')) ?></button>
                 </form>
             <?php else: ?>
-                <?php booking_edit_card_note(__('booking_provider_connect_prefix', 'Connect') . ' ' . e($editing['name']) . __('booking_provider_connect_suffix', "'s Google Calendar so their bookings sync automatically and Slate respects time they've blocked off on their own calendar.")); ?>
+                <?php booking_edit_card_note(__('booking_provider_connect_prefix', 'Connect') . ' ' . e($editing['name']) . __('booking_provider_connect_suffix', "'s Google Calendar so their bookings sync automatically and Kohevo respects time they've blocked off on their own calendar.")); ?>
                 <a href="<?= e(plugin_url('booking', 'admin/gcal-connect.php')) ?>?provider_id=<?= (int)$editing['id'] ?>" class="btn btn-sm btn-primary"><?= e(__('booking_provider_connect_gcal', 'Connect Google Calendar')) ?></a>
             <?php endif; ?>
         <?php booking_edit_card_close(); ?>

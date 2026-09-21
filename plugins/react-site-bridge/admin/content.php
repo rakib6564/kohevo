@@ -119,7 +119,7 @@ require $root . '/admin/partials/header.php';
     <?php else: $fields = rsc_content_fields($selected['document']); ?>
       <div class="card-header"><h2><?= e($selected['route']) ?></h2><p>Only text is editable here. The page design, navigation, and data structure remain protected.</p></div>
       <form method="post"><input type="hidden" name="site_id" value="<?= $siteId ?>"><input type="hidden" name="document_id" value="<?= (int)$selected['id'] ?>"><?= csrf_field() ?>
-        <div class="rsc-content-notice"><strong>How publishing works</strong><span>Save draft keeps changes private. Save &amp; publish updates the public manifest used by the live Slate-hosted Kaimana site.</span></div>
+        <div class="rsc-content-notice"><strong>How publishing works</strong><span>Save draft keeps changes private. Save &amp; publish updates the public manifest used by the live Kohevo-hosted Kaimana site.</span></div>
         <div class="rsc-content-fields">
           <?php foreach ($fields as $field): $path = $field['path']; $value = $field['value']; $long = rsc_content_is_long($path, $value); ?>
             <div class="field rsc-content-field<?= $long ? ' is-long' : '' ?>"><label class="field-label" for="field-<?= e(rsc_content_token($path)) ?>"><?= e(rsc_content_label($path)) ?></label>

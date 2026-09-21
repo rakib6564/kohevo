@@ -169,7 +169,7 @@ class ReactSiteBridgeAPI {
         self::requireSite($siteId);
         $logicalKey = self::normalizeLogicalKey($logicalKey);
         if ($logicalKey === '') throw new InvalidArgumentException('A logical media key is required.');
-        if (!class_exists('Media')) throw new RuntimeException('Slate Media is unavailable.');
+        if (!class_exists('Media')) throw new RuntimeException('Kohevo Media is unavailable.');
         $keyOwner = Database::row('SELECT id FROM reactsitebridge_media WHERE tenant_id = ? AND site_id = ? AND logical_key = ?', [current_tenant_id(), $siteId, $logicalKey]);
         if ($keyOwner && (int)$keyOwner['id'] !== $mappingId) throw new InvalidArgumentException('This logical media key is already mapped. Use a new key or edit the existing mapping.');
         $media = Media::get($mediaId);
@@ -212,7 +212,7 @@ class ReactSiteBridgeAPI {
     /** Upload an approved raster photograph through Slate Media, then map it as a bridge draft. */
     public static function uploadApprovedPhotographyAndMap(int $siteId, string $field, string $logicalKey, string $altText = '', $focalX = null, $focalY = null): array {
         self::requireSite($siteId);
-        if (!class_exists('Media')) throw new RuntimeException('Slate Media is unavailable.');
+        if (!class_exists('Media')) throw new RuntimeException('Kohevo Media is unavailable.');
         $logicalKey = self::normalizeLogicalKey($logicalKey);
         if ($logicalKey === '') throw new InvalidArgumentException('A logical media key is required.');
         $existing = Database::row('SELECT id FROM reactsitebridge_media WHERE tenant_id = ? AND site_id = ? AND logical_key = ?', [current_tenant_id(), $siteId, $logicalKey]);
@@ -225,7 +225,7 @@ class ReactSiteBridgeAPI {
         if (empty($result['id'])) throw new InvalidArgumentException((string)($result['error'] ?? 'The approved photography file could not be uploaded.'));
         $mediaId = (int)$result['id'];
         $media = Media::get($mediaId);
-        if (!$media || (string)($media['kind'] ?? '') !== 'image') throw new RuntimeException('Slate Media did not register a usable image.');
+        if (!$media || (string)($media['kind'] ?? '') !== 'image') throw new RuntimeException('Kohevo Media did not register a usable image.');
         $mappingId = self::saveMediaMapping($siteId, 0, $logicalKey, $mediaId, $altText, $focalX, $focalY);
         return ['media' => $media, 'mapping_id' => $mappingId];
     }
@@ -352,7 +352,7 @@ class ReactSiteBridgeAPI {
     public static function importPackage(array $upload, bool $publish = true, bool $replaceExisting = false): array {
         self::ensureSchema();
         if (!class_exists('ZipArchive')) throw new RuntimeException('The PHP ZipArchive extension is required to import a site package.');
-        if (!class_exists('Media') || !class_exists('Uploads')) throw new RuntimeException('Slate Media and Uploads must be available before importing a site package.');
+        if (!class_exists('Media') || !class_exists('Uploads')) throw new RuntimeException('Kohevo Media and Uploads must be available before importing a site package.');
         if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || empty($upload['tmp_name']) || !is_uploaded_file((string)$upload['tmp_name'])) {
             throw new InvalidArgumentException('Upload a valid React Site Package ZIP file.');
         }
@@ -504,9 +504,9 @@ class ReactSiteBridgeAPI {
      */
     public static function importHostedRelease(int $siteId, array $upload): array {
         self::requireSite($siteId);
-        if (!class_exists('ZipArchive') || !class_exists('Uploads')) throw new RuntimeException('Slate requires ZipArchive and Uploads to host a React release.');
+        if (!class_exists('ZipArchive') || !class_exists('Uploads')) throw new RuntimeException('Kohevo requires ZipArchive and Uploads to host a React release.');
         if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || empty($upload['tmp_name']) || !is_uploaded_file((string)$upload['tmp_name'])) {
-            throw new InvalidArgumentException('Upload a valid Slate React Release ZIP file.');
+            throw new InvalidArgumentException('Upload a valid Kohevo React Release ZIP file.');
         }
         if ((int)($upload['size'] ?? 0) > 90 * 1024 * 1024) throw new InvalidArgumentException('The hosted release exceeds the 90 MB upload limit.');
 
@@ -518,7 +518,7 @@ class ReactSiteBridgeAPI {
             $raw = $zip->getFromName('hosted-release.json');
             $package = is_string($raw) ? self::decodeJson($raw, true) : null;
             if (!is_array($package) || ($package['package_type'] ?? '') !== 'react-site-bridge-hosted-release' || (int)($package['schema_version'] ?? 0) !== 1) {
-                throw new InvalidArgumentException('This is not a supported Slate React Release package.');
+                throw new InvalidArgumentException('This is not a supported Kohevo React Release package.');
             }
             $files = is_array($package['files'] ?? null) ? $package['files'] : [];
             if (!$files || count($files) > 350 || !in_array('index.html', $files, true)) throw new InvalidArgumentException('The release manifest must include index.html and a bounded file list.');
@@ -704,7 +704,7 @@ class ReactSiteBridgeAPI {
         @chmod($absolutePath, 0644);
         $path = '/uploads/' . $folder . '/' . $filename;
         $mediaId = Media::register($path, ['mime' => $mime, 'size_bytes' => (int)$bytes, 'width' => $width, 'height' => $height, 'original_name' => basename($entry)]);
-        if ($mediaId <= 0) { @unlink($absolutePath); throw new RuntimeException('A package media file could not be registered in Slate Media.'); }
+        if ($mediaId <= 0) { @unlink($absolutePath); throw new RuntimeException('A package media file could not be registered in Kohevo Media.'); }
         return $mediaId;
     }
 

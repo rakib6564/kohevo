@@ -219,7 +219,7 @@ class FormsPdf {
     }
 
     private function drawHeader(string $ref): void {
-        $name = (string)($this->brand['name'] ?? 'Slate');
+        $name = (string)($this->brand['name'] ?? 'Kohevo');
         $sub  = trim((string)($this->brand['sublabel'] ?? ''));
         $logo = $this->loadLogo();
 

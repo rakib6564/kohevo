@@ -32,7 +32,7 @@ return [
 
     // ── admin/index.php (AI Access / jetons) ────────────────────────────
     'mcp_gateway_index_sub' => 'Créez des identifiants restreints et propres à ce site pour les agents IA autorisés (Claude, Manus, etc.).',
-    'mcp_gateway_index_token_created' => 'Jeton créé. Copiez-le maintenant — Slate ne pourra plus l\'afficher.',
+    'mcp_gateway_index_token_created' => 'Jeton créé. Copiez-le maintenant — Kohevo ne pourra plus l\'afficher.',
     'mcp_gateway_index_token_revoked' => 'Jeton révoqué immédiatement.',
     'mcp_gateway_index_disabled_notice' => 'La passerelle MCP est actuellement <strong>désactivée</strong> au niveau de l\'environnement (<code>MCP_GATEWAY_ENABLED</code> n\'est pas défini sur <code>1</code>). Les jetons peuvent toujours être créés et révoqués ici, mais aucun agent ne peut se connecter tant que ce paramètre n\'a pas été activé par la personne qui gère l\'environnement serveur.',
     'mcp_gateway_index_copy_token_heading' => 'Copiez ce jeton maintenant',

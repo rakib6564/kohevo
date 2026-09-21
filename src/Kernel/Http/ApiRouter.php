@@ -42,7 +42,7 @@ class ApiRouter {
         if ($routePath === '') {
             $modules = Hook::applyFilters('api_v1_modules', ['booking']);
             self::respondSuccess([
-                'name'      => 'Slate Headless & Mobile API',
+                'name'      => 'Kohevo Headless & Mobile API',
                 'version'   => '1.0',
                 'timestamp' => slate_db_now(),
                 'modules'   => is_array($modules) ? array_values($modules) : [],

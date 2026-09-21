@@ -67,13 +67,13 @@ return [
     'csrf_failed'       => 'Vérification de sécurité échouée. Veuillez réessayer.',
     'login_required'    => 'L\'e-mail et le mot de passe sont requis.',
     'login_invalid'     => 'E-mail ou mot de passe invalide.',
-    'install_success'   => 'Slate est installé. Connectez-vous avec le compte que vous venez de créer.',
+    'install_success'   => 'Kohevo est installé. Connectez-vous avec le compte que vous venez de créer.',
 
     // Dashboard
     'good_to_see_you'   => 'Ravi de vous revoir',
     'dashboard_subtitle'=> 'Voici un aperçu rapide de votre compte aujourd\'hui.',
-    'welcome'           => 'Bienvenue sur Slate',
-    'dashboard_intro'   => 'Slate est une base légère. Installez des extensions pour ajouter des fonctionnalités — réservation, produits, forfaits, et plus encore. Chaque extension gère ses propres données et peut être désactivée ou désinstallée sans affecter les autres.',
+    'welcome'           => 'Bienvenue sur Kohevo',
+    'dashboard_intro'   => 'Kohevo est une base légère. Installez des extensions pour ajouter des fonctionnalités — réservation, produits, forfaits, et plus encore. Chaque extension gère ses propres données et peut être désactivée ou désinstallée sans affecter les autres.',
     'active_plugins'    => 'Extensions actives',
     'installed'         => 'installée(s)',
     'inactive'          => 'inactive(s)',
@@ -96,7 +96,7 @@ return [
     'download_example'  => 'Télécharger l\'extension d\'exemple',
     'installed_plugins' => 'Extensions installées',
     'no_plugins_installed' => 'Aucune extension installée',
-    'no_plugins_intro'  => 'Slate est actuellement une base vierge. Envoyez votre première extension ci-dessus.',
+    'no_plugins_intro'  => 'Kohevo est actuellement une base vierge. Envoyez votre première extension ci-dessus.',
     'activate'          => 'Activer',
     'deactivate'        => 'Désactiver',
     'uninstall'         => 'Désinstaller',
@@ -121,7 +121,7 @@ return [
     'active'            => 'active',
 
     // Users page
-    'users_subtitle'    => 'Utilisateurs administrateurs pouvant se connecter à Slate.',
+    'users_subtitle'    => 'Utilisateurs administrateurs pouvant se connecter à Kohevo.',
     'coming_session_3'  => 'Interface d\'édition : Session 3',
     'role'              => 'Rôle',
     'last_login'        => 'Dernière connexion',
@@ -142,7 +142,7 @@ return [
     'submissions'       => 'Soumissions',
 
     // Settings page
-    'settings_subtitle' => 'Configurez l\'apparence et le comportement de Slate.',
+    'settings_subtitle' => 'Configurez l\'apparence et le comportement de Kohevo.',
     'more_session_3'    => 'Plus de réglages : Session 3',
     'general'           => 'Général',
     'site_name'         => 'Nom du site',

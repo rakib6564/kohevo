@@ -280,7 +280,7 @@ class GoogleCalendarSync
             'summary'     => $appt['service_name'] . ' — ' . $appt['customer_name'],
             'description' => trim(
                 ($appt['notes'] ? $appt['notes'] . "\n\n" : '')
-                . 'Booked via Slate. Ref: ' . $appt['ref'] . "\n"
+                . 'Booked via Kohevo. Ref: ' . $appt['ref'] . "\n"
                 . 'Customer: ' . $appt['customer_name']
                 . ($appt['customer_email'] ? ' <' . $appt['customer_email'] . '>' : '')
                 . ($appt['customer_phone'] ? ' · ' . $appt['customer_phone'] : '')

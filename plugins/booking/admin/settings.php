@@ -325,7 +325,7 @@ require SLATE_ROOT . '/admin/partials/header.php';
 
     <div class="card">
         <div class="card-header"><h2><?= __('booking_settings_gcal_title', 'Google Calendar (2-way sync)') ?></h2></div>
-        <p class="text-sm text-muted"><?= __('booking_settings_gcal_desc', 'Each provider connects their own Google Calendar from their profile (Providers → edit → Google Calendar). Once connected, bookings push to their calendar automatically, and events they create or change directly in Google — including time blocked off for other things — flow back into Slate so double-booking is avoided.') ?></p>
+        <p class="text-sm text-muted"><?= __('booking_settings_gcal_desc', 'Each provider connects their own Google Calendar from their profile (Providers → edit → Google Calendar). Once connected, bookings push to their calendar automatically, and events they create or change directly in Google — including time blocked off for other things — flow back into Kohevo so double-booking is avoided.') ?></p>
 
         <div class="field">
             <label class="switch-label">

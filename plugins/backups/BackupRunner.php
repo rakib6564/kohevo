@@ -275,7 +275,7 @@ class BackupRunner
         $token = GoogleDriveClient::accessToken();
         if (!$token) throw new \RuntimeException('Google Drive isn\'t connected (no valid access token).');
         $folderId = GoogleDriveClient::ensureFolder($token);
-        if (!$folderId) throw new \RuntimeException('Could not find/create the Slate Backups folder in Drive.');
+        if (!$folderId) throw new \RuntimeException('Could not find/create the Kohevo Backups folder in Drive.');
 
         $totalBytes = (int)filesize($zipPath);
         $filename   = 'slate-backup-' . date('Y-m-d_His') . '.zip';

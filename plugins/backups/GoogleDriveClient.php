@@ -148,8 +148,8 @@ class GoogleDriveClient
 
     // ── Destination folder ───────────────────────────────────────
 
-    /** Finds (or creates) the "Slate Backups" folder, caching its id in settings. */
-    public static function ensureFolder(string $token, string $name = 'Slate Backups'): ?string {
+    /** Finds (or creates) the "Kohevo Backups" folder, caching its id in settings. */
+    public static function ensureFolder(string $token, string $name = 'Kohevo Backups'): ?string {
         $cached = (string)(Database::setting('backups.google_folder_id') ?? '');
         if ($cached !== '') return $cached;
 

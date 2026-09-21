@@ -49,7 +49,7 @@ require $root . '/admin/partials/header.php';
 <?php if ($flash): ?><div class="alert alert-<?= e($flash['type']) ?>" role="status"><?= e($flash['msg']) ?></div><?php endif; ?>
 <div class="card mb-3">
   <div class="card-header"><h2>Import a prepared site package</h2></div>
-  <p class="text-muted">Use the single ZIP supplied for a React site. Slate will create the site, import editable route content, move approved media into this tenant’s Media Library, map assets, and optionally publish the first manifest.</p>
+  <p class="text-muted">Use the single ZIP supplied for a React site. Kohevo will create the site, import editable route content, move approved media into this tenant’s Media Library, map assets, and optionally publish the first manifest.</p>
   <form method="post" enctype="multipart/form-data" class="rsc-import-form">
     <?= csrf_field() ?><input type="hidden" name="_action" value="import_package">
     <div class="rsc-import-row"><div class="field"><label class="field-label" for="site_package">React Site Package <span class="field-required">*</span></label><input id="site_package" name="site_package" type="file" accept=".zip,application/zip" required><p class="field-help">ZIP only; up to 55 MB. The package must contain a signed-off site-package.json and a media directory.</p></div><div class="rsc-checks"><label class="check-row"><input type="checkbox" name="publish_initial" value="1" checked> Publish the initial manifest after import</label><label class="check-row"><input type="checkbox" name="replace_existing" value="1"> Replace an existing site with the same key</label><p class="field-help">Replacement removes the site’s bridge documents, mappings, and revisions, but keeps Media Library files available for cleanup.</p></div></div>

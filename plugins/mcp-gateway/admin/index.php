@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newToken = McpGatewayAPI::createToken(
                 (string)($_POST['label'] ?? ''), (array)($_POST['scopes'] ?? []), (string)($_POST['expires_at'] ?? '')
             );
-            $flash = ['type' => 'success', 'msg' => __('mcp_gateway_index_token_created', 'Token created. Copy it now — Slate cannot show it again.')];
+            $flash = ['type' => 'success', 'msg' => __('mcp_gateway_index_token_created', 'Token created. Copy it now — Kohevo cannot show it again.')];
         } catch (Throwable $e) {
             $flash = ['type' => 'error', 'msg' => $e->getMessage()];
         }

@@ -416,7 +416,7 @@ class PluginLoader {
             if (!slate_semver_satisfies(SLATE_VERSION, $manifest['requires_core'])) {
                 self::rmrf($tmpRoot);
                 return ['ok' => false, 'error' =>
-                    "This plugin requires Slate core {$manifest['requires_core']}. You have " . SLATE_VERSION . '.'];
+                    "This plugin requires Kohevo core {$manifest['requires_core']}. You have " . SLATE_VERSION . '.'];
             }
         }
 
