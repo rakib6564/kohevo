@@ -63,7 +63,6 @@ $accent = preg_match('/^#[0-9a-fA-F]{6}$/', (string)Database::setting('brand_acc
 
 $logoUrls = slate_logo_urls();
 $logoUrl  = $logoUrls['light'];
-$logoDarkUrl = $logoUrls['dark'];
 
 $heroPath = (string)Database::setting('brand_login_image_path');
 $heroUrl  = $heroPath !== '' ? SLATE_URL . '/' . ltrim($heroPath, '/') : '';
@@ -160,45 +159,6 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-    }
-    .auth-hero-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        color: #fff;
-        text-decoration: none;
-        font-family: var(--font-display);
-        font-weight: 700;
-        font-size: 15px;
-        letter-spacing: -0.01em;
-        padding: 7px 16px 7px 7px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.14);
-        border: 1px solid rgba(255,255,255,0.22);
-        backdrop-filter: blur(14px) saturate(180%);
-        -webkit-backdrop-filter: blur(14px) saturate(180%);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.22);
-        transition: background 0.15s ease;
-    }
-    .auth-hero-brand:hover { background: rgba(255,255,255,0.22); color: #fff; text-decoration: none; }
-    .auth-hero-brand img {
-        max-height: 32px;
-        max-width: 160px;
-        width: auto;
-        display: block;
-        /* Shown exactly as authored — no filter that would flatten a
-           multi-tone logo into a plain silhouette (a real bug: a solid-fill
-           logo like a circle mark turned into a plain white blob under
-           brightness(0) invert(1), since it has no alpha detail to preserve). */
-    }
-    .auth-hero-mark {
-        width: 38px; height: 38px;
-        border-radius: 11px;
-        display: grid; place-items: center;
-        background: rgba(255,255,255,0.16);
-        backdrop-filter: blur(6px);
-        font-size: 18px; font-weight: 700;
-        border: 1px solid rgba(255,255,255,0.25);
     }
     .auth-back {
         display: inline-flex;
@@ -420,22 +380,8 @@ $initial  = e(mb_strtoupper(mb_substr($siteName, 0, 1)));
     <!-- ── Brand / image panel ── -->
     <aside class="auth-hero" aria-hidden="true">
         <div class="auth-hero-top">
-            <a href="<?= e($siteHome) ?>/" class="auth-hero-brand">
-                <?php
-                // This panel's background is always a dark photo/gradient
-                // (fixed by this page's own design, not the visitor's OS
-                // theme), so it always wants the dark-mode logo variant when
-                // one exists -- prefers-color-scheme would wrongly follow
-                // the OS instead of this panel's actual background.
-                $heroLogoUrl = $logoDarkUrl !== '' ? $logoDarkUrl : $logoUrl;
-                ?>
-                <?php if ($heroLogoUrl !== ''): ?>
-                    <img src="<?= e($heroLogoUrl) ?>" alt="<?= e($siteName) ?>">
-                <?php else: ?>
-                    <span class="auth-hero-mark"><?= $initial ?></span>
-                    <span><?= e($siteName) ?></span>
-                <?php endif; ?>
-            </a>
+            <!-- The tenant logo already renders once in the form card
+                 below (.auth-logo) -- this panel no longer repeats it. -->
             <a href="<?= e($siteHome) ?>/" class="auth-back">
                 <?= __('back_to_website', 'Back to website') ?>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
