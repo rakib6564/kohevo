@@ -545,8 +545,20 @@ function bookpub_layout_end(bool $embed): void {
     }
 
     if (!$embed) {
-        echo '<footer class="book-footer text-sm text-muted text-center">' . e(__('booking_powered_by', 'Powered by')) . ' '
-           . e(Database::setting('site_name') ?: 'Kohevo') . '</footer>';
+        // Platform identity (Kohevo), not the tenant's own site_name — this
+        // previously read Database::setting('site_name'), which shows the
+        // TENANT's own business name here ("Powered by <tenant>"), only
+        // "looking" like platform branding for a tenant that never set one
+        // (falls back to the literal 'Kohevo'). Routed through
+        // PlatformSignature so the mark image renders too, matching every
+        // other "Powered by Kohevo" surface (admin/customer shell, login,
+        // error pages, email) — same MODE_SIGNATURE, same non-localized
+        // "Powered by Kohevo" text by design (see PlatformIdentity's
+        // docblock), and correctly honors Phase 6 white-label suppression
+        // with no licensing logic in this template.
+        echo '<footer class="book-footer text-sm text-muted text-center">'
+           . '<p class="book-platform-signature">' . \Slate\Services\Content\PlatformSignature::render(\Slate\Services\Content\PlatformSignature::MODE_SIGNATURE) . '</p>'
+           . '</footer>';
     } else {
         // Embedded in a page (Content Builder "Booking" block, or the
         // classic <iframe src="/book?embed=1">): report our height to the
