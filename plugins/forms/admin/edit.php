@@ -1127,18 +1127,18 @@ $publicUrl = ($state['slug'] !== '' && !$isNew) ? SLATE_URL . '/forms/' . $state
                     <div class="field">
                         <label class="field-label" for="fs_sender_name"><?= __('from_name', 'Sender name') ?></label>
                         <input type="text" id="fs_sender_name" name="fs_sender_name" maxlength="120"
-                               value="<?= e($fset['sender']['name'] ?? '') ?>" placeholder="Rick Lenschow">
+                               value="<?= e($fset['sender']['name'] ?? '') ?>" placeholder="<?= e(__('forms_edit_sender_name_ph', 'Jane Doe')) ?>">
                     </div>
                     <div class="field">
                         <label class="field-label" for="fs_sender_company"><?= __('business_name', 'Company name') ?></label>
                         <input type="text" id="fs_sender_company" name="fs_sender_company" maxlength="160"
-                               value="<?= e($fset['sender']['company'] ?? '') ?>" placeholder="CM Surveyors">
+                               value="<?= e($fset['sender']['company'] ?? '') ?>" placeholder="<?= e(__('forms_edit_sender_company_ph', 'Your Company')) ?>">
                     </div>
                 </div>
                 <div class="field" style="margin-bottom:16px;">
                     <label class="field-label" for="fs_sender_email"><?= __('from_email', 'Sender email') ?></label>
                     <input type="email" id="fs_sender_email" name="fs_sender_email" maxlength="200"
-                           value="<?= e($fset['sender']['email'] ?? '') ?>" placeholder="rick@cmsurveyors.com">
+                           value="<?= e($fset['sender']['email'] ?? '') ?>" placeholder="you@example.com">
                 </div>
 
                 <style>
