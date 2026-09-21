@@ -4003,7 +4003,7 @@ slate_render_settings_tabs($activeTab);
                 <div class="field">
                     <label class="field-label" for="landing_eyebrow"><?= __('landing_eyebrow', 'Eyebrow (small label above title)') ?></label>
                     <input type="text" id="landing_eyebrow" name="landing_eyebrow" maxlength="80"
-                           placeholder="Vessel Survey Orders" value="<?= e($landing['eyebrow']) ?>" <?= $canEdit ? '' : 'disabled' ?>>
+                           placeholder="Welcome" value="<?= e($landing['eyebrow']) ?>" <?= $canEdit ? '' : 'disabled' ?>>
                 </div>
                 <div class="field">
                     <label class="field-label" for="landing_title"><?= __('landing_title', 'Title') ?></label>
@@ -4016,7 +4016,8 @@ slate_render_settings_tabs($activeTab);
 
             <div class="field">
                 <label class="field-label" for="landing_intro"><?= __('landing_intro_text', 'Intro paragraph') ?></label>
-                <textarea id="landing_intro" name="landing_intro" rows="2" maxlength="400" <?= $canEdit ? '' : 'disabled' ?>><?= e($landing['intro']) ?></textarea>
+                <textarea id="landing_intro" name="landing_intro" rows="2" maxlength="400"
+                          placeholder="Choose an option below to get started." <?= $canEdit ? '' : 'disabled' ?>><?= e($landing['intro']) ?></textarea>
             </div>
 
             <div class="field-row field-row-2">

@@ -88,10 +88,10 @@ function slate_render_landing(): void {
     // and intro live on the hero (left) panel; the entry (right) panel's
     // "Welcome" heading and subtitle are fixed chrome, same as the login
     // pages' own static "Welcome back" heading.
-    $eyebrow = (string)Database::setting('landing_eyebrow') ?: 'Vessel Survey Orders';
+    $eyebrow = (string)Database::setting('landing_eyebrow');
     $title   = (string)Database::setting('landing_title')   ?: $bizName;
     $intro   = (string)Database::setting('landing_intro')   ?:
-        'Please choose either Powerboat or Sailboat from one of the two vessel survey order forms below:';
+        'Choose an option below to get started.';
     $footer  = (string)Database::setting('landing_footer')  ?:
         ('© ' . date('Y') . ' ' . $bizName . '. All rights reserved.');
 
@@ -174,7 +174,7 @@ function slate_render_landing(): void {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $e($title) ?> — <?= $e($eyebrow) ?></title>
+<title><?= $e($eyebrow !== '' ? $title . ' — ' . $eyebrow : $title) ?></title>
 <link rel="icon" href="<?= $e($logoUrl !== '' ? $logoUrl : slate_default_favicon_url()) ?>">
 <style>
     :root { --accent: <?= $e($accent) ?>; }
@@ -260,7 +260,7 @@ function slate_render_landing(): void {
             <?php endif; ?>
         </div>
         <div class="hero-bottom">
-            <span class="hero-eyebrow"><?= $e($eyebrow) ?></span>
+            <?php if ($eyebrow !== ''): ?><span class="hero-eyebrow"><?= $e($eyebrow) ?></span><?php endif; ?>
             <p class="hero-tagline"><?= $e($intro) ?></p>
         </div>
     </aside>

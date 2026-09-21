@@ -65,3 +65,15 @@ unit('landing page: Settings -> Landing reads the booking and entry-point toggle
     assert_true(str_contains($src, "\$landingShowCustomerLogin = Database::setting('landing_show_customer_login') !== '0';"), 'customer login checkbox must read as checked by default');
     assert_true(str_contains($src, "\$landingShowAdminLogin    = Database::setting('landing_show_admin_login')    !== '0';"), 'admin login checkbox must read as checked by default');
 });
+
+unit('landing page: the eyebrow/intro fallbacks are generic, not the old vessel-survey-specific copy, and the eyebrow hides entirely when unset', function () {
+    $landingSrc  = file_get_contents(__DIR__ . '/../../includes/landing.php');
+    $settingsSrc = file_get_contents(__DIR__ . '/../../admin/settings.php');
+    foreach ([$landingSrc, $settingsSrc] as $src) {
+        assert_false(str_contains($src, 'Vessel Survey Orders'), 'the old business-specific eyebrow default must be gone');
+        assert_false(str_contains($src, 'Please choose either Powerboat or Sailboat'), 'the old business-specific intro default must be gone');
+    }
+    assert_true(str_contains($landingSrc, "\$eyebrow = (string)Database::setting('landing_eyebrow');"), 'the eyebrow must have no fabricated fallback text — blank when unset');
+    assert_true(str_contains($landingSrc, "if (\$eyebrow !== ''): ?><span class=\"hero-eyebrow\">"), 'the eyebrow element must not render at all when blank');
+    assert_true(str_contains($landingSrc, "'Choose an option below to get started.'"), 'the intro fallback must be a generic call to action');
+});
