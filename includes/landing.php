@@ -245,6 +245,8 @@ function slate_render_landing(): void {
     .contact a:hover { color: #16181c; }
     .contact svg { width: 13px; height: 13px; flex: none; color: var(--accent); }
     .foot-copy { font-size: 11.5px; color: #9ca3af; }
+    .foot-signature { margin-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #9ca3af; }
+    .foot-signature img { display: block; height: 13px; width: auto; }
 </style>
 </head>
 <body>
@@ -316,6 +318,18 @@ function slate_render_landing(): void {
         </div>
         <?php endif; ?>
         <div class="foot-copy"><?= $e($footer) ?></div>
+        <?php
+        // Kohevo platform signature — secondary to, and separate from, the
+        // business's own footer copy directly above (that credit is
+        // unchanged, not merged with this). Routed entirely through
+        // PlatformSignature/PlatformIdentity, same pattern and MODE_SIGNATURE
+        // as admin/login.php; this file never names a platform asset path or
+        // the literal platform name. Renders '' (and this wrapper is skipped)
+        // when the current tenant is licensed to white-label.
+        $platformSignature = \Slate\Services\Content\PlatformSignature::render(\Slate\Services\Content\PlatformSignature::MODE_SIGNATURE);
+        if ($platformSignature !== ''): ?>
+        <div class="foot-signature"><?= $platformSignature ?></div>
+        <?php endif; ?>
     </main>
 
 </div>
