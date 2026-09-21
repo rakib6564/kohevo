@@ -2091,6 +2091,10 @@ class BookingAPI {
             . '<tr><td style="padding:38px 34px;color:#2d2a26;font-size:15px;line-height:1.65;">' . $innerHtml . '</td></tr>'
             . '<tr><td style="padding:18px 34px 26px;border-top:1px solid #ece4d3;">'
             . '<p style="margin:0;color:#a49a86;font-size:12px;text-align:center;">' . e($siteName) . ' &middot; ' . $year . '</p>'
+            // Platform identity (Kohevo) — plain-text signature, secondary to
+            // the tenant name/logo above (this shell has its own footer, not
+            // BrandedEmail's, so it needs the same line added directly).
+            . '<p style="margin:4px 0 0;color:#c4b8a0;font-size:11px;text-align:center;">' . e(\Slate\Services\Content\PlatformIdentity::signature()) . '</p>'
             . '</td></tr>'
             . '</table>'
             . '</td></tr>'

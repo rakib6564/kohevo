@@ -887,7 +887,12 @@ class Auth {
         $bodyHtml = '<p>' . sprintf(__('auth_email_welcome_to', 'Welcome to %s.'), e($siteName)) . '</p>'
                   . '<p>' . e(__('auth_email_verify_instructions', 'Please confirm your email address by clicking the link below. The link is valid for 3 days.')) . '</p>'
                   . '<p><a href="' . e($verifyUrl) . '">' . e($verifyUrl) . '</a></p>'
-                  . '<p>' . e(__('auth_email_verify_ignore', "If you didn't create an account, you can safely ignore this email.")) . '</p>';
+                  . '<p>' . e(__('auth_email_verify_ignore', "If you didn't create an account, you can safely ignore this email.")) . '</p>'
+                  // Platform identity (Kohevo) — plain-text signature; this path
+                  // builds its own HTML rather than going through BrandedEmail,
+                  // so the line is added directly here (see BrandedEmail::shell()
+                  // for the equivalent on the shared-shell path).
+                  . '<p style="margin-top:20px;color:#94a3b8;font-size:12px;">' . e(\Slate\Services\Content\PlatformIdentity::signature()) . '</p>';
 
         return (bool) \Mailer::send(
             $cust['email'],
@@ -944,7 +949,9 @@ class Auth {
         $bodyHtml = '<p>' . sprintf(__('auth_email_reset_requested', 'You requested a password reset for your %s account.'), e($siteName)) . '</p>'
                   . '<p>' . e(__('auth_email_reset_instructions', 'Click the link below to set a new password. The link is valid for 2 hours.')) . '</p>'
                   . '<p><a href="' . e($resetUrl) . '">' . e($resetUrl) . '</a></p>'
-                  . '<p>' . e(__('auth_email_reset_ignore', "If you didn't request this, you can safely ignore this email — your password won't change.")) . '</p>';
+                  . '<p>' . e(__('auth_email_reset_ignore', "If you didn't request this, you can safely ignore this email — your password won't change.")) . '</p>'
+                  // Platform identity (Kohevo) — see sendCustomerVerification() above.
+                  . '<p style="margin-top:20px;color:#94a3b8;font-size:12px;">' . e(\Slate\Services\Content\PlatformIdentity::signature()) . '</p>';
 
         \Mailer::send(
             $cust['email'],

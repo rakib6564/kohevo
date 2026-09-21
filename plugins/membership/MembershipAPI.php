@@ -989,7 +989,10 @@ class MembershipAPI {
               . '<li><strong>' . __('membership_plan', 'Plan') . ':</strong> ' . e($name) . '</li>'
               . '<li><strong>' . __('membership_expires', 'Expires') . ':</strong> ' . e($expires) . '</li>'
               . '<li><strong>' . __('membership_price', 'Price') . ':</strong> ' . e(self::money((int)$sub['amount_cents'], $sub['currency'])) . '</li>'
-              . '</ul>';
+              . '</ul>'
+              // Platform identity (Kohevo) — this path builds raw HTML with no
+              // shared shell, so the plain-text signature is added directly.
+              . '<p style="margin-top:16px;color:#94a3b8;font-size:12px;">' . e(\Slate\Services\Content\PlatformIdentity::signature()) . '</p>';
         Mailer::send((string)$cust['email'], $subject, $body, (string)($cust['name'] ?? ''));
     }
 
@@ -1004,7 +1007,9 @@ class MembershipAPI {
         $subject = sprintf('%s — %s', $site, __('membership_email_cancel_subject', 'Your membership was cancelled'));
         $body = '<p>' . e($cust['name'] ?? '') . ',</p>'
               . '<p>' . __('membership_email_cancel_body', 'Your membership has been cancelled.') . '</p>'
-              . '<p><strong>' . __('membership_plan', 'Plan') . ':</strong> ' . e(self::planName($sub)) . '</p>';
+              . '<p><strong>' . __('membership_plan', 'Plan') . ':</strong> ' . e(self::planName($sub)) . '</p>'
+              // Platform identity (Kohevo) — see sendPurchaseEmail() above.
+              . '<p style="margin-top:16px;color:#94a3b8;font-size:12px;">' . e(\Slate\Services\Content\PlatformIdentity::signature()) . '</p>';
         Mailer::send((string)$cust['email'], $subject, $body, (string)($cust['name'] ?? ''));
     }
 
