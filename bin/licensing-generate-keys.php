@@ -22,7 +22,10 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require __DIR__ . '/../config.php';
-require __DIR__ . '/../plugins/licensing/LicensingAPI.php';
+// require_once, not require: when the licensing plugin is active, config.php
+// (via PluginLoader::boot() -> Licensing::boot()) has already loaded this
+// same file -- a plain require() here fatals on a class redeclaration.
+require_once __DIR__ . '/../plugins/licensing/LicensingAPI.php';
 
 if (!extension_loaded('sodium')) {
     fwrite(STDERR, "ext-sodium is required and is not loaded on this PHP install.\n");
