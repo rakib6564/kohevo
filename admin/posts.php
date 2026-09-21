@@ -19,6 +19,20 @@ use Slate\Services\Content\ContentServiceFactory;
 Auth::require();
 Auth::requirePerm('content.view');
 
+// Same Phase 2 kill switch as admin/editor.php — hiding the nav link alone
+// leaves this page (both Pages and Posts, via ?type=) fully reachable by
+// direct URL for any admin who knows it.
+if (Database::setting('editor_phase2_enabled') === '0') {
+    $pageTitle  = __('content', 'Content');
+    $currentNav = (($_GET['type'] ?? 'page') === 'post') ? 'content-post' : 'content-page';
+    require __DIR__ . '/partials/header.php';
+    echo '<div class="card"><div class="card-body"><p>'
+        . e(__('editor_unavailable', 'The visual editor is temporarily unavailable.'))
+        . '</p></div></div>';
+    require __DIR__ . '/partials/footer.php';
+    exit;
+}
+
 $pages  = ContentServiceFactory::pageRepository();
 $type   = preg_match('/^[a-z][a-z0-9_-]{0,31}$/', (string) ($_GET['type'] ?? 'page')) ? $_GET['type'] : 'page';
 $flash  = null;

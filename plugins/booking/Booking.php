@@ -143,7 +143,7 @@ class Booking extends Plugin {
         if (!Auth::can('booking.view') && !Auth::isSuperAdmin()) return $items;
 
         $items[] = ['slug' => 'booking',              'label' => __('booking', 'Booking overview'),
-                    'href' => $this->url('admin/index.php'),
+                    'href' => $this->url('admin/index.php'), 'mobile_tab' => true,
                     'icon' => 'calendar',  'order' => 600, 'group' => 'booking'];
         $items[] = ['slug' => 'booking-calendar',     'label' => __('booking_calendar', 'Calendar view'),
                     'href' => $this->url('admin/calendar.php'),

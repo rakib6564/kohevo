@@ -129,15 +129,28 @@ $coreNav = [
         'group'      => 'settings',
         'mobile_tab' => false,
     ],
+    [
+        // No dedicated perm — admin/notifications.php itself only requires
+        // Auth::require(), same as the topbar bell that already links here.
+        'slug'       => 'notifications',
+        'label'      => __('notifications', 'Notifications'),
+        'href'       => SLATE_URL . '/admin/notifications.php',
+        'icon'       => 'bell',
+        'perm'       => null,
+        'order'      => 160,
+        'group'      => 'overview',
+        'mobile_tab' => true,
+    ],
     // ── Settings ──
     [
-        'slug'  => 'settings-general',
-        'label' => __('general', 'General'),
-        'href'  => SLATE_URL . '/admin/settings.php?tab=general',
-        'icon'  => 'settings',
-        'perm'  => 'settings.view',
-        'order' => 800,
-        'group' => 'settings',
+        'slug'       => 'settings-general',
+        'label'      => __('general', 'General'),
+        'href'       => SLATE_URL . '/admin/settings.php?tab=general',
+        'icon'       => 'settings',
+        'perm'       => 'settings.view',
+        'order'      => 800,
+        'group'      => 'settings',
+        'mobile_tab' => true,
     ],
     [
         'slug'  => 'settings-permalinks',
