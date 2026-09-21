@@ -10,23 +10,31 @@
  *   landing_eyebrow, landing_title, landing_intro, landing_footer,
  *   landing_website_url, landing_website_label, landing_forms_json,
  *   landing_booking_enabled, landing_booking_label, landing_booking_blurb,
- *   landing_booking_button, landing_booking_icon
+ *   landing_booking_button, landing_booking_icon,
+ *   landing_show_customer_login, landing_show_admin_login
  *
- * The featured cards come from landing_forms_json (a list of {id,label,blurb,
- * icon}); if none are configured yet it falls back to the Powerboat/Sailboat
- * survey forms so a fresh install still looks complete. When the Booking
- * plugin is active and landing_booking_enabled is set, a card linking to the
- * live booking catalog (/book) is featured first, ahead of the forms cards.
- * The hero background reuses the Branding login image. Layout is built to fit
- * one 100vh screen on desktop/tablet and to scroll gracefully on small
- * phones.
+ * Layout is a two-panel split — a dark brand/hero panel and a light entry
+ * panel — matching admin/login.php and customer/login.php so the "choose
+ * where to go" screen reads as the same product as the screens it leads to.
+ * The entry panel lists tiles in a fixed order: the booking catalog (when
+ * the Booking plugin is active and enabled), the customer login, the admin
+ * login, then any featured forms — each independently toggleable from the
+ * Landing settings tab and on by default. The brand logo renders exactly
+ * once (in the entry panel), not repeated on the hero panel — see the same
+ * fix applied to admin/login.php.
  */
 
 if (!function_exists('slate_render_landing')) {
 
-/** Inline SVG illustration for a vessel/icon key (stroke = currentColor). */
+/** Inline SVG icon for a tile's icon key (stroke = currentColor). */
 function slate_landing_icon(string $kind): string {
     switch ($kind) {
+        case 'user':
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                 . '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>';
+        case 'shield':
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                 . '<path d="M12 3l7 3v6c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V6z"/><path d="m9.5 12 2 2 3.5-3.5"/></svg>';
         case 'sailboat':
             return '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
                  . '<path d="M32 6v34"/>'
@@ -73,11 +81,13 @@ function slate_render_landing(): void {
                 ? (string)Database::setting('brand_accent_color') : '#01aced';
     $logoUrls = slate_logo_urls();
     $logoUrl  = $logoUrls['light'];
-    $logoDarkUrl = $logoUrls['dark'];
     $heroPath = (string)Database::setting('brand_login_image_path');
     $heroUrl  = $heroPath !== '' ? SLATE_URL . '/' . ltrim($heroPath, '/') : '';
 
-    // Editable copy (fall back to sensible defaults when unset).
+    // Editable copy (fall back to sensible defaults when unset). The eyebrow
+    // and intro live on the hero (left) panel; the entry (right) panel's
+    // "Welcome" heading and subtitle are fixed chrome, same as the login
+    // pages' own static "Welcome back" heading.
     $eyebrow = (string)Database::setting('landing_eyebrow') ?: 'Vessel Survey Orders';
     $title   = (string)Database::setting('landing_title')   ?: $bizName;
     $intro   = (string)Database::setting('landing_intro')   ?:
@@ -94,21 +104,49 @@ function slate_render_landing(): void {
     $cPhone = trim((string)Database::setting('business_phone'));
     $cEmail = trim((string)Database::setting('business_email'));
     $cAddr  = trim((string)Database::setting('business_address'));
-    // Only turn the phone into a tel: link when it's a single clean number —
-    // many businesses store free-form text ("Phone: … Outside the U.S.: …") or
-    // two numbers, which must not be mashed into one bogus dial string. A real
-    // single number has no letters and 7–15 digits (E.164 max is 15; two
-    // concatenated numbers exceed that).
     $phoneDigits   = preg_replace('/\D/', '', $cPhone);
     $phoneDialable = $cPhone !== '' && !preg_match('/[A-Za-z]/', $cPhone)
                      && strlen($phoneDigits) >= 7 && strlen($phoneDigits) <= 15;
     $telHref = $phoneDialable ? 'tel:' . preg_replace('/[^0-9+]/', '', $cPhone) : '';
     $hasContact = $cPhone !== '' || $cEmail !== '' || $cAddr !== '';
 
-    // Build the featured cards from saved config; fall back to the two vessel
-    // survey forms so a fresh install still shows something meaningful.
+    // ── Entry-point tiles, in a fixed order, each on by default ──
+    // Book online (only meaningful with the Booking plugin active).
+    $tiles = [];
+    if (class_exists('PluginLoader') && PluginLoader::isActive('booking')
+        && Database::setting('landing_booking_enabled') !== '0') {
+        $tiles[] = [
+            'label'  => (string)Database::setting('landing_booking_label') ?: __('landing_book_now', 'Book now'),
+            'blurb'  => (string)Database::setting('landing_booking_blurb') ?: __('landing_book_now_blurb', 'Browse services and pick a time.'),
+            'icon'   => (string)(Database::setting('landing_booking_icon') ?: 'clipboard'),
+            'button' => (string)Database::setting('landing_booking_button') ?: __('view_availability', 'View availability'),
+            'url'    => SLATE_URL . '/book',
+        ];
+    }
+    if (Database::setting('landing_show_customer_login') !== '0') {
+        $tiles[] = [
+            'label'  => __('landing_customer_login', 'Customer login'),
+            'blurb'  => __('landing_customer_login_blurb', 'Manage your bookings and account.'),
+            'icon'   => 'user',
+            'button' => __('sign_in', 'Sign in'),
+            'url'    => SLATE_URL . '/customer/login.php',
+        ];
+    }
+    if (Database::setting('landing_show_admin_login') !== '0') {
+        $tiles[] = [
+            'label'  => __('landing_admin_login', 'Admin login'),
+            'blurb'  => __('landing_admin_login_blurb', 'Staff dashboard and settings.'),
+            'icon'   => 'shield',
+            'button' => __('sign_in', 'Sign in'),
+            'url'    => SLATE_URL . '/admin/login.php',
+        ];
+    }
+
+    // Featured forms, appended after the fixed tiles above.
     $configured = (array)json_decode((string)Database::setting('landing_forms_json'), true);
-    if (!$configured) {
+    if (!$configured && !$tiles) {
+        // Only fall back to the sample forms when there is truly nothing
+        // else to show, so a fresh install still looks complete.
         $configured = [
             ['slug' => 'powerboat-survey-order', 'label' => 'Powerboat', 'icon' => 'powerboat',
              'blurb' => 'Motor yachts, cruisers, and powered vessels — engines, hull, and systems.'],
@@ -116,34 +154,20 @@ function slate_render_landing(): void {
              'blurb' => 'Sailing yachts and keelboats — rigging, sails, hull, and systems.'],
         ];
     }
-
-    $cards = [];
-    if (class_exists('PluginLoader') && PluginLoader::isActive('booking')
-        && Database::setting('landing_booking_enabled') === '1') {
-        $bookLabel = (string)Database::setting('landing_booking_label') ?: 'Book online';
-        $cards[] = [
-            'label'  => $bookLabel,
-            'blurb'  => (string)Database::setting('landing_booking_blurb'),
-            'icon'   => (string)(Database::setting('landing_booking_icon') ?: 'clipboard'),
-            'button' => (string)Database::setting('landing_booking_button') ?: 'Book now',
-            'url'    => SLATE_URL . '/book',
-        ];
-    }
     if (class_exists('FormsAPI')) {
         foreach ($configured as $c) {
             $form = isset($c['id']) ? FormsAPI::getFormById((int)$c['id'])
                   : (isset($c['slug']) ? FormsAPI::getForm((string)$c['slug']) : null);
             if (!$form || ($form['status'] ?? '') !== 'published') continue;
-            $cards[] = [
+            $tiles[] = [
                 'label'  => ($c['label'] ?? '') !== '' ? $c['label'] : $form['title'],
                 'blurb'  => (string)($c['blurb'] ?? ''),
                 'icon'   => (string)($c['icon'] ?? 'clipboard'),
-                'button' => (string)($c['button'] ?? ''),
+                'button' => (string)($c['button'] ?? '') ?: __('landing_start', 'Start'),
                 'url'    => SLATE_URL . '/forms/' . $form['slug'],
             ];
         }
     }
-    $year = date('Y');
     ?>
 <!doctype html>
 <html lang="en">
@@ -153,162 +177,119 @@ function slate_render_landing(): void {
 <title><?= $e($title) ?> — <?= $e($eyebrow) ?></title>
 <link rel="icon" href="<?= $e($logoUrl !== '' ? $logoUrl : slate_default_favicon_url()) ?>">
 <style>
-    :root { --accent: <?= $e($accent) ?>; --radius: 18px; }
+    :root { --accent: <?= $e($accent) ?>; }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; }
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: #fff; min-height: 100vh; min-height: 100dvh;
-        display: flex; flex-direction: column; position: relative;
-        background: #0b1c2c; overflow: hidden;
+        min-height: 100vh; min-height: 100dvh;
     }
-    .bg { position: fixed; inset: 0; z-index: -2;
+    .split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; min-height: 100dvh; }
+    @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+
+    /* ── Hero (left) panel ── */
+    .hero {
+        position: relative; color: #fff; padding: clamp(20px, 3vw, 40px);
+        display: flex; flex-direction: column; justify-content: space-between;
+        min-height: 260px; overflow: hidden;
         <?php if ($heroUrl !== ''): ?>background: url("<?= $e($heroUrl) ?>") center/cover no-repeat;
         <?php else: ?>background: radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 45%, #0b1c2c), #0b1c2c);<?php endif; ?>
     }
-    .bg::after { content: ""; position: absolute; inset: 0;
-        background:
-            linear-gradient(180deg, rgba(8,18,28,.72) 0%, rgba(8,18,28,.55) 40%, rgba(8,18,28,.88) 100%),
-            radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%);
+    .hero::before { content: ""; position: absolute; inset: 0;
+        background: linear-gradient(195deg, rgba(6,8,12,.20) 0%, rgba(6,8,12,.10) 30%, rgba(6,8,12,.78) 100%);
+        pointer-events: none;
     }
-    /* Top bar: back-to-website link. */
-    .topbar { position: relative; display: flex; align-items: center; gap: 12px; padding: clamp(12px, 2.4vh, 20px) clamp(16px, 3vw, 30px); }
-    /* Brand sits at the top-right, opposite the back link. */
-    .topbrand { display: flex; align-items: center; gap: 11px; margin-left: auto; text-decoration: none; color: #fff; }
-    .topbrand img { height: clamp(34px, 5.4vh, 46px); width: auto; filter: drop-shadow(0 6px 16px rgba(0,0,0,.4)); }
-    .topbrand-name { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: rgba(255,255,255,.88); white-space: nowrap; }
-    @media (max-width: 560px) { .topbrand-name { display: none; } }
+    .hero-top, .hero-bottom { position: relative; z-index: 1; }
     .back {
         display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
-        font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.9);
-        padding: 8px 14px; border-radius: 999px;
-        background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.18);
-        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .15s, transform .15s;
+        font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.92);
+        padding: 9px 16px; border-radius: 999px;
+        background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
+        -webkit-backdrop-filter: blur(10px) saturate(180%); backdrop-filter: blur(10px) saturate(180%);
+        transition: background .15s ease;
     }
-    .back:hover { background: rgba(255,255,255,.18); transform: translateX(-2px); }
-    .back svg { width: 16px; height: 16px; }
-    /* Centred hero column. */
-    .wrap {
-        flex: 1; width: 100%; max-width: 980px; margin: 0 auto;
-        padding: clamp(8px, 2vh, 24px) clamp(18px, 4vw, 30px) clamp(10px, 2vh, 22px);
-        display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 0;
+    .back:hover { background: rgba(255,255,255,.24); }
+    .back svg { width: 15px; height: 15px; }
+    .hero-eyebrow {
+        display: inline-block; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+        font-weight: 700; color: rgba(255,255,255,.7); margin-bottom: 10px;
     }
-    /* (brand now lives in the top bar — see .topbrand) */
-    .eyebrow {
-        display: inline-flex; align-items: center; gap: 8px;
-        font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--accent);
-        background: color-mix(in srgb, var(--accent) 16%, transparent);
-        border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-        padding: 6px 14px; border-radius: 999px; margin-bottom: clamp(10px, 2vh, 18px);
+    .hero-tagline { margin: 0; max-width: 46ch; font-size: clamp(22px, 3.4vw, 34px); font-weight: 700;
+        line-height: 1.2; letter-spacing: -.01em; }
+
+    /* ── Entry (right) panel ── */
+    .panel { background: #fff; color: #16181c; display: flex; flex-direction: column;
+        justify-content: center; padding: clamp(28px, 5vw, 56px); }
+    .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .brand-row img { height: 30px; width: auto; }
+    .brand-row-name { font-size: 14px; font-weight: 700; color: #16181c; }
+    h1 { font-size: clamp(24px, 3.4vw, 30px); font-weight: 800; margin: 14px 0 4px; letter-spacing: -.01em; }
+    .sub { font-size: 13.5px; color: #6b7280; margin: 0 0 24px; }
+    .tiles { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    .tile {
+        display: flex; align-items: center; gap: 12px; padding: 13px 14px;
+        border: 1px solid #e5e7eb; border-radius: 12px; text-decoration: none; color: inherit;
+        transition: border-color .15s ease, background .15s ease;
     }
-    .eyebrow svg { width: 14px; height: 14px; }
-    h1 { font-size: clamp(26px, 5vh, 44px); line-height: 1.08; font-weight: 800; letter-spacing: -.02em;
-        margin: 0 0 clamp(10px, 1.8vh, 16px); max-width: 16ch; text-shadow: 0 2px 20px rgba(0,0,0,.35); }
-    .lede { font-size: clamp(14px, 2.2vh, 18px); line-height: 1.5; font-weight: 500; color: rgba(255,255,255,.9);
-        max-width: 42ch; margin: 0 auto clamp(20px, 4vh, 38px); }
-    .cards { display: grid; gap: clamp(14px, 2.4vw, 20px); width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    @media (max-width: 620px) { .cards { grid-template-columns: minmax(0, 1fr); } }
-    .card {
-        position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 1.6vh, 16px);
-        padding: clamp(22px, 3.2vh, 34px) 26px clamp(20px, 2.6vh, 28px); text-decoration: none; color: #fff;
-        background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: var(--radius);
-        -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
-        box-shadow: 0 18px 50px -20px rgba(0,0,0,.55);
-        transition: transform .2s cubic-bezier(.4,0,.2,1), border-color .2s, background .2s, box-shadow .2s; overflow: hidden;
-    }
-    .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px;
-        background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0; transition: opacity .2s; }
-    .card:hover { transform: translateY(-6px); border-color: color-mix(in srgb, var(--accent) 70%, transparent);
-        background: rgba(255,255,255,.13); box-shadow: 0 26px 60px -18px rgba(0,0,0,.6); }
-    .card:hover::before { opacity: 1; }
-    .card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-    .card-ico { width: clamp(76px, 11vh, 96px); height: clamp(76px, 11vh, 96px); display: grid; place-items: center;
-        color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 50%; }
-    .card-ico svg { width: 56%; height: 56%; }
-    .card-title { font-size: clamp(19px, 2.6vh, 22px); font-weight: 750; letter-spacing: -.01em; }
-    .card-blurb { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.78); margin: -2px 0 2px; }
-    .card-cta { display: inline-flex; align-items: center; gap: 7px; margin-top: auto; font-size: 14px; font-weight: 700; color: var(--accent); }
-    .card-cta svg { width: 16px; height: 16px; transition: transform .2s; }
-    .card:hover .card-cta svg { transform: translateX(4px); }
-    .empty { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: var(--radius); padding: 28px; max-width: 460px; }
-    footer { position: relative; text-align: center; padding: clamp(8px, 1.6vh, 16px) 20px clamp(10px, 1.8vh, 16px); }
-    /* Slim, divided contact line (from the business profile) — light-weight so
-       it never pushes the page past 100vh. */
-    .contact { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin-bottom: 8px; }
-    .contact > * {
-        position: relative; display: inline-flex; align-items: center; gap: 7px;
-        padding: 2px 16px; font-size: 12.5px; font-weight: 500;
-        color: rgba(255,255,255,.82); text-decoration: none; transition: color .15s;
-    }
-    .contact > * + *::before {
-        content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-        width: 1px; height: 13px; background: rgba(255,255,255,.24);
-    }
-    .contact a:hover { color: #fff; }
-    .contact svg { width: 14px; height: 14px; flex: none; color: var(--accent); }
-    .foot-copy { font-size: 12px; color: rgba(255,255,255,.55); }
-    @media (max-width: 600px) {
-        .contact { flex-direction: column; gap: 6px; }
-        .contact > * + *::before { display: none; }
-    }
-    /* Small phones / very short viewports: let the page scroll instead of clipping. */
-    @media (max-width: 620px), (max-height: 660px) {
-        body { overflow: auto; height: auto; }
-        .wrap { justify-content: flex-start; }
-    }
+    .tile:hover { border-color: color-mix(in srgb, var(--accent) 55%, #e5e7eb); background: #fafafa; }
+    .tile-ico { flex: none; width: 22px; height: 22px; color: var(--accent); }
+    .tile-ico svg { width: 100%; height: 100%; }
+    .tile-body { flex: 1; min-width: 0; }
+    .tile-label { font-size: 14px; font-weight: 700; margin: 0; }
+    .tile-blurb { font-size: 12.5px; color: #6b7280; margin: 2px 0 0; }
+    .tile-cta { flex: none; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .empty { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; font-size: 13.5px; color: #6b7280; margin-bottom: 24px; }
+
+    .contact { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 8px; }
+    .contact > * { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; text-decoration: none; }
+    .contact a:hover { color: #16181c; }
+    .contact svg { width: 13px; height: 13px; flex: none; color: var(--accent); }
+    .foot-copy { font-size: 11.5px; color: #9ca3af; }
 </style>
 </head>
 <body>
-    <div class="bg"></div>
+<div class="split">
 
-    <header class="topbar">
-        <?php if ($siteUrl !== ''): ?>
-            <a class="back" href="<?= $e($siteUrl) ?>">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
-                <?= $e($siteLabel) ?>
-            </a>
-        <?php endif; ?>
-        <a class="topbrand" href="<?= $e(SLATE_URL) ?>/">
-            <?php
-            // The page background is always a dark hero photo + gradient
-            // overlay (this page's own fixed design), not the visitor's OS
-            // theme, so it always wants the dark-mode logo variant when set.
-            $topLogoUrl = $logoDarkUrl !== '' ? $logoDarkUrl : $logoUrl;
-            ?>
-            <?php if ($topLogoUrl !== ''): ?><img src="<?= $e($topLogoUrl) ?>" alt="<?= $e($bizName) ?>"><?php endif; ?>
-            <span class="topbrand-name"><?= $e($bizName) ?></span>
-        </a>
-    </header>
+    <aside class="hero" aria-hidden="true">
+        <div class="hero-top">
+            <?php if ($siteUrl !== ''): ?>
+                <a class="back" href="<?= $e($siteUrl) ?>">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+                    <?= $e($siteLabel) ?>
+                </a>
+            <?php endif; ?>
+        </div>
+        <div class="hero-bottom">
+            <span class="hero-eyebrow"><?= $e($eyebrow) ?></span>
+            <p class="hero-tagline"><?= $e($intro) ?></p>
+        </div>
+    </aside>
 
-    <main class="wrap">
-        <span class="eyebrow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c2 1.2 3 1.2 5 0s3-1.2 5 0 3 1.2 5 0 3-1.2 5 0"/><path d="M5 18V9l13-3v12"/><path d="M5 9l13-3"/></svg>
-            <?= $e($eyebrow) ?>
-        </span>
+    <main class="panel">
+        <div class="brand-row">
+            <?php if ($logoUrl !== ''): ?><img src="<?= $e($logoUrl) ?>" alt="<?= $e($title) ?>">
+            <?php else: ?><span class="brand-row-name"><?= $e($title) ?></span><?php endif; ?>
+        </div>
+        <h1><?= __('landing_welcome', 'Welcome') ?></h1>
+        <p class="sub"><?= __('landing_choose_hint', 'Choose where you’d like to go.') ?></p>
 
-        <h1><?= $e($title) ?></h1>
-        <p class="lede"><?= $e($intro) ?></p>
-
-        <?php if ($cards): ?>
-            <div class="cards">
-                <?php foreach ($cards as $c): ?>
-                    <a class="card" href="<?= $e($c['url']) ?>">
-                        <span class="card-ico"><?= slate_landing_icon($c['icon']) ?></span>
-                        <span class="card-title"><?= $e($c['label']) ?></span>
-                        <?php if ($c['blurb'] !== ''): ?><span class="card-blurb"><?= $e($c['blurb']) ?></span><?php endif; ?>
-                        <span class="card-cta">
-                            <?= $e($c['button'] !== '' ? $c['button'] : 'Start ' . $c['label']) ?>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <?php if ($tiles): ?>
+            <div class="tiles">
+                <?php foreach ($tiles as $t): ?>
+                    <a class="tile" href="<?= $e($t['url']) ?>">
+                        <span class="tile-ico"><?= slate_landing_icon($t['icon']) ?></span>
+                        <span class="tile-body">
+                            <p class="tile-label"><?= $e($t['label']) ?></p>
+                            <?php if ($t['blurb'] !== ''): ?><p class="tile-blurb"><?= $e($t['blurb']) ?></p><?php endif; ?>
                         </span>
+                        <span class="tile-cta"><?= $e($t['button']) ?></span>
                     </a>
                 <?php endforeach; ?>
             </div>
         <?php else: ?>
-            <div class="empty">The survey order forms aren’t published yet. Please check back shortly.</div>
+            <div class="empty"><?= __('landing_nothing_yet', 'Nothing is featured here yet. Check back shortly.') ?></div>
         <?php endif; ?>
-    </main>
 
-    <footer>
         <?php if ($hasContact): ?>
         <div class="contact">
             <?php if ($cPhone !== ''):
@@ -335,7 +316,9 @@ function slate_render_landing(): void {
         </div>
         <?php endif; ?>
         <div class="foot-copy"><?= $e($footer) ?></div>
-    </footer>
+    </main>
+
+</div>
 </body>
 </html>
     <?php

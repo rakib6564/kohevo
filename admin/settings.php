@@ -774,6 +774,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     Database::setSetting('landing_booking_icon',   $bookIcon);
                 }
 
+                // Entry-point tiles (customer/admin login) — on by default; an
+                // explicit '0' is only ever written when the admin unchecks one.
+                Database::setSetting('landing_show_customer_login', isset($_POST['landing_show_customer_login']) ? '1' : '0');
+                Database::setSetting('landing_show_admin_login',    isset($_POST['landing_show_admin_login'])    ? '1' : '0');
+
                 if (!$flash) {
                     AuditLog::record('settings.updated', 'landing');
                     $redirectWithFlash(['type' => 'success', 'msg' => __('settings_saved', 'Settings saved.')], $activeTab);
@@ -869,15 +874,20 @@ foreach ((array)json_decode((string)Database::setting('landing_forms_json'), tru
     if (isset($lf['id'])) $landingFormMap[(int)$lf['id']] = $lf;
 }
 // Featured "book online" card (only offered when the Booking plugin is active).
+// Defaults ON (unset !== explicit '0') so the entry-point hub shows all three
+// tiles out of the box; an admin who has never saved this tab yet still sees
+// them live, matching what the settings form itself shows as checked below.
 $bookingPluginActive = class_exists('PluginLoader') && PluginLoader::isActive('booking');
 $landingBooking = [
-    'enabled' => Database::setting('landing_booking_enabled') === '1',
+    'enabled' => Database::setting('landing_booking_enabled') !== '0',
     'label'   => $_safeText(Database::setting('landing_booking_label'),  60),
     'blurb'   => $_safeText(Database::setting('landing_booking_blurb'),  160),
     'button'  => $_safeText(Database::setting('landing_booking_button'), 40),
     'icon'    => in_array((string)Database::setting('landing_booking_icon'), ['clipboard','powerboat','sailboat','boat','anchor','compass','star'], true)
                   ? Database::setting('landing_booking_icon') : 'clipboard',
 ];
+$landingShowCustomerLogin = Database::setting('landing_show_customer_login') !== '0';
+$landingShowAdminLogin    = Database::setting('landing_show_admin_login')    !== '0';
 // Every published form the admin can choose to feature.
 $publishedForms = (class_exists('FormsAPI') && function_exists('current_tenant_id'))
     ? Database::rows("SELECT id, slug, title FROM forms_definitions WHERE tenant_id = ? AND status = 'published' ORDER BY title", [current_tenant_id()])
@@ -4061,6 +4071,21 @@ slate_render_settings_tabs($activeTab);
         </div>
     </div><!-- /booking card -->
     <?php endif; ?>
+
+    <div class="card">
+        <div class="card-header"><h2><?= __('landing_entry_points', 'Entry points') ?></h2></div>
+        <p class="text-muted text-sm mb-3">
+            <?= __('landing_entry_points_help', 'Quick-access tiles shown on the landing page. On by default — untick to hide one.') ?>
+        </p>
+        <label class="lf-check" style="margin-bottom:10px;">
+            <input type="checkbox" name="landing_show_customer_login" value="1" <?= $landingShowCustomerLogin ? 'checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>>
+            <span class="lf-title"><?= __('landing_show_customer_login', 'Customer login tile') ?><small>/customer/login.php</small></span>
+        </label>
+        <label class="lf-check">
+            <input type="checkbox" name="landing_show_admin_login" value="1" <?= $landingShowAdminLogin ? 'checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>>
+            <span class="lf-title"><?= __('landing_show_admin_login', 'Admin login tile') ?><small>/admin/login.php</small></span>
+        </label>
+    </div><!-- /entry points card -->
 
     <div class="card">
         <div class="card-header"><h2><?= __('landing_forms', 'Forms shown on the landing page') ?></h2></div>
