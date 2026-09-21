@@ -107,4 +107,120 @@ class LicensingAPI {
         if ($raw === '') return null;
         return slate_decrypt_secret($raw);
     }
+
+    // ── Phase 3: the check-in endpoint ────────────────────────────
+    //
+    // Business logic lives here, not in public/check.php, so it can be
+    // tested directly (a real request/response cycle) without needing a
+    // live HTTP server. public/check.php is a thin shim: read the body,
+    // call handleCheckIn(), emit the status + JSON it returns.
+    //
+    // Response shape is deliberately a signed ENVELOPE, not a flat signed
+    // object: {"payload": "<exact JSON string that was signed>",
+    // "signature": "..."}. `payload` is a JSON string, not a nested
+    // object — the client verifies the signature against that exact byte
+    // string first, and only decodes it into fields after verification
+    // succeeds. A flat object would force the client to re-serialize the
+    // fields identically to verify, which is exactly the kind of
+    // canonicalization mismatch that quietly breaks signature schemes.
+    //
+    // An invalid product slug and an invalid license key return the
+    // IDENTICAL error (same HTTP status, same body) — matching this
+    // app's existing "unknown email vs. wrong password fail identically"
+    // anti-enumeration precedent (Auth::attemptLogin()). A caller must
+    // never be able to tell "wrong key" from "wrong product" from the
+    // response alone.
+
+    public static function handleCheckIn(array $input, string $ip): array {
+        try {
+            $productSlug = trim((string) ($input['product'] ?? ''));
+            $licenseKey  = (string) ($input['license_key'] ?? '');
+            $installId   = trim((string) ($input['install_id'] ?? ''));
+            $domain      = trim((string) ($input['domain'] ?? ''));
+            $appVersion  = trim((string) ($input['app_version'] ?? ''));
+
+            if ($productSlug === '' || $licenseKey === '' || $installId === '') {
+                return self::checkInError(400, 'invalid_request');
+            }
+
+            $product = Database::row('SELECT id FROM licensing_products WHERE slug = ?', [$productSlug]);
+            if (!$product) {
+                return self::checkInError(404, 'invalid_request');
+            }
+
+            $keyHash = hash('sha256', $licenseKey);
+            $install = Database::row(
+                'SELECT * FROM licensing_installs WHERE product_id = ? AND license_key_hash = ?',
+                [$product['id'], $keyHash]
+            );
+            if (!$install) {
+                return self::checkInError(404, 'invalid_request');
+            }
+
+            $status = self::effectiveInstallStatus($install);
+
+            Database::insert('licensing_checkins', [
+                'install_id'       => $install['id'],
+                'ip'               => $ip !== '' ? $ip : null,
+                'reported_domain'  => $domain !== '' ? $domain : null,
+                'reported_version' => $appVersion !== '' ? $appVersion : null,
+                'response_status'  => $status,
+            ]);
+            Database::update('licensing_installs', [
+                'last_checkin_at'   => slate_db_now(),
+                'last_checkin_ip'   => $ip !== '' ? $ip : null,
+                'installed_version' => $appVersion !== '' ? $appVersion : $install['installed_version'],
+            ], 'id = ?', [$install['id']]);
+
+            $planSlug     = null;
+            $entitlements = [];
+            if (!empty($install['plan_id'])) {
+                $plan = Database::row('SELECT slug, entitlements_json FROM licensing_plans WHERE id = ?', [$install['plan_id']]);
+                if ($plan) {
+                    $planSlug     = $plan['slug'];
+                    $entitlements = json_decode((string) $plan['entitlements_json'], true) ?: [];
+                }
+            }
+
+            $secretKey = self::signingSecretKey();
+            if ($secretKey === null) {
+                // Server has no keypair provisioned yet — fail closed, but
+                // the caller sees the same generic error as any other
+                // failure, not "the server isn't set up".
+                slate_log('Licensing check-in: no signing keypair provisioned', 'error');
+                return self::checkInError(500, 'server_error');
+            }
+
+            $payload = [
+                'status'            => $status,
+                'plan'              => $planSlug,
+                'entitlements'      => $entitlements,
+                'expires_at'        => $install['expires_at'],
+                'checked_at'        => gmdate('c'),
+                'next_check_after'  => 86400,
+            ];
+            $payloadJson = (string) json_encode($payload, JSON_UNESCAPED_SLASHES);
+            $signature   = self::sign($payloadJson, $secretKey);
+
+            return ['http_status' => 200, 'body' => ['payload' => $payloadJson, 'signature' => $signature]];
+        } catch (\Throwable $e) {
+            slate_log('Licensing check-in failed: ' . $e->getMessage(), 'error');
+            return self::checkInError(500, 'server_error');
+        }
+    }
+
+    /** Lazy expiry, same reasoning as the local LicenseService::effectiveStatus(): expires_at
+     *  in the past reports 'expired' immediately, without waiting for a sweep to persist it. */
+    private static function effectiveInstallStatus(array $install): string {
+        $status = (string) ($install['status'] ?? 'trial');
+        if (in_array($status, ['trial', 'active'], true) && !empty($install['expires_at'])
+            && strtotime((string) $install['expires_at']) <= time()) {
+            return 'expired';
+        }
+        return $status;
+    }
+
+    private static function checkInError(int $httpStatus, string $code): array {
+        return ['http_status' => $httpStatus, 'body' => ['error' => $code]];
+    }
 }
