@@ -9,6 +9,11 @@
  * install parses them), not a debugging aid.
  */
 
+if (!defined('SLATE_ROOT')) {
+    require_once dirname(__DIR__, 3) . '/config.php';
+}
+slate_public_entry('licensing');
+
 header('Content-Type: application/json; charset=utf-8');
 
 try {
