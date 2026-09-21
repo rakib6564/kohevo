@@ -12,6 +12,7 @@ return [
     'forms_review_sub'              => 'Please review your answers before submitting.',
     'forms_next'                    => 'Next',
     'forms_field_required'          => '%s is required.',
+    'forms_fix_highlighted_fields'  => 'Please fix the highlighted fields and try again.',
     'forms_thanks'                  => 'Thanks!',
     'forms_your_submission'         => 'Your submission',
     'forms_save_pdf'                => 'Save PDF',

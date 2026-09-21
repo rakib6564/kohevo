@@ -329,7 +329,7 @@ function forms_public_render_form(array $form, array $values, array $errors, boo
             <?php if (!empty($errors['_form'])): ?>
                 <div class="alert alert-error"><?= e($errors['_form']) ?></div>
             <?php elseif (!empty($errors)): ?>
-                <div class="alert alert-error">Please fix the highlighted fields and try again.</div>
+                <div class="alert alert-error"><?= __('forms_fix_highlighted_fields', 'Please fix the highlighted fields and try again.') ?></div>
             <?php endif; ?>
 
             <form method="post" enctype="multipart/form-data" novalidate

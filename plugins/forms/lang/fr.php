@@ -11,6 +11,7 @@ return [
     'forms_review_sub'              => 'Veuillez vérifier vos réponses avant d\'envoyer.',
     'forms_next'                    => 'Suivant',
     'forms_field_required'          => '%s est requis.',
+    'forms_fix_highlighted_fields'  => 'Veuillez corriger les champs en surbrillance et réessayer.',
     'forms_thanks'                  => 'Merci !',
     'forms_your_submission'         => 'Votre soumission',
     'forms_save_pdf'                => 'Enregistrer en PDF',
