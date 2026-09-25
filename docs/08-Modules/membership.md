@@ -1,62 +1,41 @@
-# 08 — Membership Module
+# Membership
 
-**Status:** Draft · **Applies to:** Slate v3.x
+**Status:** As built
+**Verified version:** `0.7.1`
+**Owner:** `plugins/membership`
 
 ## Purpose
 
-Fixed-term and recurring memberships: plans, subscriptions, billing cycles, and
-member benefits — layered on core Contacts and Payments, optionally integrating
-Booking.
+Membership manages fixed-term membership, insurance, and course plans; online and manual subscriptions; customer onboarding and profiles; QR member cards; wallet balances; Booking course access; and customer/admin membership surfaces.
 
-## Bounded context
+## Plans and subscriptions
 
-**Commerce** ([02-Domain](../02-Domain/)).
+Plans contain bilingual names/descriptions, type, price, currency, duration, grace period, session quota, insurance mode, optional Booking course ID, active state, and sort order. Subscriptions track status, date range, grace, payment source, Stripe identifiers, insurance fee, reminders, and cancellation.
 
-## Consumes
+Purchase creates a pending Stripe Checkout session. A verified webhook or return flow activates the subscription, records the charge, and creates the wallet purchase ledger entry. Administrators can also assign or activate subscriptions manually. Customers can self-cancel through the portal.
 
-| Service / capability | For |
-|---|---|
-| Identity | the member is a **Contact**; a membership record keyed by `contact_id` |
-| Payments (`PaymentGateway`) | recurring/fixed-term billing via `Money` |
-| `booking@1` (optional) | member-only or included sessions |
-| Notifications | renewal/expiry reminders |
+## Customer experience
 
-## Provides
+The public marketing route is the Membership landing page. The customer route provides plan purchase, onboarding, profile, dashboard, schedule, wallet, and QR card views. Onboarding collects gender, date of birth, skill, medical/allergy notes, emergency contact, phone, avatar, terms/media consent, and locale.
 
-- Capability `membership@1` (Coaching and other modules build on it).
-- Membership blocks (signup, member portal).
-- Events `membership.started`, `membership.renewed`, `membership.expired`.
+The Booking integration can require an active course subscription, completed profile, quota, and configured insurance for eligible online/self-service course bookings. It does not globally gate every Booking service.
 
-## Owns
+## Data and permissions
 
-- `membership_plans`, `_memberships`, `_billing_cycles`, `_benefits` (slug-prefixed);
-  every row keyed by `contact_id`.
-- **Does NOT own:** the person (Contact), payments (gateway + ledger), booking
-  data (consumed via `booking@1`).
+The module owns `membership_plans`, `membership_subscriptions`, `membership_profiles`, `membership_wallet`, and `membership_wallet_txns`. Core customer identity is reused. Money is stored in integer cents in this module. Runtime `ensureSchema()` is used alongside `install.sql`; uninstall drops membership tables but settings cleanup is platform-dependent.
 
-## Routes & admin
+Admin permissions are `membership.view`, `membership.manage_plans`, `membership.manage_members`, and `membership.manage_settings`. MCP handlers use `membership.read`, `membership.manage_members`, and `membership.manage_plans` scopes.
 
-- Public: signup + member portal (member-gated content/benefits).
-- Admin: plans, members, billing, benefits.
+## Integrations and limits
 
-## Integration events
+Stripe Payment verifies sessions and processes webhooks. Booking uses a `booking_can_book` filter and course attendance/quota queries. Customer registration provisions profile and wallet. Media uploads support avatars with a 4 MB limit and constrained image types. English and French language paths are bundled.
 
-- **Emits:** `membership.started`/`expired` → access changes, notifications, CRM
-  activity.
-- **Subscribes:** `payment.succeeded` (activate/renew by `ref`),
-  `appointment.booked` (count included sessions), `contact.merged`.
+The QR card uses a member token and a vendored QR generator. Subscriptions and wallet transactions are tenant-scoped. Admin mutations use permission checks and CSRF. Customer portal actions verify customer ownership.
 
-## Why it composes cleanly now
+## Known gaps
 
-Membership is the clearest example of the composition model: it **consumes**
-Identity + Payments + `booking@1` and **provides** `membership@1` to Coaching —
-all through capabilities and events, never another module's classes. This chain
-(Identity → Membership → Coaching) is only tractable because identity is unified
-([ADR-0006](../14-ADR/0006-unified-identity-contacts.md)) and modules talk through
-contracts ([ADR-0005](../14-ADR/0005-events-and-contracts-for-modules.md)).
+The former module design described generic PaymentGateway/Money contracts, membership events, Contacts-only identity, and generic billing/benefits routes that are not the current implementation. The active code directly uses StripePaymentAPI, Booking hooks, concrete membership tables, and MCP handlers. Reminder columns and settings exist, but no active expiry reminder cron sender was found. There is no discovered universal membership event publication.
 
----
+## Source map
 
-## Related
-
-- [booking.md](booking.md) · [crm.md](crm.md) · [../07-API/payments.md](../07-API/payments.md) · [../14-ADR/0005-events-and-contracts-for-modules.md](../14-ADR/0005-events-and-contracts-for-modules.md)
+See `Membership.php`, `MembershipAPI.php`, `MembershipMcpHandler.php`, `install.sql`, `uninstall.sql`, `public/`, `admin/`, and the QR and language assets.

@@ -1,68 +1,37 @@
-# 08 — Forms Module
+# Forms
 
-**Status:** Draft · **Applies to:** Slate v3.x (unified)
+**Status:** As built
+**Verified version:** `0.7.5`
+**Owner:** `plugins/forms`
 
 ## Purpose
 
-Build public forms with many field types, conditional logic, multi-step flows,
-e-signature, and PDF generation; collect and route submissions. A rebuild of
-today's `forms` plugin that also **retires the legacy core contact-forms** (the
-two coexisting systems collapse to one).
+Forms provides a tenant-scoped form builder and public submission system for contact, intake, quote, questionnaire, and agreement workflows. It includes a visual editor, legacy pipe DSL, advanced field logic, submissions inbox, contacts roll-up, email, PDFs, webhooks, anti-spam, and MCP tools.
 
-## Bounded context
+## Public and admin surfaces
 
-**Communication** ([02-Domain](../02-Domain/)).
+Published forms render at `/forms/<slug>`. The route supports standalone, iframe embed (`?embed=1`), bare inline embed (`?embed=1&chrome=0`), thanks, and signed PDF download. Forms can also be embedded through the Content Builder block.
 
-## Consumes
+Admin pages manage definitions, builder settings, submissions, workflow status, derived contacts, spam logs, CSV exports, and PDF downloads. Submission statuses are `new`, `in_progress`, and `done`; read state is tracked separately.
 
-| Service / capability | For |
-|---|---|
-| Data / migrations | form definitions + submissions, tenant-scoped |
-| Notifications | admin + submitter emails (channels, queued) |
-| Events | broadcasting submissions |
-| Blocks | a form embeddable as a Block |
-| Identity (optional) | link a submission to a Contact when known |
-| API / webhooks | signed, SSRF-guarded outbound delivery |
+## Fields and submission lifecycle
 
-## Provides
+Supported fields include text, email, phone, international phone, URL, number, date, time, address, textarea, select, radio, checkbox, checkbox groups, range, rating, file, signature, heading, hidden, calculated, step, and disclaimer. Conditional visibility, multi-step forms, choice cards, server-side formula recalculation, signatures, file uploads, and branded PDFs are active features.
 
-- A `form` block; event `form.submitted`; ~20+ field types (incl. e-signature).
+A submission passes through honeypot, CSRF, spam guard, field validation, file/signature handling, persistence, and contact roll-up. The response redirects quickly; PDF, emails, notifications, webhook delivery, audit, and `forms_submitted` dispatch run after response flush. Email success/error fields are recorded on the submission.
 
-## Owns
+## Data and permissions
 
-- `forms_definitions`, `_submissions` (slug-prefixed).
-- **Does NOT own:** notification transport (Notifications), webhook delivery (the
-  platform [webhook framework](../07-API/webhooks.md)), or the person (links to a
-  Contact when identifiable, never a copy).
+The module owns `forms_definitions`, `forms_submissions`, `forms_webhooks`, `forms_webhook_log`, `forms_spam_log`, and runtime-created `forms_contacts`. Form and submission settings are stored in JSON. Admin permissions are `forms.view`, `forms.manage`, and `forms.export`; MCP scopes are `forms.read` and `forms.write`.
 
-## Routes & admin
+## Security and operations
 
-- Public: `/forms/<slug>` + iframe embed; honeypot + per-IP rate limit.
-- Admin: builder, submissions inbox, CSV export (formula-injection-safe), PDF
-  download of signed agreements.
+Spam controls include honeypot, IP/CIDR blocks, timing trap, content rules, country allow/block, rate limiting, and Turnstile/reCAPTCHA/hCaptcha. Webhooks use HMAC-SHA256, SSRF/DNS checks, no redirect following, bounded timeouts, and delivery logs. Public PDF links use expiring signed tokens. CSV export neutralizes formula injection.
 
-## Integration events
+The default rate limit in the active guard is five submissions per IP per 60 seconds unless settings change it. CAPTCHA provider outages fail open; rejected tokens fail closed. Embed mode intentionally permits broad framing. The runtime schema reconciles columns and tables not fully represented by `install.sql`.
 
-- **Emits:** `form.submitted` → CRM activity/lead creation, notifications,
-  webhooks, automations. This is the key decoupling: a form doesn't *know* about
-  the CRM; the CRM subscribes and creates a lead.
-- **Subscribes:** `contact.merged`.
+## Source map and known gaps
 
-## Retiring the legacy system
+See `Forms.php`, `FormsAPI.php`, `FormsMcpHandler.php`, `public/router.php`, `admin/`, `lib/FormsSpamGuard.php`, `lib/FormsPdf.php`, `install.sql`, and `uninstall.sql`.
 
-The core contact-forms tables/UI are deprecated; a migration moves any legacy
-submissions into the Forms module, after which the legacy tables are dropped (with
-sign-off, given the [Phase-0](../09-Roadmap/refactor-roadmap.md) VCS safety net).
-One forms system, not two.
-
-## Security
-
-Outbound webhooks reuse the platform SSRF guard; public submissions are
-rate-limited; the PDF writer is dependency-free. All per
-[10-Security](../10-Security/) and [07-API/webhooks.md](../07-API/webhooks.md).
-
----
-
-## Related
-
-- [notifications.md](notifications.md) · [crm.md](crm.md) · [../07-API/webhooks.md](../07-API/webhooks.md) · [../05-Rendering/blocks-and-sections.md](../05-Rendering/blocks-and-sections.md)
+Older documentation described planned platform webhooks, queued notifications, Contact linkage, and fewer field types. The active plugin owns webhook delivery, uses the `forms_submitted` hook, has a forms-specific contacts roll-up, and performs best-effort post-response dispatch. `forms_contacts` is not removed by the current uninstall SQL.

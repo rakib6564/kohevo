@@ -1,89 +1,45 @@
-# 08 — Module Specifications
+# Active Modules
 
-**Status:** Draft · **Applies to:** Slate v1.x → v5.x
+This section is the **as-built reference** for the active plugins under `plugins/`. Each page was reviewed against the module manifest, bootstrap, routes, administration pages, APIs, schema, integrations, and current documentation.
 
-Per-module specifications. Each shows how a vertical binds to **core services**
-(Identity, Payments, Data, Rendering/Blocks, Events) instead of reinventing them —
-the discipline that makes the whole platform coherent. A module is *how Slate does
-a thing*; the kernel and services are *what every module reuses*.
+## Active catalogue
 
----
+| Module | Version | Responsibility | Primary dependency or boundary | Reference |
+|---|---:|---|---|---|
+| Backups | 1.0.0 | Resumable database and uploads archives to Google Drive. | Super-admin, Google Drive, cron. | [Backups](backups.md) |
+| Booking | 0.9.0 | Services, availability, appointments, payments, reminders, and calendars. | Stripe, Google Calendar, optional Booking+, Membership. | [Booking](booking.md) |
+| Coaching | 0.6.0 | Membership-gated Body & Soul coaching program. | Membership, customer portal, cron. | [Coaching](coaching.md) |
+| Forms | 0.7.5 | Public form builder, submissions, validation, webhooks, and PDFs. | Core rendering, mail, notifications, optional CAPTCHA/geo services. | [Forms](forms.md) |
+| Licensing | 0.1.0 | Product, install, license, and signed check-in management. | Sodium, encrypted settings, external product clients. | [Licensing](licensing.md) |
+| MCP Gateway | 0.1.0 | Tenant-scoped MCP JSON-RPC tools and AI assistant. | Core tool registry and installed-module handlers. | [MCP Gateway](mcp-gateway.md) |
+| Media Library | 1.1.0 | Compatibility shim over the core media service and picker. | Core `Media`, uploads, usage tracking. | [Media Library](media-library.md) |
+| Membership | 0.7.1 | Fixed-term plans, subscriptions, onboarding, wallet, and course access. | Stripe, Booking, customer identity. | [Membership](membership.md) |
+| Multilang Translate | 1.3.0 | Harvested translation catalogue, editing, publishing, and live replacement. | Core I18n, crawler, optional LibreTranslate. | [Multilang Translate](multilang-translate.md) |
+| Stripe Payment | 1.2.1 | Stripe Checkout, Payment Element, webhooks, charges, refunds, and Terminal wrappers. | Shop completion paths and Stripe. | [Stripe Payment](stripe-payment.md) |
 
-## Catalogue
+## How to use a module page
 
-**Modules (verticals)** — own a bounded domain, live under `Slate\Module\*`
-([Foundation Standard §1](../03-Standards/platform-foundation.md)):
+Each page follows the same structure: scope and status, capabilities, data ownership, configuration, permissions, routes, hooks and integrations, operational lifecycle, security and limits, failure behavior, uninstall notes, and source map.
 
-| Module | Context | Consumes | Provides |
-|---|---|---|---|
-| [Website/CMS](website-cms.md) | Content | Rendering, Blocks, SEO, Media | pages, posts, menus, content blocks |
-| [Booking](booking.md) | Scheduling | Identity, Payments, Notifications, Blocks | `booking@1`, booking blocks, `appointment.*` events |
-| [Shop](shop.md) | Commerce | Identity, Payments, Shipping, Blocks | shop blocks, `order.*` events |
-| [Membership](membership.md) | Commerce | Identity, Payments, `booking@1` | `membership@1`, `membership.*` events |
-| [CRM](crm.md) | Identity | Identity, Events | pipeline/activities on Contacts |
-| [LMS](lms.md) | Content+Commerce | Identity, Content, Payments | courses, enrollments, `course.*` events |
-| [Forms](forms.md) | Communication | Data, Notifications, Events, Blocks | form block, `form.submitted` |
+Use the [module documentation template](_template.md) when adding or revising an active module page.
 
-**Core services documented here for discoverability** — these are **not modules**;
-they live under `Slate\Services\*` and expose a contract every module may consume.
-They are specified in this section only because modules interact with them heavily:
+The pages intentionally identify **declared-only**, **planned**, and **not found in code** integrations. A manifest’s `works_better_with` list is not proof that a runtime integration exists.
 
-| Core service | Namespace | Contract | Documented in |
-|---|---|---|---|
-| Notifications | `Slate\Services\Notifications` | `NotificationChannel` | [notifications.md](notifications.md) |
-| Search | `Slate\Services\Search` | `SearchIndex` | [search.md](search.md) |
+## Cross-module boundaries
 
-> Media, SEO, and Assets are likewise **core services** (`Slate\Services\Media`,
-> `\Seo`, `\Assets`); their behaviour is documented where it is consumed
-> ([05-Rendering](../05-Rendering/)). The rule: a **module** owns a vertical and
-> its tables; a **core service** exposes a cross-cutting capability via a contract.
+Read [the dependency and contract map](../01-Architecture/dependency-map.md) before changing Booking, Membership, Stripe Payment, Shop, MCP, or any module that consumes shared identity, media, mail, or tenant services.
 
----
+## Historical and planned documentation
 
-## Anatomy of a module (the template every spec follows)
+The older module pages that described a proposed v3 architecture have been rewritten as current references where active code exists. Roadmap documents remain under [`docs/09-Roadmap`](../09-Roadmap/README.md) and must not be used as a description of deployed behavior.
 
-1. **Purpose** — what it does, in one line.
-2. **Bounded context** — where it sits in the [domain](../02-Domain/).
-3. **Consumes** — core services + capabilities it depends on (`requires`).
-4. **Provides** — capabilities, blocks, events it offers (`provides`).
-5. **Owns** — its tables (slug-prefixed) and, crucially, **what it must NOT
-   store** (it attaches a profile to `contact_id`, never a copy of a person).
-6. **Routes & admin** — public routes and admin surface.
-7. **Integration events** — emitted + subscribed.
+## Verification standard
 
----
+A module page is considered current only when it states the implementation version and has been compared with:
 
-## How modules compose
-
-```mermaid
-graph TD
-  ID[Identity] --> BK[Booking]; PAY[Payments] --> BK
-  ID --> SH[Shop]; PAY --> SH; SHIP[Shipping] --> SH
-  ID --> MB[Membership]; PAY --> MB; BK -. booking@1 .-> MB
-  MB -. membership@1 .-> CO[Coaching]
-  ID --> CRM[CRM]
-  RND[Rendering/Blocks] --> WEB[Website/CMS]
-```
-
-Composition is always through **capabilities and events** ([ADR-0005](../14-ADR/0005-events-and-contracts-for-modules.md)),
-never direct class calls. Membership consuming `booking@1` means it resolves the
-Booking capability from the container and reacts to `appointment.*` events — it
-never touches Booking's tables or classes.
-
----
-
-## Rules every module obeys
-
-- Owns only its tables; references no other module's classes/tables (invariant #1).
-- One `contacts` row per person; module data keyed by `contact_id` (invariant #4).
-- `Money` for all amounts (invariant #3); tenant-scoped data (invariant #2).
-- Declarative manifest wiring; migrations not `ensureSchema`.
-- Public UI composes Components through the one pipeline (invariant #6).
-
-See [03-Standards/module-development-standards.md](../03-Standards/module-development-standards.md).
-
----
-
-## Related
-
-- [02-Domain](../02-Domain/) · [05-Rendering](../05-Rendering/) · [06-SDK](../06-SDK/) · [07-API](../07-API/)
+- `plugin.json` and the module bootstrap;
+- install, migration, and uninstall behavior;
+- public, customer, admin, API, and MCP entry points;
+- permissions and tenant predicates;
+- external integrations, cron, webhooks, and audit behavior; and
+- known documentation or implementation discrepancies.
