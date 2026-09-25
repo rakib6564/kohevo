@@ -1,92 +1,183 @@
 # Kohevo
 
-Kohevo is a modular, tenant-aware PHP platform for operating websites, customer portals, bookings, memberships, forms, coaching programs, payments, media, translation, backups, licensing, and AI-assisted administration.
+**A modular business platform for building customer-facing digital operations.**
 
-The platform is designed as a **modular monolith**. Core services provide identity, tenancy, rendering, database access, authentication, authorization, hooks, settings, media, audit logging, and scheduled execution. Optional plugins add business capabilities without requiring a framework build step.
+Kohevo brings websites, customer portals, scheduling, memberships, forms, payments, media, communication, automation, backups, and AI-assisted administration into one extensible platform.
 
-## Documentation policy
+It is designed for organizations that need more than a marketing website but do not want to assemble and maintain a disconnected collection of SaaS tools. Kohevo provides a shared foundation for identity, tenant isolation, permissions, rendering, data, payments, media, audit logging, and scheduled work. Business capabilities are added as modules and composed into a product that fits the organization.
 
-This repository distinguishes between three kinds of documentation:
+> **Kohevo is not a single-purpose booking, CRM, or commerce application. It is a platform for assembling those capabilities into a coherent business system.**
 
-- **As-built documentation** describes behavior verified against the active PHP implementation.
-- **Architecture and standards documentation** describes platform conventions and stable development rules.
-- **Roadmap and design documentation** describes proposed work and is labeled as such.
+## What is Kohevo?
 
-Module pages under [`docs/08-Modules`](docs/08-Modules/README.md) are the authoritative functional reference for active plugins. Each page records its verified version, routes, tables, permissions, integrations, operational behavior, security limits, and known gaps.
+Kohevo is a **server-rendered, modular monolith** built for practical business software. It combines the operational simplicity of a traditional PHP application with the extensibility of a plugin platform.
 
-## Start here
+A Kohevo installation can be used as:
 
-| Need | Read |
+- a public website and customer portal;
+- a scheduling and appointment platform;
+- a membership, subscription, or course-access system;
+- a form and intake workflow;
+- a coaching or client-program application;
+- a payment-enabled customer operation;
+- a multilingual and media-managed digital service; or
+- a white-label foundation for a specialized vertical product.
+
+The product is intentionally modular. An organization can start with a website and forms, add booking and payments later, then add memberships, coaching, or AI tools without replacing its identity and administration foundation.
+
+## Product value
+
+### One operational system instead of disconnected tools
+
+Customer identity, portal access, scheduling, forms, payments, communication, and content can share the same tenant and administrative context. This reduces duplicate records, repeated logins, manual exports, and fragile integrations.
+
+### A foundation that can be adapted to a business
+
+Kohevo does not force every organization into the same workflow. Modules provide reusable capabilities while configuration, permissions, content, forms, services, plans, and templates shape the final product.
+
+### Practical deployment
+
+The platform uses PHP, MySQL or MariaDB, server-rendered HTML, progressive enhancement, and a no-build deployment model. It is suitable for upload-and-run shared hosting and can be operated on larger infrastructure when the deployment requires it.
+
+### Extensible without a rewrite
+
+The core provides hooks, filters, module lifecycle, tenant context, permissions, settings, audit logging, media, mail, public routes, customer routes, and scheduled execution. Modules can extend the platform through these boundaries instead of creating parallel foundations.
+
+## Who is Kohevo for?
+
+Kohevo is intended for:
+
+- **Service businesses** that need online scheduling, intake, payments, reminders, and customer self-service.
+- **Practitioners and consultancies** that manage client programs, forms, memberships, progress, and communication.
+- **Membership organizations** that sell access, subscriptions, courses, events, or recurring services.
+- **Education and coaching providers** that combine enrollment, structured content, progress tracking, communication, and summaries.
+- **Studios and appointment-led businesses** that coordinate providers, capacity, resources, availability, and customer records.
+- **Agencies and white-label product teams** that need a reusable business application foundation for multiple clients or tenants.
+- **Small and growing businesses** that need a focused operational system without the cost and complexity of a large enterprise suite.
+- **Developers and product teams** that want to build vertical applications on a stable PHP platform rather than start with authentication, tenancy, administration, and integrations from zero.
+
+## Industry and market use cases
+
+Kohevo is particularly well suited to industries where customer relationships, scheduled services, structured data, and recurring engagement meet.
+
+| Industry or segment | Example Kohevo product |
 |---|---|
-| Install and configure the platform | [`INSTALL.md`](INSTALL.md) and [`docs/13-Operations/deployment.md`](docs/13-Operations/deployment.md) |
-| Understand the runtime | [`docs/01-Architecture`](docs/01-Architecture/README.md) |
-| Build a plugin | [`docs/06-SDK/building-a-module.md`](docs/06-SDK/building-a-module.md) |
-| Review active modules | [`docs/08-Modules/README.md`](docs/08-Modules/README.md) |
-| Review cross-module dependencies | [`docs/01-Architecture/dependency-map.md`](docs/01-Architecture/dependency-map.md) |
-| Review security controls | [`docs/10-Security`](docs/10-Security/README.md) |
-| Deploy and operate the system | [`docs/13-Operations`](docs/13-Operations/README.md) |
-| Review the database | [`docs/11-Database`](docs/11-Database/README.md) |
-| Run tests safely | [`docs/13-Operations/running-tests-safely.md`](docs/13-Operations/running-tests-safely.md) |
+| Health and wellness | Practitioner website, assessment forms, appointment booking, memberships, and client programs. |
+| Nutrition and coaching | Intake, subscription access, goals, diaries, progress views, recipes, chat, and summaries. |
+| Therapy and wellbeing services | Confidential intake, appointment workflows, payment collection, reminders, and client communication. |
+| Fitness, yoga, and studios | Class or service scheduling, capacity, memberships, attendance-related access, and customer portals. |
+| Education and training | Course plans, enrollment, structured content, forms, progress tracking, and recurring communication. |
+| Professional services | Consultation booking, lead forms, deposits, invoices, client portals, and follow-up workflows. |
+| Agencies and consultants | White-label client portals, project-specific forms, service catalogues, subscriptions, and communication. |
+| Associations and communities | Member records, plans, digital cards, access rules, notifications, and multilingual experiences. |
+| Local service businesses | Service catalogue, provider availability, online booking, payments, reminders, and customer history. |
+| Specialized SaaS products | A tenant-aware foundation for a focused vertical application with custom modules. |
+
+These are product patterns, not restrictions. The active modules are composable and can support other appointment-led, membership-led, form-led, or customer-portal businesses.
+
+## Core product capabilities
+
+### Customer and identity foundation
+
+Kohevo provides customer registration, authentication, verification, password recovery, profiles, customer portal navigation, tenant context, administrative users, roles, permissions, and audit history.
+
+### Website and content experience
+
+The platform supports server-rendered pages, themes, design tokens, reusable components, content blocks, public routes, customer portal surfaces, media, SEO-oriented rendering, and multilingual presentation.
+
+### Scheduling and booking
+
+The Booking module manages services, providers, hours, breaks, overrides, locations, resources, availability, appointments, recurrence, custom fields, customer history, reminders, follow-ups, coupons, gift cards, invoices, messages, Stripe payments, Google Calendar synchronization, and self-service manage links.
+
+### Membership and access
+
+Membership supports fixed-term plans, insurance and course plans, Stripe or manual activation, onboarding, profile data, QR member cards, wallet balances, subscription states, grace periods, and Booking eligibility rules.
+
+### Forms and intake
+
+Forms provides a visual form builder, public forms, embedded forms, conditional logic, multi-step workflows, calculated fields, file uploads, signatures, submissions, spam protection, PDFs, email notifications, webhooks, CSV export, and submission workflow statuses.
+
+### Coaching and client programs
+
+Coaching adds a membership-gated program surface with profiles, goals, check-ins, diary entries, hydration, activity, charts, chat, motivation, recipes, meal structures, shopping lists, and end-of-program summaries.
+
+### Payments
+
+Stripe Payment provides hosted Checkout, embedded Payment Element, verified webhooks, Shop completion paths, charge ledger, refunds, payment-method configuration, and Stripe Terminal server-side wrappers.
+
+### Media and localization
+
+The core Media service manages uploads, metadata, usage, import, safe deletion, images, documents, and a reusable picker. Multilang Translate provides language administration, on-demand string harvesting, translation drafts, publishing, CSV workflows, and a customer/admin/public language switcher.
+
+### Automation, recovery, and AI assistance
+
+Backups creates resumable database and uploads archives in Google Drive. MCP Gateway exposes scoped JSON-RPC tools and separate admin/customer AI assistant surfaces. Cron-based processing supports reminders, scheduled messages, synchronization, backup progress, and program summaries.
+
+## How Kohevo is structured
+
+Kohevo has three practical layers:
+
+1. **Core platform:** identity, tenancy, authentication, permissions, database, settings, rendering, media, mail, audit logging, hooks, routing, and scheduled execution.
+2. **Business modules:** Booking, Membership, Forms, Coaching, Stripe Payment, Media Library, Multilang Translate, Backups, Licensing, and MCP Gateway.
+3. **Product configuration:** services, providers, plans, forms, templates, permissions, language settings, payment settings, content, and customer workflows.
+
+The result is a single deployable product with explicit internal boundaries. A business can use a small subset of modules or assemble a broader operational platform.
+
+## Deployment model
+
+Kohevo is built for:
+
+- PHP 8.1+;
+- MySQL or MariaDB;
+- Apache with rewrite support, or equivalent web-server configuration;
+- common PHP extensions such as PDO MySQL, mbstring, zip, openssl, fileinfo, curl, and GD; and
+- shared hosting, VPS, or managed PHP infrastructure.
+
+The default deployment has no Node or server-side build requirement. Assets are served and composed by the application. Cron provides scheduled processing for modules that require background progress.
 
 ## Active modules
 
-- [Backups](docs/08-Modules/backups.md)
-- [Booking](docs/08-Modules/booking.md)
-- [Coaching](docs/08-Modules/coaching.md)
-- [Forms](docs/08-Modules/forms.md)
-- [Licensing](docs/08-Modules/licensing.md)
-- [MCP Gateway](docs/08-Modules/mcp-gateway.md)
-- [Media Library](docs/08-Modules/media-library.md)
-- [Membership](docs/08-Modules/membership.md)
-- [Multilang Translate](docs/08-Modules/multilang-translate.md)
-- [Stripe Payment](docs/08-Modules/stripe-payment.md)
+| Module | Responsibility | Reference |
+|---|---|---|
+| Backups | Database and uploads archives with Google Drive retention. | [Module reference](docs/08-Modules/backups.md) |
+| Booking | Services, availability, appointments, payments, reminders, and calendars. | [Module reference](docs/08-Modules/booking.md) |
+| Coaching | Membership-gated client program and progress workflows. | [Module reference](docs/08-Modules/coaching.md) |
+| Forms | Public form builder, intake, submissions, PDFs, and webhooks. | [Module reference](docs/08-Modules/forms.md) |
+| Licensing | Product licenses, installs, signed check-ins, and entitlements. | [Module reference](docs/08-Modules/licensing.md) |
+| MCP Gateway | Scoped AI and automation tools through MCP JSON-RPC. | [Module reference](docs/08-Modules/mcp-gateway.md) |
+| Media Library | Core media compatibility layer and reusable picker. | [Module reference](docs/08-Modules/media-library.md) |
+| Membership | Plans, subscriptions, onboarding, wallets, and access rules. | [Module reference](docs/08-Modules/membership.md) |
+| Multilang Translate | Translation catalogue, publishing, and language switcher. | [Module reference](docs/08-Modules/multilang-translate.md) |
+| Stripe Payment | Checkout, Payment Element, webhooks, charges, refunds, and Terminal wrappers. | [Module reference](docs/08-Modules/stripe-payment.md) |
 
-The [`archive/`](archive/) directory contains historical or inactive plugins. Archived code is not part of the active product contract unless a page explicitly says otherwise.
+## For developers
 
-## Runtime model
+Read the [documentation hub](docs/README.md) for the complete technical set. Start with the [architecture section](docs/01-Architecture/README.md), then use the [active-module catalogue](docs/08-Modules/README.md) for implementation details.
 
-A request is resolved through the core bootstrap, tenant context, authentication state, plugin lifecycle, route handler, service/API layer, and rendering or JSON response. Plugins register behavior through hooks and filters and should use core services rather than duplicating identity, tenancy, media, payment, or rendering logic.
-
-The system supports shared-hosting deployment through database-backed state and cron execution. Heavier deployments can substitute infrastructure drivers where documented, but module behavior should remain stable.
-
-## Development principles
-
-1. Keep tenant boundaries explicit in every query and write path.
-2. Use core authentication, permissions, CSRF, settings, audit, media, and mail services.
-3. Treat plugin manifests, routes, schemas, runtime migrations, and documentation as one versioned contract.
-4. Distinguish implemented behavior from planned behavior.
-5. Make external calls verifiable, bounded, logged, and retry-safe where possible.
-6. Document sensitive data, retention, failure modes, and uninstall behavior.
-7. Preserve backward compatibility intentionally and record breaking changes.
+Before changing a module, inspect its manifest, bootstrap, routes, permissions, schema, integrations, and tests. Update the corresponding documentation when the public behavior changes. The [module documentation template](docs/08-Modules/_template.md) defines the expected structure.
 
 ## Repository structure
 
 | Directory | Responsibility |
 |---|---|
-| `src/` and `includes/` | Core services, shared helpers, and compatibility APIs. |
+| `src/` and `includes/` | Core services and shared compatibility APIs. |
 | `plugins/` | Active optional modules. |
 | `archive/plugins/` | Historical or inactive modules. |
-| `admin/` | Core administration routes and pages. |
-| `customer/` | Core customer portal routes and pages. |
+| `admin/` and `customer/` | Core administration and customer portal. |
 | `api/` | Core API routing and authentication. |
 | `db/` | Core schema and migrations. |
-| `docs/` | Architecture, standards, APIs, modules, operations, security, testing, and ADRs. |
+| `docs/` | Product, architecture, API, module, security, operations, and testing documentation. |
 | `tests/` | Automated tests and conformance checks. |
-| `bin/` | Operational and development command-line utilities. |
+| `bin/` | Operational and development utilities. |
+
+## Product boundaries
+
+Kohevo is not a general-purpose framework competing with Laravel or Symfony. It is a focused platform foundation for business applications. It is not an SPA-first system, a microservice mesh, or a single vertical product. Its value is the combination of a practical deployment model, shared business foundations, and modular product capabilities.
 
 ## Source of truth
 
-When documents disagree, use this order:
+For active behavior, use executable code, runtime tests, manifests, and schema/migrations first. Architecture and roadmap documents describe design direction and may differ from the current implementation. The active module pages record those differences explicitly.
 
-1. Active executable code and runtime tests.
-2. Active schema/migrations and plugin manifests.
-3. Module README and operational configuration.
-4. Architecture and roadmap documents, which may describe intended future contracts.
+## License and contribution
 
-Known discrepancies are recorded on the relevant module page instead of being silently hidden.
-
-## Contribution workflow
-
-Before changing a module, read its canonical page, inspect the module manifest and schema, update the implementation, add or update tests, and revise the module page if the public contract changes. Keep commits focused and record architectural decisions in [`docs/14-ADR`](docs/14-ADR/README.md).
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for repository contribution rules.
+Review the repository’s license and contribution policy before redistribution or deployment. Contributions should keep tenant boundaries, permission checks, CSRF, audit behavior, module ownership, and documentation aligned with the implementation.
